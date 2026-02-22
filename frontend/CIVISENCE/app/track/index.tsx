@@ -36,6 +36,8 @@ type ComplaintCardModel = {
   statusRaw: string;
   priorityLabel: string;
   priorityReason: string;
+  assignedOfficeLabel: string;
+  routingReason: string;
   dateLabel: string;
   locationLabel: string;
   progress: number;
@@ -130,7 +132,38 @@ const toLocationLabel = (complaint: ComplaintRecord): string => {
   return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
 };
 
-const toTimeline = (complaint: ComplaintRecord): TimelineItem[] => {
+const toAssignedOfficeLabel = (complaint: ComplaintRecord): string => {
+  if (complaint.assignedMunicipalOffice?.name) {
+    return complaint.assignedMunicipalOffice.name;
+  }
+
+  if (complaint.assignedOfficeType) {
+    return `Assigned (${complaint.assignedOfficeType.replace("_", " ")})`;
+  }
+
+  return "Not assigned yet";
+};
+
+const toDetailedPriorityReason = (complaint: ComplaintRecord): string => {
+  const sentence = complaint.priority?.reasonSentence?.trim();
+  const technical = complaint.priority?.reason?.trim();
+
+  if (sentence && technical && sentence !== technical) {
+    return `${sentence}\n\nTechnical details: ${technical}`;
+  }
+
+  if (sentence) {
+    return sentence;
+  }
+
+  if (technical) {
+    return technical;
+  }
+
+  return "No priority explanation yet";
+};
+
+const toTimeline = (complaint: ComplaintRecord, assignedOfficeLabel: string): TimelineItem[] => {
   const timeline: TimelineItem[] = [
     {
       date: formatDate(complaint.createdAt),
@@ -141,21 +174,30 @@ const toTimeline = (complaint: ComplaintRecord): TimelineItem[] => {
   if (complaint.status === "assigned") {
     timeline.push({
       date: formatDate(complaint.updatedAt),
-      message: "Assigned to municipal office",
+      message:
+        assignedOfficeLabel !== "Not assigned yet"
+          ? `Assigned to ${assignedOfficeLabel}`
+          : "Assigned to municipal office",
     });
   }
 
   if (complaint.status === "in_progress") {
     timeline.push({
       date: formatDate(complaint.updatedAt),
-      message: "Work in progress",
+      message:
+        assignedOfficeLabel !== "Not assigned yet"
+          ? `Work in progress by ${assignedOfficeLabel}`
+          : "Work in progress",
     });
   }
 
   if (complaint.status === "resolved") {
     timeline.push({
       date: formatDate(complaint.updatedAt),
-      message: "Issue resolved",
+      message:
+        assignedOfficeLabel !== "Not assigned yet"
+          ? `Issue resolved by ${assignedOfficeLabel}`
+          : "Issue resolved",
     });
   }
 
@@ -169,25 +211,28 @@ const toTimeline = (complaint: ComplaintRecord): TimelineItem[] => {
   return timeline;
 };
 
-const toViewModel = (complaint: ComplaintRecord): ComplaintCardModel => ({
-  id: complaint._id,
-  title: complaint.title,
-  description: complaint.description,
-  category: complaint.category,
-  statusLabel: toStatusLabel(complaint.status),
-  statusRaw: complaint.status,
-  priorityLabel: toPriorityLabel(complaint.priority?.level),
-  priorityReason:
-    complaint.priority?.reasonSentence ||
-    complaint.priority?.reason ||
-    "No priority explanation yet",
-  dateLabel: formatDate(complaint.createdAt),
-  locationLabel: toLocationLabel(complaint),
-  progress: toProgress(complaint.status),
-  icon: toCategoryIcon(complaint.category),
-  imageUrl: complaint.images?.[0]?.url || null,
-  timeline: toTimeline(complaint),
-});
+const toViewModel = (complaint: ComplaintRecord): ComplaintCardModel => {
+  const assignedOfficeLabel = toAssignedOfficeLabel(complaint);
+
+  return {
+    id: complaint._id,
+    title: complaint.title,
+    description: complaint.description,
+    category: complaint.category,
+    statusLabel: toStatusLabel(complaint.status),
+    statusRaw: complaint.status,
+    priorityLabel: toPriorityLabel(complaint.priority?.level),
+    priorityReason: toDetailedPriorityReason(complaint),
+    assignedOfficeLabel,
+    routingReason: complaint.routingReason || "Routing details unavailable",
+    dateLabel: formatDate(complaint.createdAt),
+    locationLabel: toLocationLabel(complaint),
+    progress: toProgress(complaint.status),
+    icon: toCategoryIcon(complaint.category),
+    imageUrl: complaint.images?.[0]?.url || null,
+    timeline: toTimeline(complaint, assignedOfficeLabel),
+  };
+};
 
 const getStatusGradient = (status: string): [string, string] => {
   switch (status) {
@@ -348,6 +393,9 @@ export default function TrackComplaints() {
                   <View style={styles.cardHeaderContent}>
                     <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
                     <Text style={styles.cardMeta}>{item.locationLabel} | {item.dateLabel}</Text>
+                    <Text style={styles.cardOffice} numberOfLines={1}>
+                      Office: {item.assignedOfficeLabel}
+                    </Text>
                   </View>
                 </View>
 
@@ -408,6 +456,12 @@ export default function TrackComplaints() {
 
             <Text style={styles.modalLabel}>Priority Reason</Text>
             <Text style={styles.modalValue}>{selectedComplaint?.priorityReason || "-"}</Text>
+
+            <Text style={styles.modalLabel}>Assigned Municipal Office</Text>
+            <Text style={styles.modalValue}>{selectedComplaint?.assignedOfficeLabel || "-"}</Text>
+
+            <Text style={styles.modalLabel}>Routing</Text>
+            <Text style={styles.modalValue}>{selectedComplaint?.routingReason || "-"}</Text>
 
             <Text style={styles.modalLabel}>Timeline</Text>
             <View style={styles.timelineWrap}>
@@ -613,6 +667,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 12,
     color: "#64748b",
+  },
+  cardOffice: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#1d4ed8",
+    fontWeight: "600",
   },
   progressBlock: {
     marginBottom: 12,

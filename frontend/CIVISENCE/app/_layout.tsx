@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { getPreferences } from "@/lib/preferences";
 import { sendLocalPush } from "@/lib/push";
 import { sessionStore } from "@/lib/session";
 import { getNotifications } from "@/lib/services/notifications";
+import Loader from "@/components/ui/Loader";
 import {
   flushQueuedComplaints,
   initComplaintQueueSync,
@@ -129,16 +129,7 @@ export default function RootLayout() {
   if (!sessionReady) {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "#ffffff",
-          }}
-        >
-          <ActivityIndicator size="large" color="#2563eb" />
-        </View>
+        <Loader txt="Syncing civic intelligence..." />
       </GestureHandlerRootView>
     );
   }

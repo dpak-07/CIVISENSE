@@ -350,6 +350,14 @@ class AIProcessor:
         image_context: ImageContext,
     ) -> PriorityResult:
         if duplicate_match.is_duplicate:
+            duplicate_id = duplicate_match.matched_complaint_id or "unknown"
+            duplicate_distance = (
+                f"{duplicate_match.matched_distance_meters:.2f}m"
+                if duplicate_match.matched_distance_meters is not None
+                else "unknown distance"
+            )
+            duplicate_similarity = f"{duplicate_match.similarity * 100:.2f}%"
+            method = duplicate_match.method or "unknown method"
             return PriorityResult(
                 base_score=base_priority.base_score,
                 geo_multiplier=base_priority.geo_multiplier,
@@ -359,8 +367,18 @@ class AIProcessor:
                 cluster_boost=base_priority.cluster_boost,
                 priority_score=0.0,
                 priority_level="low",
-                reason="Duplicate complaint",
-                reason_sentence="Priority Low because this report is a duplicate of an existing complaint.",
+                reason=(
+                    "Duplicate complaint override applied: "
+                    f"matched_complaint={duplicate_id}; "
+                    f"similarity={duplicate_similarity}; "
+                    f"distance={duplicate_distance}; "
+                    f"category_match={duplicate_match.category_match}; "
+                    f"method={method}"
+                ),
+                reason_sentence=(
+                    "Priority Low because this report appears to duplicate an existing complaint "
+                    f"(similarity {duplicate_similarity}, {duplicate_distance})."
+                ),
             )
 
         reason = base_priority.reason

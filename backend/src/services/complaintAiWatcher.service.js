@@ -1,17 +1,103 @@
 const mongoose = require('mongoose');
 const Complaint = require('../models/Complaint');
+const MunicipalOffice = require('../models/MunicipalOffice');
 const logger = require('../config/logger');
 const { sendNotification } = require('./notification.service');
 
 let changeStream = null;
 let pollingTimer = null;
 let lastPolledAt = new Date(Date.now() - 60 * 1000);
+const AI_PRIORITY_NOTIFICATION_WINDOW_MS = 2 * 60 * 1000;
 
 const FLAG_REASONS = [
   'image does not match reported issue',
   'duplicate image detected',
   'user under review'
 ];
+
+const parseDate = (value) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date;
+};
+
+const isPriorityReady = (complaint) =>
+  Boolean(
+    complaint?.priority?.aiProcessed &&
+      complaint?.priority?.aiProcessingStatus === 'done' &&
+      complaint?.priority?.level
+  );
+
+const wasRecentlyProcessedByAi = (complaint) => {
+  const updatedAt = parseDate(complaint?.updatedAt);
+  const processedAt = parseDate(complaint?.aiMeta?.processedAt);
+
+  if (!updatedAt || !processedAt) {
+    return false;
+  }
+
+  const deltaMs = Math.abs(updatedAt.getTime() - processedAt.getTime());
+  return deltaMs <= AI_PRIORITY_NOTIFICATION_WINDOW_MS;
+};
+
+const shorten = (value, max = 320) => {
+  const text = String(value || '').trim();
+  if (!text) {
+    return '';
+  }
+  if (text.length <= max) {
+    return text;
+  }
+  return `${text.slice(0, max - 3)}...`;
+};
+
+const buildPriorityTitle = (priorityLevel) => {
+  const level = String(priorityLevel || 'low').trim().toLowerCase();
+  return `Priority set to ${level.charAt(0).toUpperCase()}${level.slice(1)}`;
+};
+
+const resolveAssignedOfficeName = async (assignedMunicipalOffice) => {
+  if (!assignedMunicipalOffice) {
+    return null;
+  }
+
+  if (typeof assignedMunicipalOffice === 'object' && assignedMunicipalOffice.name) {
+    return assignedMunicipalOffice.name;
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(String(assignedMunicipalOffice))) {
+    return null;
+  }
+
+  const office = await MunicipalOffice.findById(assignedMunicipalOffice).select('name').lean();
+  return office?.name || null;
+};
+
+const buildPriorityMessage = ({ complaint, assignedOfficeName }) => {
+  const reasonSentence = shorten(complaint?.priority?.reasonSentence, 380);
+  const technicalReason = shorten(complaint?.priority?.reason, 420);
+
+  const reasonParts = [];
+  if (reasonSentence) {
+    reasonParts.push(reasonSentence);
+  }
+  if (technicalReason && technicalReason !== reasonSentence) {
+    reasonParts.push(`Details: ${technicalReason}`);
+  }
+
+  const reasonText =
+    reasonParts.length > 0
+      ? reasonParts.join(' ')
+      : 'AI completed priority analysis for your complaint.';
+
+  if (assignedOfficeName) {
+    return `${reasonText} Assigned municipal office: ${assignedOfficeName}.`;
+  }
+
+  return `${reasonText} Municipal office assignment is pending.`;
+};
 
 const isFlaggedComplaint = (complaint) => {
   const reason = String(complaint?.priority?.reason || '').toLowerCase();
@@ -27,11 +113,12 @@ const processComplaint = async (complaint) => {
     return;
   }
 
-  if (complaint.priority?.level === 'high') {
+  if (isPriorityReady(complaint) && wasRecentlyProcessedByAi(complaint)) {
+    const assignedOfficeName = await resolveAssignedOfficeName(complaint.assignedMunicipalOffice);
     await sendNotification(
       complaint.reportedBy,
-      'Priority upgraded to high',
-      'Your complaint priority was upgraded to high by the AI governance layer.',
+      buildPriorityTitle(complaint.priority?.level),
+      buildPriorityMessage({ complaint, assignedOfficeName }),
       complaint._id
     );
   }
@@ -56,7 +143,7 @@ const startPolling = () => {
     lastPolledAt = new Date();
     try {
       const complaints = await Complaint.find({ updatedAt: { $gte: windowStart } })
-        .select('reportedBy priority aiMeta updatedAt')
+        .select('_id reportedBy priority aiMeta assignedMunicipalOffice updatedAt')
         .sort({ updatedAt: 1 })
         .lean();
 

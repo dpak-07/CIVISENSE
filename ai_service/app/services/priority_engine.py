@@ -53,12 +53,15 @@ class PriorityEngine:
         level = self._map_level(final_score)
 
         reason = (
-            "Text score="
-            f"{text_result.base_score:.2f} "
-            f"(high={text_result.high_count}, medium={text_result.medium_count}, normal={text_result.normal_count}); "
-            f"Geo multiplier={geo_result.multiplier:.2f} ({geo_result.matched_type}); "
-            f"Time score={time_score:.2f}; "
-            f"Cluster boost={cluster_result.cluster_boost:.2f} (count={cluster_result.nearby_count})"
+            "Priority computation details: "
+            f"text_base={text_result.base_score:.2f} "
+            f"[high={text_result.high_count} ({self._format_keywords(text_result.matched_high)}), "
+            f"medium={text_result.medium_count} ({self._format_keywords(text_result.matched_medium)}), "
+            f"normal={text_result.normal_count} ({self._format_keywords(text_result.matched_normal)})]; "
+            f"geo_multiplier={geo_result.multiplier:.2f} (context={geo_result.matched_type}); "
+            f"time_boost={time_score:.2f}; "
+            f"cluster_boost={cluster_result.cluster_boost:.2f} (nearby_reports={cluster_result.nearby_count}); "
+            f"final_score={final_score:.2f}; level={level.upper()}"
         )
 
         reason_sentence = self._build_reason_sentence(
@@ -160,5 +163,13 @@ class PriorityEngine:
 
         return (
             f"Priority {level_label} because {text_phrase}, {geo_phrase}, "
-            f"{cluster_phrase}, and {time_phrase}."
+            f"{cluster_phrase}, and {time_phrase}. "
+            f"Computed score components include text severity, geo sensitivity multiplier, "
+            f"time aging boost, and nearby cluster impact."
         )
+
+    @staticmethod
+    def _format_keywords(keywords: list[str]) -> str:
+        if not keywords:
+            return "none"
+        return ", ".join(sorted(set(keywords)))

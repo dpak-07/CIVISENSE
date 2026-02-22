@@ -1,6 +1,7 @@
-﻿const { StatusCodes } = require('http-status-codes');
+const { StatusCodes } = require('http-status-codes');
 const mongoose = require('mongoose');
 const Complaint = require('../models/Complaint');
+const MunicipalOffice = require('../models/MunicipalOffice');
 const Notification = require('../models/Notification');
 const ApiError = require('../utils/ApiError');
 const { ROLES } = require('../constants/roles');
@@ -15,11 +16,37 @@ const {
   AI_PROCESSING_STATUS
 } = require('../constants/complaint');
 
+
 const complaintPopulate = [
   { path: 'reportedBy', select: 'name email role isActive' },
   { path: 'assignedMunicipalOffice', select: 'name type zone workload maxCapacity isActive' },
   { path: 'duplicateInfo.masterComplaintId', select: 'title status category' }
 ];
+
+const resolveAssignedOfficeName = async (assignedMunicipalOffice) => {
+  if (!assignedMunicipalOffice) {
+    return null;
+  }
+
+  if (typeof assignedMunicipalOffice === 'object' && assignedMunicipalOffice.name) {
+    return assignedMunicipalOffice.name;
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(String(assignedMunicipalOffice))) {
+    return null;
+  }
+
+  const office = await MunicipalOffice.findById(assignedMunicipalOffice).select('name').lean();
+  return office?.name || null;
+};
+
+const buildAssignmentNotificationMessage = (assignedOfficeName) => {
+  if (assignedOfficeName) {
+    return `Your complaint has been assigned to municipal office: ${assignedOfficeName}.`;
+  }
+
+  return 'Your complaint has been assigned to a municipal office.';
+};
 
 const resolveLocationPayload = ({ location, longitude, latitude }) => {
   if (location) {
@@ -155,10 +182,11 @@ const createComplaint = async (payload, reportedBy, options = {}) => {
       .lean();
 
     if (duplicateComplaint.status === COMPLAINT_STATUS.ASSIGNED) {
+      const assignedOfficeName = await resolveAssignedOfficeName(created?.assignedMunicipalOffice);
       await sendNotification(
         reportedBy,
         'Complaint assigned',
-        'Your complaint has been assigned to a municipal office.',
+        buildAssignmentNotificationMessage(assignedOfficeName),
         duplicateComplaint._id
       );
     }
@@ -206,10 +234,11 @@ const createComplaint = async (payload, reportedBy, options = {}) => {
   const created = await Complaint.findById(complaint._id).populate(complaintPopulate).lean();
 
   if (routing.isAssigned) {
+    const assignedOfficeName = await resolveAssignedOfficeName(created?.assignedMunicipalOffice);
     await sendNotification(
       reportedBy,
       'Complaint assigned',
-      'Your complaint has been assigned to a municipal office.',
+      buildAssignmentNotificationMessage(assignedOfficeName),
       complaint._id
     );
   }
@@ -282,10 +311,11 @@ const updateComplaintStatus = async ({ complaintId, status }) => {
   }
 
   if (status === COMPLAINT_STATUS.ASSIGNED) {
+    const assignedOfficeName = await resolveAssignedOfficeName(complaint.assignedMunicipalOffice);
     await sendNotification(
       complaint.reportedBy,
       'Complaint assigned',
-      'Your complaint has been assigned to a municipal office.',
+      buildAssignmentNotificationMessage(assignedOfficeName),
       complaint._id
     );
   }
@@ -347,3 +377,4 @@ module.exports = {
   updateComplaintStatus,
   deleteComplaint
 };
+

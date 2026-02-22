@@ -18,6 +18,16 @@ export type ComplaintPriority = {
   aiProcessingStatus?: string;
 };
 
+export type AssignedMunicipalOffice = {
+  _id: string;
+  name: string;
+  type?: string;
+  zone?: string;
+  workload?: number;
+  maxCapacity?: number;
+  isActive?: boolean;
+};
+
 export type ComplaintRecord = {
   _id: string;
   title: string;
@@ -32,6 +42,10 @@ export type ComplaintRecord = {
   };
   images?: ComplaintImage[];
   priority?: ComplaintPriority;
+  assignedMunicipalOffice?: AssignedMunicipalOffice | null;
+  assignedOfficeType?: string | null;
+  routingDistanceMeters?: number | null;
+  routingReason?: string | null;
   duplicateInfo?: {
     isDuplicate: boolean;
     duplicateCount?: number;

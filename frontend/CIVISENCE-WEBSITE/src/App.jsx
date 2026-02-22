@@ -1,8 +1,10 @@
 import { AnimatePresence } from "framer-motion";
 import { Building2, Home, LayoutDashboard, UserRound } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import PublicOnlyRoute from "./components/auth/PublicOnlyRoute";
+import BootLoader from "./components/common/BootLoader";
 import PageTransition from "./components/common/PageTransition";
 import DashboardLayout from "./layouts/DashboardLayout";
 import LoginPage from "./pages/LoginPage";
@@ -144,6 +146,20 @@ function AppRoutes() {
 }
 
 function App() {
+  const [isBooting, setIsBooting] = useState(true);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setIsBooting(false);
+    }, 2200);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (isBooting) {
+    return <BootLoader text="Syncing civic intelligence..." />;
+  }
+
   return <AppRoutes />;
 }
 
