@@ -1,12 +1,16 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Dimensions,
   FlatList,
-  Image,
+  ImageBackground,
   Modal,
+  PanResponder,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -15,7 +19,7 @@ import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { FadeInUp } from "react-native-reanimated";
+import Reanimated, { FadeInUp } from "react-native-reanimated";
 import { getApiErrorMessage } from "@/lib/api";
 import { sessionStore } from "@/lib/session";
 import { ComplaintRecord, deleteComplaint, getMyComplaints } from "@/lib/services/complaints";
@@ -262,12 +266,127 @@ const getPriorityColor = (priority: string): string => {
   }
 };
 
+const getStatusColor = (status: string): string => {
+  switch (status) {
+    case "in_progress":
+      return "#f59e0b";
+    case "assigned":
+      return "#3b82f6";
+    case "reported":
+    case "unassigned":
+      return "#64748b";
+    default:
+      return "#64748b";
+  }
+};
+
+const isUnresolvedStatus = (status: string): boolean =>
+  status !== "resolved" && status !== "rejected";
+
+const SCREEN_HEIGHT = Dimensions.get("window").height;
+const SHEET_COLLAPSED_HEIGHT = 176;
+const SHEET_EXPANDED_HEIGHT = Math.min(SCREEN_HEIGHT * 0.78, SCREEN_HEIGHT - 110);
+const SHEET_MAX_TRANSLATE = SHEET_EXPANDED_HEIGHT - SHEET_COLLAPSED_HEIGHT;
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value));
+
 export default function TrackComplaints() {
   const [complaints, setComplaints] = useState<ComplaintCardModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [authMissing, setAuthMissing] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintCardModel | null>(null);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const sheetTranslateY = useRef(new Animated.Value(SHEET_MAX_TRANSLATE)).current;
+  const sheetCurrentYRef = useRef(SHEET_MAX_TRANSLATE);
+  const sheetStartYRef = useRef(SHEET_MAX_TRANSLATE);
+  const sheetExpandedRef = useRef(false);
+  const detailScrollOffsetRef = useRef(0);
+
+  useEffect(() => {
+    const id = sheetTranslateY.addListener(({ value }) => {
+      sheetCurrentYRef.current = value;
+    });
+
+    return () => {
+      sheetTranslateY.removeListener(id);
+    };
+  }, [sheetTranslateY]);
+
+  useEffect(() => {
+    if (!selectedComplaint) {
+      return;
+    }
+
+    sheetTranslateY.setValue(SHEET_MAX_TRANSLATE);
+    setSheetExpanded(false);
+    sheetExpandedRef.current = false;
+    detailScrollOffsetRef.current = 0;
+  }, [selectedComplaint, sheetTranslateY]);
+
+  const animateSheetTo = useCallback(
+    (toValue: number) => {
+      Animated.spring(sheetTranslateY, {
+        toValue,
+        useNativeDriver: true,
+        speed: 15,
+        bounciness: 0,
+      }).start(({ finished }) => {
+        if (!finished) {
+          return;
+        }
+
+        const expanded = toValue === 0;
+        sheetExpandedRef.current = expanded;
+        setSheetExpanded(expanded);
+      });
+    },
+    [sheetTranslateY]
+  );
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          const isVertical = Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+          if (!isVertical || Math.abs(gestureState.dy) < 5) {
+            return false;
+          }
+
+          if (!sheetExpandedRef.current) {
+            return true;
+          }
+
+          return gestureState.dy > 0 && detailScrollOffsetRef.current <= 0;
+        },
+        onPanResponderGrant: () => {
+          sheetStartYRef.current = sheetCurrentYRef.current;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          if (sheetExpandedRef.current && gestureState.dy < 0) {
+            return;
+          }
+
+          const next = clamp(
+            sheetStartYRef.current + gestureState.dy,
+            0,
+            SHEET_MAX_TRANSLATE
+          );
+          sheetTranslateY.setValue(next);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const projected = sheetCurrentYRef.current + gestureState.vy * 65;
+          const shouldExpand = projected < SHEET_MAX_TRANSLATE / 2;
+          animateSheetTo(shouldExpand ? 0 : SHEET_MAX_TRANSLATE);
+        },
+        onPanResponderTerminate: () => {
+          const shouldExpand = sheetCurrentYRef.current < SHEET_MAX_TRANSLATE / 2;
+          animateSheetTo(shouldExpand ? 0 : SHEET_MAX_TRANSLATE);
+        },
+      }),
+    [animateSheetTo, sheetTranslateY]
+  );
 
   const loadComplaints = useCallback(async (isRefresh = false) => {
     const user = sessionStore.getUser();
@@ -289,7 +408,8 @@ export default function TrackComplaints() {
 
     try {
       const records = await getMyComplaints();
-      setComplaints(records.map(toViewModel));
+      const unresolved = records.filter((item) => isUnresolvedStatus(item.status));
+      setComplaints(unresolved.map(toViewModel));
     } catch (error) {
       const message = getApiErrorMessage(error);
       if (message.toLowerCase().includes("authorization") || message.toLowerCase().includes("token")) {
@@ -322,7 +442,15 @@ export default function TrackComplaints() {
     }, [loadComplaints])
   );
 
-  const activeCount = useMemo(() => complaints.length, [complaints]);
+  const stats = useMemo(() => {
+    const high = complaints.filter((item) => item.priorityLabel === "High").length;
+    const inProgress = complaints.filter((item) => item.statusRaw === "in_progress").length;
+    const waiting = complaints.filter(
+      (item) => item.statusRaw === "reported" || item.statusRaw === "unassigned"
+    ).length;
+
+    return { total: complaints.length, high, inProgress, waiting };
+  }, [complaints]);
 
   if (loading) {
     return (
@@ -355,13 +483,36 @@ export default function TrackComplaints() {
           <Ionicons name="arrow-back" size={24} color="#1e293b" />
         </Pressable>
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>My Reports</Text>
-          <Text style={styles.headerSubtitle}>{activeCount} complaint(s)</Text>
+          <Text style={styles.headerTitle}>Unresolved Issues</Text>
+          <Text style={styles.headerSubtitle}>Live complaint pipeline</Text>
         </View>
         <Pressable onPress={() => void loadComplaints(true)} style={styles.refreshButton}>
           <Ionicons name="refresh" size={22} color="#1e293b" />
         </Pressable>
       </View>
+
+      <LinearGradient colors={["#1d4ed8", "#4338ca"]} style={styles.heroCard}>
+        <View style={styles.heroBgOrbOne} />
+        <View style={styles.heroBgOrbTwo} />
+        <Text style={styles.heroTitle}>Track Board</Text>
+        <Text style={styles.heroSubtitle}>
+          {stats.total} unresolved complaints
+        </Text>
+        <View style={styles.heroStatsRow}>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>{stats.high}</Text>
+            <Text style={styles.heroStatLabel}>High</Text>
+          </View>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>{stats.inProgress}</Text>
+            <Text style={styles.heroStatLabel}>In Progress</Text>
+          </View>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>{stats.waiting}</Text>
+            <Text style={styles.heroStatLabel}>Waiting</Text>
+          </View>
+        </View>
+      </LinearGradient>
 
       <FlatList
         data={complaints}
@@ -371,8 +522,8 @@ export default function TrackComplaints() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="document-text-outline" size={52} color="#94a3b8" />
-            <Text style={styles.emptyTitle}>No reports yet</Text>
-            <Text style={styles.emptyText}>Submit a complaint to start tracking it here.</Text>
+            <Text style={styles.emptyTitle}>No unresolved complaints</Text>
+            <Text style={styles.emptyText}>All your tracked complaints are resolved or none are active.</Text>
             <Pressable style={styles.emptyButton} onPress={() => router.push("/report") }>
               <Text style={styles.emptyButtonText}>Report an Issue</Text>
             </Pressable>
@@ -384,7 +535,9 @@ export default function TrackComplaints() {
 
           return (
             <Pressable onPress={() => setSelectedComplaint(item)}>
-              <Animated.View entering={FadeInUp.delay(index * 60)} style={styles.card}>
+              <Reanimated.View entering={FadeInUp.delay(index * 60)} style={styles.cardShell}>
+                <LinearGradient colors={["#dbeafe", "#e9d5ff"]} style={styles.cardBorder}>
+                  <View style={styles.card}>
                 <View style={[styles.priorityStrip, { backgroundColor: priorityColor }]} />
                 <View style={styles.cardHeader}>
                   <LinearGradient colors={statusGradient} style={styles.iconWrap}>
@@ -418,7 +571,13 @@ export default function TrackComplaints() {
                     <Text style={[styles.priorityBadgeText, { color: priorityColor }]}>{item.priorityLabel}</Text>
                   </View>
                 </View>
-              </Animated.View>
+                <View style={styles.openHintRow}>
+                  <Ionicons name="open-outline" size={12} color="#64748b" />
+                  <Text style={styles.openHintText}>Tap for more details</Text>
+                </View>
+                  </View>
+                </LinearGradient>
+              </Reanimated.View>
             </Pressable>
           );
         }}
@@ -432,74 +591,166 @@ export default function TrackComplaints() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedComplaint?.title}</Text>
-              <Pressable onPress={() => setSelectedComplaint(null)}>
-                <Ionicons name="close" size={24} color="#1e293b" />
-              </Pressable>
-            </View>
+            <View style={styles.heroWrap}>
+              {selectedComplaint?.imageUrl ? (
+                <ImageBackground
+                  source={{ uri: selectedComplaint.imageUrl }}
+                  style={styles.heroImage}
+                  resizeMode="cover"
+                >
+                  <LinearGradient
+                    colors={["rgba(15,23,42,0.05)", "rgba(15,23,42,0.85)"]}
+                    style={styles.heroOverlay}
+                  />
+                </ImageBackground>
+              ) : (
+                <LinearGradient
+                  colors={["#334155", "#0f172a"]}
+                  style={styles.heroImage}
+                />
+              )}
 
-            {selectedComplaint?.imageUrl ? (
-              <Image source={{ uri: selectedComplaint.imageUrl }} style={styles.modalImage} resizeMode="cover" />
-            ) : (
-              <View style={styles.modalImagePlaceholder}>
-                <Ionicons name="image-outline" size={36} color="#94a3b8" />
-                <Text style={styles.modalImageText}>No image available</Text>
-              </View>
-            )}
-
-            <Text style={styles.modalLabel}>Category</Text>
-            <Text style={styles.modalValue}>{selectedComplaint?.category || "-"}</Text>
-
-            <Text style={styles.modalLabel}>Description</Text>
-            <Text style={styles.modalValue}>{selectedComplaint?.description || "-"}</Text>
-
-            <Text style={styles.modalLabel}>Priority Reason</Text>
-            <Text style={styles.modalValue}>{selectedComplaint?.priorityReason || "-"}</Text>
-
-            <Text style={styles.modalLabel}>Assigned Municipal Office</Text>
-            <Text style={styles.modalValue}>{selectedComplaint?.assignedOfficeLabel || "-"}</Text>
-
-            <Text style={styles.modalLabel}>Routing</Text>
-            <Text style={styles.modalValue}>{selectedComplaint?.routingReason || "-"}</Text>
-
-            <Text style={styles.modalLabel}>Timeline</Text>
-            <View style={styles.timelineWrap}>
-              {selectedComplaint?.timeline.map((item) => (
-                <View key={`${item.date}-${item.message}`} style={styles.timelineItem}>
-                  <View style={styles.timelineDot} />
-                  <View style={styles.timelineContent}>
-                    <Text style={styles.timelineMessage}>{item.message}</Text>
-                    <Text style={styles.timelineDate}>{item.date}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            {selectedComplaint ? (
               <Pressable
-                style={styles.deleteButton}
-                onPress={() => {
-                  Alert.alert(
-                    "Delete complaint?",
-                    "This will permanently delete your complaint.",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Delete",
-                        style: "destructive",
-                        onPress: () => {
-                          void handleDeleteComplaintFromList(selectedComplaint.id);
-                        },
-                      },
-                    ]
-                  );
-                }}
+                onPress={() => setSelectedComplaint(null)}
+                style={styles.modalCloseFloating}
               >
-                <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                <Text style={styles.deleteButtonText}>Delete complaint</Text>
+                <Ionicons name="close" size={20} color="#ffffff" />
               </Pressable>
-            ) : null}
+
+              <View style={styles.heroContent}>
+                <View style={styles.heroMetaPill}>
+                  <Ionicons name="calendar-outline" size={12} color="#e2e8f0" />
+                  <Text style={styles.heroMetaText} numberOfLines={1}>
+                    {selectedComplaint?.dateLabel || "-"}
+                  </Text>
+                </View>
+                {selectedComplaint ? (
+                  <View
+                    style={[
+                      styles.heroStatusPill,
+                      { backgroundColor: `${getStatusColor(selectedComplaint.statusRaw)}33` },
+                    ]}
+                  >
+                    <Text style={styles.heroStatusText}>
+                      {selectedComplaint.statusLabel}
+                    </Text>
+                  </View>
+                ) : null}
+                <Text style={styles.heroTitleModal} numberOfLines={2}>
+                  {selectedComplaint?.title}
+                </Text>
+                <Text style={styles.heroSub} numberOfLines={1}>
+                  {selectedComplaint?.category || "-"}
+                </Text>
+              </View>
+            </View>
+
+            <Animated.View
+              style={[
+                styles.detailSheetOverlay,
+                {
+                  transform: [{ translateY: sheetTranslateY }],
+                },
+              ]}
+              {...panResponder.panHandlers}
+            >
+              <Pressable
+                style={styles.sheetGripArea}
+                onPress={() =>
+                  animateSheetTo(sheetExpanded ? SHEET_MAX_TRANSLATE : 0)
+                }
+              >
+                <View style={styles.sheetGrip} />
+                <View style={styles.sheetHintRow}>
+                  <Ionicons
+                    name={sheetExpanded ? "chevron-down" : "chevron-up"}
+                    size={14}
+                    color="#64748b"
+                  />
+                  <Text style={styles.sheetHintText}>
+                    {sheetExpanded ? "Swipe down to collapse" : "Swipe up for more details"}
+                  </Text>
+                </View>
+              </Pressable>
+
+              <View style={styles.detailSheet}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.modalScrollContent}
+                  scrollEnabled={sheetExpanded}
+                  onScroll={(event) => {
+                    detailScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+                  }}
+                  scrollEventThrottle={16}
+                >
+                  <View style={styles.modalChipRow}>
+                    <View style={styles.modalChip}>
+                      <Ionicons name="business-outline" size={13} color="#1e40af" />
+                      <Text style={styles.modalChipText}>
+                        {selectedComplaint?.assignedOfficeLabel || "-"}
+                      </Text>
+                    </View>
+                    <View style={styles.modalChip}>
+                      <Ionicons name="flag-outline" size={13} color="#92400e" />
+                      <Text style={styles.modalChipText}>
+                        Priority {selectedComplaint?.priorityLabel || "-"}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.modalLabel}>Description</Text>
+                  <Text style={styles.modalValue}>{selectedComplaint?.description || "-"}</Text>
+
+                  <Text style={styles.modalLabel}>Location</Text>
+                  <Text style={styles.modalValue}>{selectedComplaint?.locationLabel || "-"}</Text>
+
+                  <Text style={styles.modalLabel}>Priority Reason</Text>
+                  <Text style={styles.modalValue}>{selectedComplaint?.priorityReason || "-"}</Text>
+
+                  <Text style={styles.modalLabel}>Routing</Text>
+                  <Text style={styles.modalValue}>{selectedComplaint?.routingReason || "-"}</Text>
+
+                  <Text style={styles.modalSectionTitle}>Timeline</Text>
+                  <View style={styles.timelineList}>
+                    <View style={styles.timelineMainLine} />
+                    {selectedComplaint?.timeline.map((item, index) => (
+                      <View key={`${item.date}-${item.message}-${index}`} style={styles.timelineItem}>
+                        <View style={styles.timelineDot} />
+                        <View style={styles.timelineContent}>
+                          <Text style={styles.timelineMessage}>{item.message}</Text>
+                          <Text style={styles.timelineDate}>{item.date}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                {selectedComplaint ? (
+                  <Pressable
+                    style={styles.deleteButton}
+                    onPress={() => {
+                      Alert.alert(
+                        "Delete complaint?",
+                        "This will permanently delete your complaint.",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete",
+                            style: "destructive",
+                            onPress: () => {
+                              void handleDeleteComplaintFromList(selectedComplaint.id);
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#fff" />
+                    <Text style={styles.deleteButtonText}>Delete complaint</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </Animated.View>
           </View>
         </View>
       </Modal>
@@ -555,7 +806,7 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 52,
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -590,6 +841,65 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  heroCard: {
+    marginHorizontal: 16,
+    borderRadius: 20,
+    padding: 16,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  heroBgOrbOne: {
+    position: "absolute",
+    width: 160,
+    height: 160,
+    borderRadius: 90,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    top: -70,
+    right: -40,
+  },
+  heroBgOrbTwo: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 70,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    bottom: -50,
+    left: -25,
+  },
+  heroTitle: {
+    color: "#fff",
+    fontSize: 19,
+    fontWeight: "800",
+  },
+  heroSubtitle: {
+    marginTop: 4,
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  heroStatsRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    gap: 10,
+  },
+  heroStat: {
+    flex: 1,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  heroStatValue: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  heroStatLabel: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
+  },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 30,
@@ -623,16 +933,23 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
   },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 16,
+  cardShell: {
     marginBottom: 12,
-    shadowColor: "#000",
+  },
+  cardBorder: {
+    borderRadius: 20,
+    padding: 1,
+    overflow: "hidden",
+    shadowColor: "#4f46e5",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
     elevation: 3,
+  },
+  card: {
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderRadius: 19,
+    padding: 16,
     overflow: "hidden",
   },
   priorityStrip: {
@@ -736,110 +1053,244 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  openHintRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  openHintText: {
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: "600",
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "flex-end",
   },
   modalCard: {
-    backgroundColor: "#fff",
+    height: "96%",
+    backgroundColor: "#0f172a",
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
-    padding: 16,
-    maxHeight: "90%",
+    overflow: "hidden",
   },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  modalTitle: {
+  heroWrap: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1e293b",
-    marginRight: 10,
+    position: "relative",
   },
-  modalImage: {
-    width: "100%",
-    height: 180,
-    borderRadius: 12,
-    marginBottom: 12,
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
   },
-  modalImagePlaceholder: {
-    width: "100%",
-    height: 180,
-    borderRadius: 12,
-    backgroundColor: "#f1f5f9",
-    marginBottom: 12,
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalCloseFloating: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(15,23,42,0.55)",
+    alignItems: "center",
     justifyContent: "center",
+  },
+  heroContent: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: SHEET_COLLAPSED_HEIGHT + 16,
+    gap: 7,
+  },
+  heroMetaPill: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.45)",
+    backgroundColor: "rgba(15,23,42,0.35)",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
-  modalImageText: {
+  heroMetaText: {
+    color: "#e2e8f0",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  heroStatusPill: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  heroStatusText: {
+    color: "#f8fafc",
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  heroTitleModal: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "800",
+    lineHeight: 26,
+  },
+  heroSub: {
+    color: "#cbd5e1",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  detailSheetOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: SHEET_EXPANDED_HEIGHT,
+  },
+  sheetGripArea: {
+    alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: "rgba(255,255,255,0.98)",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+  },
+  sheetGrip: {
+    width: 44,
+    height: 5,
+    borderRadius: 4,
+    backgroundColor: "#cbd5e1",
+  },
+  sheetHintRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  sheetHintText: {
     color: "#64748b",
-    fontSize: 13,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  detailSheet: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  modalScrollContent: {
+    paddingBottom: 20,
+    gap: 7,
+  },
+  modalChipRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 2,
+  },
+  modalChip: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderRadius: 10,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  modalChipText: {
+    flex: 1,
+    color: "#334155",
+    fontSize: 12,
+    fontWeight: "600",
   },
   modalLabel: {
-    marginTop: 8,
-    fontSize: 12,
+    marginTop: 6,
+    fontSize: 11,
     color: "#64748b",
-    fontWeight: "700",
+    fontWeight: "800",
     textTransform: "uppercase",
   },
   modalValue: {
-    marginTop: 4,
     color: "#1e293b",
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "500",
   },
-  timelineWrap: {
-    marginTop: 8,
-    marginBottom: 8,
+  modalSectionTitle: {
+    marginTop: 10,
+    color: "#0f172a",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  timelineList: {
+    position: "relative",
+    paddingLeft: 2,
+    marginTop: 2,
+  },
+  timelineMainLine: {
+    position: "absolute",
+    left: 7,
+    top: 8,
+    bottom: 10,
+    width: 2,
+    borderRadius: 1,
+    backgroundColor: "#cbd5e1",
   },
   timelineItem: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 10,
+    gap: 10,
+    marginTop: 2,
   },
   timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 10,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: "#2563eb",
     marginTop: 6,
-    marginRight: 10,
+    borderWidth: 2,
+    borderColor: "#ffffff",
+    zIndex: 2,
   },
   timelineContent: {
     flex: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+    paddingBottom: 12,
+    gap: 2,
   },
   timelineMessage: {
-    color: "#1e293b",
+    color: "#0f172a",
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   timelineDate: {
     color: "#64748b",
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 11,
+    fontWeight: "600",
   },
   deleteButton: {
     marginTop: 8,
-    alignSelf: "flex-start",
-    flexDirection: "row",
+    borderRadius: 12,
+    backgroundColor: "#dc2626",
+    paddingVertical: 11,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
     gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: "#fee2e2",
-    borderColor: "#fecaca",
-    borderWidth: 1,
   },
   deleteButtonText: {
-    color: "#b91c1c",
-    fontSize: 12,
+    color: "#fff",
+    fontSize: 13,
     fontWeight: "700",
   },
 });

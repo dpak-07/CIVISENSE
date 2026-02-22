@@ -21,7 +21,12 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { getApiErrorMessage } from "@/lib/api";
 import { sessionStore } from "@/lib/session";
-import { submitComplaintOrQueue } from "@/lib/services/complaintQueue";
+import {
+  flushQueuedComplaints,
+  getQueuedComplaints,
+  type QueuedComplaint,
+  submitComplaintOrQueue,
+} from "@/lib/services/complaintQueue";
 
 const { width } = Dimensions.get("window");
 
@@ -43,6 +48,20 @@ type Coordinates = {
 
 const formatCoordinates = (latitude: number, longitude: number): string =>
   `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+
+const formatQueueTime = (value: string): string => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Unknown time";
+  }
+
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -171,6 +190,9 @@ export default function ReportIssue() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [queuedSubmission, setQueuedSubmission] = useState(false);
+  const [queuedComplaints, setQueuedComplaints] = useState<QueuedComplaint[]>([]);
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [queueSyncing, setQueueSyncing] = useState(false);
 
   const loadDraft = async () => {
     try {
@@ -231,6 +253,21 @@ export default function ReportIssue() {
     }
   };
 
+  const loadQueuedItems = async (showLoader = true) => {
+    if (showLoader) {
+      setQueueLoading(true);
+    }
+
+    try {
+      const queued = await getQueuedComplaints();
+      setQueuedComplaints(queued);
+    } finally {
+      if (showLoader) {
+        setQueueLoading(false);
+      }
+    }
+  };
+
   // Update image when params change
   useEffect(() => {
     const photoParam = params?.photo;
@@ -242,6 +279,7 @@ export default function ReportIssue() {
 
   useEffect(() => {
     void loadDraft();
+    void loadQueuedItems();
   }, []);
 
   useEffect(() => {
@@ -357,11 +395,42 @@ export default function ReportIssue() {
       setQueuedSubmission(result.queued);
       setShowSuccess(true);
       await clearDraft();
+      await loadQueuedItems(false);
     } catch (error) {
       log("Submit failed", getApiErrorMessage(error));
       Alert.alert("Submission failed", getApiErrorMessage(error));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQueueSync = async () => {
+    setQueueSyncing(true);
+    try {
+      const result = await flushQueuedComplaints();
+      await loadQueuedItems(false);
+
+      if (result.sent > 0) {
+        Alert.alert(
+          "Queue synced",
+          `${result.sent} queued complaint${result.sent === 1 ? "" : "s"} sent successfully.`
+        );
+        return;
+      }
+
+      if (result.remaining > 0) {
+        Alert.alert(
+          "Queue pending",
+          `${result.remaining} complaint${result.remaining === 1 ? "" : "s"} still queued.`
+        );
+        return;
+      }
+
+      Alert.alert("Queue empty", "No queued complaints to sync.");
+    } catch (error) {
+      Alert.alert("Sync failed", getApiErrorMessage(error));
+    } finally {
+      setQueueSyncing(false);
     }
   };
 
@@ -438,6 +507,60 @@ export default function ReportIssue() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
+          {/* Queue Status Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="cloud-upload" size={20} color="#6366F1" />
+              <Text style={styles.sectionTitle}>Queued Reports</Text>
+              <View style={styles.queueCountBadge}>
+                <Text style={styles.queueCountText}>{queuedComplaints.length}</Text>
+              </View>
+            </View>
+
+            <View style={styles.queueCard}>
+              <View style={styles.queueCardHeader}>
+                <Text style={styles.queueSummaryText}>
+                  {queuedComplaints.length === 0
+                    ? "No complaints in offline queue."
+                    : `${queuedComplaints.length} report${queuedComplaints.length === 1 ? "" : "s"} waiting to sync.`}
+                </Text>
+                <Pressable
+                  style={[styles.queueSyncButton, queueSyncing && styles.queueSyncButtonDisabled]}
+                  onPress={handleQueueSync}
+                  disabled={queueSyncing || queueLoading}
+                >
+                  {queueSyncing ? (
+                    <ActivityIndicator size="small" color="#4F46E5" />
+                  ) : (
+                    <>
+                      <Ionicons name="sync" size={14} color="#4F46E5" />
+                      <Text style={styles.queueSyncText}>Sync</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+
+              {queueLoading ? (
+                <View style={styles.queueLoaderWrap}>
+                  <ActivityIndicator size="small" color="#4F46E5" />
+                  <Text style={styles.queueLoaderText}>Loading queue...</Text>
+                </View>
+              ) : (
+                queuedComplaints.slice(0, 3).map((item) => (
+                  <View key={item.id} style={styles.queueItem}>
+                    <View style={styles.queueItemTop}>
+                      <Text style={styles.queueItemCategory}>{item.payload.category}</Text>
+                      <Text style={styles.queueItemTime}>{formatQueueTime(item.createdAt)}</Text>
+                    </View>
+                    <Text style={styles.queueItemMeta}>
+                      {formatCoordinates(item.payload.latitude, item.payload.longitude)} | Attempts: {item.attempts}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
+          </View>
+
           {/* Photo Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -861,6 +984,100 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     fontWeight: "500",
     marginLeft: "auto",
+  },
+  queueCountBadge: {
+    marginLeft: "auto",
+    minWidth: 26,
+    height: 26,
+    paddingHorizontal: 8,
+    borderRadius: 13,
+    backgroundColor: "#E0E7FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  queueCountText: {
+    color: "#3730A3",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  queueCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E0E7FF",
+    backgroundColor: "#F8FAFF",
+    padding: 12,
+    gap: 10,
+  },
+  queueCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  queueSummaryText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#334155",
+    fontWeight: "600",
+  },
+  queueSyncButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#EEF2FF",
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minHeight: 32,
+  },
+  queueSyncButtonDisabled: {
+    opacity: 0.7,
+  },
+  queueSyncText: {
+    color: "#4F46E5",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  queueLoaderWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 4,
+  },
+  queueLoaderText: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  queueItem: {
+    borderTopWidth: 1,
+    borderTopColor: "#DBEAFE",
+    paddingTop: 10,
+    gap: 4,
+  },
+  queueItemTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  queueItemCategory: {
+    color: "#1E3A8A",
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
+  queueItemTime: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  queueItemMeta: {
+    color: "#475569",
+    fontSize: 11,
+    fontWeight: "600",
   },
 
   /* Photo - New Design */

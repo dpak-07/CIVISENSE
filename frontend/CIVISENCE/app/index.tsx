@@ -228,7 +228,7 @@ export default function Home() {
       subtitle: `${unreadNotifications} unread alerts`,
       icon: "document-text",
       color: "#F472B6",
-      route: "/profile",
+      route: "/reports",
     },
   ];
 

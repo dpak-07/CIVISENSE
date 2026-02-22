@@ -167,6 +167,7 @@ export default function RootLayout() {
             presentation: "modal" // Makes it feel more modal-like on iOS
           }} 
         />
+        <Stack.Screen name="reports/index" options={{ title: "My Reports" }} />
         <Stack.Screen name="track/index" options={{ title: "Active Complaints" }} />
         <Stack.Screen name="map/index" options={{ title: "City Map" }} />
         <Stack.Screen name="dashboard/index" options={{ title: "Dashboard" }} />

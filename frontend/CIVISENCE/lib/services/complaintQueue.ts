@@ -8,7 +8,7 @@ import { sessionStore } from "@/lib/session";
 import { API_BASE_URL } from "@/lib/config";
 import { CreateComplaintInput, createComplaint } from "@/lib/services/complaints";
 
-type QueuedComplaint = {
+export type QueuedComplaint = {
   id: string;
   payload: CreateComplaintInput;
   createdAt: string;
@@ -33,10 +33,11 @@ const createQueueId = () =>
   `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 
 const getQueueDirectory = (): string | null => {
-  if (!FileSystem.documentDirectory) {
+  const fileSystem = FileSystem as unknown as { documentDirectory?: string };
+  if (!fileSystem.documentDirectory) {
     return null;
   }
-  return `${FileSystem.documentDirectory}${QUEUE_DIR}`;
+  return `${fileSystem.documentDirectory}${QUEUE_DIR}`;
 };
 
 const ensureQueueDir = async () => {
@@ -100,6 +101,19 @@ const loadQueue = async (): Promise<QueuedComplaint[]> => {
   } catch {
     return [];
   }
+};
+
+export const getQueuedComplaints = async (): Promise<QueuedComplaint[]> => {
+  const queue = await loadQueue();
+  return [...queue].sort(
+    (left, right) =>
+      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+  );
+};
+
+export const getQueuedComplaintsCount = async (): Promise<number> => {
+  const queue = await loadQueue();
+  return queue.length;
 };
 
 const saveQueue = async (queue: QueuedComplaint[]) => {
