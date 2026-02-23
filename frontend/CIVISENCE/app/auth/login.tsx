@@ -1,14 +1,16 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  TextInput,
+  Animated as RNAnimated,
+  Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,7 +20,43 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiErrorMessage } from "@/lib/api";
 import { useAppPreferences } from "@/lib/appPreferencesContext";
+import { safeBack } from "@/lib/navigation";
 import { loginUser } from "@/lib/services/auth";
+import CiviSenseLogo from "@/components/branding/CiviSenseLogo";
+
+const USE_NATIVE_DRIVER = Platform.OS !== "web";
+
+function FloatingGlow({
+  style,
+  duration,
+  delay,
+}: {
+  style: object;
+  duration: number;
+  delay: number;
+}) {
+  const translateY = useRef(new RNAnimated.Value(0)).current;
+
+  useEffect(() => {
+    RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(translateY, {
+          toValue: -20,
+          duration,
+          delay,
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        RNAnimated.timing(translateY, {
+          toValue: 0,
+          duration,
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+      ])
+    ).start();
+  }, [delay, duration, translateY]);
+
+  return <RNAnimated.View style={[style, { transform: [{ translateY }] }]} />;
+}
 
 export default function Login() {
   const insets = useSafeAreaInsets();
@@ -55,119 +93,132 @@ export default function Login() {
 
   return (
     <LinearGradient
-      colors={isDark ? ["#0B1220", "#111C31"] : ["#F1F6FC", "#E0EAFF"]}
+      colors={isDark ? ["#0B1020", "#121C32"] : ["#DDE4F7", "#EEF3FF"]}
       style={styles.container}
     >
       <StatusBar style={theme.statusBar} />
+      <FloatingGlow style={[styles.glow, styles.glowOne]} duration={5200} delay={0} />
+      <FloatingGlow style={[styles.glow, styles.glowTwo]} duration={6200} delay={600} />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={[styles.wrapper, { paddingTop: insets.top + 8 }]}
+        style={styles.wrapper}
       >
-        <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
-          <Ionicons name="arrow-back" size={28} color={theme.colors.text} onPress={() => router.back()} />
-          <Text style={[styles.title, { color: theme.colors.text }]}>{t("auth.welcomeBack")}</Text>
-        </Animated.View>
-
-        <Animated.View
-          entering={FadeInUp.delay(100).duration(700)}
-          style={styles.form}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom, 16) + 14 },
+          ]}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>{t("auth.emailAddress")}</Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                {
-                  backgroundColor: isDark ? "#0F172A" : "rgba(255,255,255,0.8)",
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Ionicons
-                name="mail-outline"
-                size={20}
-                color={theme.colors.accent}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { color: theme.colors.text }]}
-                placeholder="you@example.com"
-                placeholderTextColor="#9ca3af"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-          </View>
-
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>{t("auth.password")}</Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                {
-                  backgroundColor: isDark ? "#0F172A" : "rgba(255,255,255,0.8)",
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Ionicons
-                name="lock-closed-outline"
-                size={20}
-                color={theme.colors.accent}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { color: theme.colors.text }]}
-                placeholder="Enter your password"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-              />
-              <Pressable onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? "eye-off" : "eye"}
-                  size={20}
-                  color={theme.colors.accent}
-                />
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Forgot Password */}
-          <Pressable>
-            <Text style={styles.forgotPassword}>{t("auth.forgotPassword")}</Text>
-          </Pressable>
-
-          {/* Login Button */}
-          <LinearGradient
-            colors={["#2563EB", "#1d4ed8"]}
-            style={styles.button}
+          <Animated.View
+            entering={FadeInDown.duration(450)}
+            style={[
+              styles.card,
+              {
+                backgroundColor: isDark ? "rgba(17,26,46,0.95)" : "rgba(255,255,255,0.97)",
+                borderColor: isDark ? "rgba(148,163,184,0.22)" : "rgba(79,70,229,0.14)",
+              },
+            ]}
           >
-            <Pressable onPress={handleLogin} disabled={loading}>
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>{t("auth.signIn")}</Text>
-              )}
+            <Pressable style={styles.backButton} onPress={() => safeBack("/")}>
+              <Ionicons name="arrow-back" size={18} color={theme.colors.subText} />
             </Pressable>
-          </LinearGradient>
 
-          {/* Register Link */}
-          <View style={styles.registerLink}>
-            <Text style={[styles.registerText, { color: theme.colors.subText }]}>
-              {t("auth.dontHaveAccount")}{" "}
+            <View style={styles.brandRow}>
+              <View style={styles.logoPill}>
+                <CiviSenseLogo size={28} />
+              </View>
+              <Text style={[styles.brandName, { color: theme.colors.subText }]}>CiviSense</Text>
+            </View>
+
+            <Text style={[styles.pageTitle, { color: theme.colors.text }]}>Welcome Back</Text>
+            <Text style={[styles.pageSub, { color: theme.colors.subText }]}>
+              Sign in to continue reporting issues in your city.
             </Text>
-            <Pressable onPress={() => router.push("/auth/register")}>
-              <Text style={styles.registerLink2}>{t("auth.signUp")}</Text>
-            </Pressable>
-          </View>
-        </Animated.View>
+
+            <Animated.View entering={FadeInUp.duration(520).delay(80)} style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.label, { color: theme.colors.subText }]}>{t("auth.emailAddress")}</Text>
+                <View
+                  style={[
+                    styles.inputWrap,
+                    {
+                      backgroundColor: isDark ? "rgba(15,23,42,0.72)" : "#F8FAFF",
+                      borderColor: isDark ? "rgba(148,163,184,0.28)" : "#E2E8F0",
+                    },
+                  ]}
+                >
+                  <Ionicons name="mail-outline" size={18} color="#64748B" />
+                  <TextInput
+                    style={[styles.input, { color: theme.colors.text }]}
+                    placeholder="you@example.com"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={email}
+                    onChangeText={setEmail}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.label, { color: theme.colors.subText }]}>{t("auth.password")}</Text>
+                <View
+                  style={[
+                    styles.inputWrap,
+                    {
+                      backgroundColor: isDark ? "rgba(15,23,42,0.72)" : "#F8FAFF",
+                      borderColor: isDark ? "rgba(148,163,184,0.28)" : "#E2E8F0",
+                    },
+                  ]}
+                >
+                  <Ionicons name="lock-closed-outline" size={18} color="#64748B" />
+                  <TextInput
+                    style={[styles.input, { color: theme.colors.text }]}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#94A3B8"
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+                  <Pressable onPress={() => setShowPassword((prev) => !prev)} hitSlop={10}>
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={18}
+                      color="#64748B"
+                    />
+                  </Pressable>
+                </View>
+              </View>
+
+              <Pressable style={styles.forgotRow}>
+                <Text style={styles.forgotPassword}>{t("auth.forgotPassword")}</Text>
+              </Pressable>
+
+              <Pressable onPress={handleLogin} disabled={loading} style={styles.buttonWrap}>
+                <LinearGradient colors={["#4F46E5", "#7C3AED"]} style={styles.button}>
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>{t("auth.signIn")}  {"\u2192"}</Text>
+                  )}
+                </LinearGradient>
+              </Pressable>
+
+              <View style={styles.footerLink}>
+                <Text style={[styles.footerText, { color: theme.colors.subText }]}>
+                  {t("auth.dontHaveAccount")}{" "}
+                </Text>
+                <Pressable onPress={() => router.push({ pathname: "/auth", params: { mode: "signup" } })}>
+                  <Text style={styles.footerAction}>{t("auth.signUp")}</Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          </Animated.View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
   );
@@ -179,77 +230,148 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     flex: 1,
-    padding: 24,
+  },
+  glow: {
+    position: "absolute",
+    borderRadius: 999,
+    opacity: 0.2,
+  },
+  glowOne: {
+    width: 280,
+    height: 280,
+    right: -120,
+    top: -90,
+    backgroundColor: "#6366F1",
+  },
+  glowTwo: {
+    width: 220,
+    height: 220,
+    left: -90,
+    bottom: -40,
+    backgroundColor: "#A855F7",
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
+    paddingHorizontal: 18,
   },
-  header: {
-    marginBottom: 40,
+  card: {
+    borderRadius: 34,
+    borderWidth: 1.5,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.17,
+    shadowRadius: 30,
+    elevation: 8,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#1e3a8a",
-    marginTop: 12,
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: "#F5F7FF",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
   },
-  form: {
-    gap: 20,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1e3a8a",
-  },
-  inputWrapper: {
+  brandRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.8)",
-    borderRadius: 12,
-    borderColor: "#dbeafe",
+    gap: 12,
+    marginBottom: 6,
+  },
+  logoPill: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brandName: {
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  pageTitle: {
+    fontSize: 30,
+    fontWeight: "800",
+    letterSpacing: -0.9,
+    lineHeight: 34,
+  },
+  pageSub: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  form: {
+    marginTop: 22,
+    gap: 14,
+  },
+  inputGroup: {
+    gap: 6,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  inputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
     borderWidth: 1.5,
     paddingHorizontal: 12,
-    height: 50,
-  },
-  inputIcon: {
-    marginRight: 10,
+    height: 52,
+    gap: 10,
   },
   input: {
     flex: 1,
-    fontSize: 15,
-    color: "#1f2937",
+    fontSize: 14,
+  },
+  forgotRow: {
+    alignItems: "flex-end",
+    marginTop: -2,
   },
   forgotPassword: {
-    color: "#2563EB",
+    color: "#6D5EF8",
     fontWeight: "600",
-    textAlign: "right",
-    marginTop: 4,
+    fontSize: 12,
+  },
+  buttonWrap: {
+    marginTop: 8,
   },
   button: {
-    height: 50,
-    borderRadius: 12,
-    marginTop: 20,
+    height: 52,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 9 },
+    shadowOpacity: 0.33,
+    shadowRadius: 20,
+    elevation: 6,
   },
   buttonText: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "700",
   },
-  registerLink: {
+  footerLink: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 16,
+    marginTop: 8,
   },
-  registerText: {
-    color: "#6b7280",
+  footerText: {
     fontSize: 14,
   },
-  registerLink2: {
-    color: "#2563EB",
-    fontWeight: "bold",
+  footerAction: {
+    color: "#4F46E5",
+    fontWeight: "700",
     fontSize: 14,
   },
 });

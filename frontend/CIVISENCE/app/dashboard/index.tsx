@@ -13,6 +13,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { getApiErrorMessage } from "@/lib/api";
+import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
 import { ComplaintRecord, getMyComplaints } from "@/lib/services/complaints";
 import { AppNotification, getNotifications } from "@/lib/services/notifications";
@@ -174,7 +175,7 @@ export default function Dashboard() {
           <Ionicons name="lock-closed" size={48} color="#1e3a8a" />
           <Text style={styles.centerTitle}>Login Required</Text>
           <Text style={styles.centerText}>Please login to view your dashboard.</Text>
-          <Pressable style={styles.ctaButton} onPress={() => router.push("/auth/login")}>
+          <Pressable style={styles.ctaButton} onPress={() => router.push("/auth")}>
             <Text style={styles.ctaText}>Go to Login</Text>
           </Pressable>
         </View>
@@ -197,7 +198,7 @@ export default function Dashboard() {
     <LinearGradient colors={["#f1f6fc", "#e0eaff"]} style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
+          <Pressable onPress={() => safeBack("/")}>
             <Ionicons name="arrow-back" size={28} color="#1e3a8a" />
           </Pressable>
           <Text style={styles.title}>Dashboard</Text>

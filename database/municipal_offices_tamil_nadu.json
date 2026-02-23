@@ -1,0 +1,1712 @@
+[
+  {
+    "name": "Chennai Municipal Main Office",
+    "type": "main",
+    "zone": "Chennai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2707,
+        13.0827
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Chennai North Sub Office",
+    "type": "sub",
+    "zone": "Chennai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2907,
+        13.1067
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Chennai South Sub Office",
+    "type": "sub",
+    "zone": "Chennai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2507,
+        13.0587
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Chengalpattu Municipal Main Office",
+    "type": "main",
+    "zone": "Chengalpattu",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9836,
+        12.6841
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Chengalpattu North Sub Office",
+    "type": "sub",
+    "zone": "Chengalpattu",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.0066,
+        12.7121
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Chengalpattu South Sub Office",
+    "type": "sub",
+    "zone": "Chengalpattu",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9606,
+        12.6561
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Kanchipuram Municipal Main Office",
+    "type": "main",
+    "zone": "Kanchipuram",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.7036,
+        12.8352
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Kanchipuram North Sub Office",
+    "type": "sub",
+    "zone": "Kanchipuram",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.7296,
+        12.8672
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Kanchipuram South Sub Office",
+    "type": "sub",
+    "zone": "Kanchipuram",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6776,
+        12.8032
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tiruvallur Municipal Main Office",
+    "type": "main",
+    "zone": "Tiruvallur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9089,
+        13.1439
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Tiruvallur North Sub Office",
+    "type": "sub",
+    "zone": "Tiruvallur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9289,
+        13.1799
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tiruvallur South Sub Office",
+    "type": "sub",
+    "zone": "Tiruvallur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8889,
+        13.1079
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Ranipet Municipal Main Office",
+    "type": "main",
+    "zone": "Ranipet",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.3332,
+        12.9273
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Ranipet North Sub Office",
+    "type": "sub",
+    "zone": "Ranipet",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.3562,
+        12.9513
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Ranipet South Sub Office",
+    "type": "sub",
+    "zone": "Ranipet",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.3102,
+        12.9033
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Vellore Municipal Main Office",
+    "type": "main",
+    "zone": "Vellore",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1325,
+        12.9165
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Vellore North Sub Office",
+    "type": "sub",
+    "zone": "Vellore",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1585,
+        12.9445
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Vellore South Sub Office",
+    "type": "sub",
+    "zone": "Vellore",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1065,
+        12.8885
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tirupathur Municipal Main Office",
+    "type": "main",
+    "zone": "Tirupathur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.567,
+        12.4953
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Tirupathur North Sub Office",
+    "type": "sub",
+    "zone": "Tirupathur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.587,
+        12.5273
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tirupathur South Sub Office",
+    "type": "sub",
+    "zone": "Tirupathur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.547,
+        12.4633
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Krishnagiri Municipal Main Office",
+    "type": "main",
+    "zone": "Krishnagiri",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.2137,
+        12.5266
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Krishnagiri North Sub Office",
+    "type": "sub",
+    "zone": "Krishnagiri",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.2367,
+        12.5626
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Krishnagiri South Sub Office",
+    "type": "sub",
+    "zone": "Krishnagiri",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1907,
+        12.4906
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Dharmapuri Municipal Main Office",
+    "type": "main",
+    "zone": "Dharmapuri",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1582,
+        12.1211
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Dharmapuri North Sub Office",
+    "type": "sub",
+    "zone": "Dharmapuri",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1842,
+        12.1451
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Dharmapuri South Sub Office",
+    "type": "sub",
+    "zone": "Dharmapuri",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1322,
+        12.0971
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Salem Municipal Main Office",
+    "type": "main",
+    "zone": "Salem",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.146,
+        11.6643
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Salem North Sub Office",
+    "type": "sub",
+    "zone": "Salem",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.166,
+        11.6923
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Salem South Sub Office",
+    "type": "sub",
+    "zone": "Salem",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.126,
+        11.6363
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Namakkal Municipal Main Office",
+    "type": "main",
+    "zone": "Namakkal",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1674,
+        11.2189
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Namakkal North Sub Office",
+    "type": "sub",
+    "zone": "Namakkal",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1904,
+        11.2509
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Namakkal South Sub Office",
+    "type": "sub",
+    "zone": "Namakkal",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1444,
+        11.1869
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Erode Municipal Main Office",
+    "type": "main",
+    "zone": "Erode",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7172,
+        11.341
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Erode North Sub Office",
+    "type": "sub",
+    "zone": "Erode",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7432,
+        11.377
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Erode South Sub Office",
+    "type": "sub",
+    "zone": "Erode",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.6912,
+        11.305
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tiruppur Municipal Main Office",
+    "type": "main",
+    "zone": "Tiruppur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3411,
+        11.1085
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Tiruppur North Sub Office",
+    "type": "sub",
+    "zone": "Tiruppur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3611,
+        11.1325
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tiruppur South Sub Office",
+    "type": "sub",
+    "zone": "Tiruppur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3211,
+        11.0845
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Coimbatore Municipal Main Office",
+    "type": "main",
+    "zone": "Coimbatore",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.9558,
+        11.0168
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Coimbatore North Sub Office",
+    "type": "sub",
+    "zone": "Coimbatore",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.9788,
+        11.0448
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Coimbatore South Sub Office",
+    "type": "sub",
+    "zone": "Coimbatore",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.9328,
+        10.9888
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Nilgiris Municipal Main Office",
+    "type": "main",
+    "zone": "Nilgiris",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.695,
+        11.4102
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Udhagamandalam North Sub Office",
+    "type": "sub",
+    "zone": "Nilgiris",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.721,
+        11.4422
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Udhagamandalam South Sub Office",
+    "type": "sub",
+    "zone": "Nilgiris",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.669,
+        11.3782
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Dindigul Municipal Main Office",
+    "type": "main",
+    "zone": "Dindigul",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9803,
+        10.3673
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Dindigul North Sub Office",
+    "type": "sub",
+    "zone": "Dindigul",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.0003,
+        10.4033
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Dindigul South Sub Office",
+    "type": "sub",
+    "zone": "Dindigul",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9603,
+        10.3313
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Karur Municipal Main Office",
+    "type": "main",
+    "zone": "Karur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.0766,
+        10.9601
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Karur North Sub Office",
+    "type": "sub",
+    "zone": "Karur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.0996,
+        10.9841
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Karur South Sub Office",
+    "type": "sub",
+    "zone": "Karur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.0536,
+        10.9361
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tiruchirappalli Municipal Main Office",
+    "type": "main",
+    "zone": "Tiruchirappalli",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.7047,
+        10.7905
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Tiruchirappalli North Sub Office",
+    "type": "sub",
+    "zone": "Tiruchirappalli",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.7307,
+        10.8185
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tiruchirappalli South Sub Office",
+    "type": "sub",
+    "zone": "Tiruchirappalli",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.6787,
+        10.7625
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Perambalur Municipal Main Office",
+    "type": "main",
+    "zone": "Perambalur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8833,
+        11.2333
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Perambalur North Sub Office",
+    "type": "sub",
+    "zone": "Perambalur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.9033,
+        11.2653
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Perambalur South Sub Office",
+    "type": "sub",
+    "zone": "Perambalur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8633,
+        11.2013
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Ariyalur Municipal Main Office",
+    "type": "main",
+    "zone": "Ariyalur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0786,
+        11.1401
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Ariyalur North Sub Office",
+    "type": "sub",
+    "zone": "Ariyalur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1016,
+        11.1761
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Ariyalur South Sub Office",
+    "type": "sub",
+    "zone": "Ariyalur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0556,
+        11.1041
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Cuddalore Municipal Main Office",
+    "type": "main",
+    "zone": "Cuddalore",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.768,
+        11.7447
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Cuddalore North Sub Office",
+    "type": "sub",
+    "zone": "Cuddalore",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.794,
+        11.7687
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Cuddalore South Sub Office",
+    "type": "sub",
+    "zone": "Cuddalore",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.742,
+        11.7207
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Viluppuram Municipal Main Office",
+    "type": "main",
+    "zone": "Viluppuram",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.4873,
+        11.9369
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Viluppuram North Sub Office",
+    "type": "sub",
+    "zone": "Viluppuram",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.5073,
+        11.9649
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Viluppuram South Sub Office",
+    "type": "sub",
+    "zone": "Viluppuram",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.4673,
+        11.9089
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Kallakurichi Municipal Main Office",
+    "type": "main",
+    "zone": "Kallakurichi",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.9637,
+        11.7384
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Kallakurichi North Sub Office",
+    "type": "sub",
+    "zone": "Kallakurichi",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.9867,
+        11.7704
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Kallakurichi South Sub Office",
+    "type": "sub",
+    "zone": "Kallakurichi",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.9407,
+        11.7064
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tiruvannamalai Municipal Main Office",
+    "type": "main",
+    "zone": "Tiruvannamalai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0747,
+        12.2253
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Tiruvannamalai North Sub Office",
+    "type": "sub",
+    "zone": "Tiruvannamalai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1007,
+        12.2613
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tiruvannamalai South Sub Office",
+    "type": "sub",
+    "zone": "Tiruvannamalai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0487,
+        12.1893
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Mayiladuthurai Municipal Main Office",
+    "type": "main",
+    "zone": "Mayiladuthurai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.655,
+        11.1035
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Mayiladuthurai North Sub Office",
+    "type": "sub",
+    "zone": "Mayiladuthurai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.675,
+        11.1275
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Mayiladuthurai South Sub Office",
+    "type": "sub",
+    "zone": "Mayiladuthurai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.635,
+        11.0795
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Nagapattinam Municipal Main Office",
+    "type": "main",
+    "zone": "Nagapattinam",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8428,
+        10.7656
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Nagapattinam North Sub Office",
+    "type": "sub",
+    "zone": "Nagapattinam",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8658,
+        10.7936
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Nagapattinam South Sub Office",
+    "type": "sub",
+    "zone": "Nagapattinam",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8198,
+        10.7376
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Thanjavur Municipal Main Office",
+    "type": "main",
+    "zone": "Thanjavur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1378,
+        10.7867
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Thanjavur North Sub Office",
+    "type": "sub",
+    "zone": "Thanjavur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1638,
+        10.8187
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Thanjavur South Sub Office",
+    "type": "sub",
+    "zone": "Thanjavur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1118,
+        10.7547
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tiruvarur Municipal Main Office",
+    "type": "main",
+    "zone": "Tiruvarur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6368,
+        10.7725
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Tiruvarur North Sub Office",
+    "type": "sub",
+    "zone": "Tiruvarur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6568,
+        10.8085
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tiruvarur South Sub Office",
+    "type": "sub",
+    "zone": "Tiruvarur",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6168,
+        10.7365
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Pudukkottai Municipal Main Office",
+    "type": "main",
+    "zone": "Pudukkottai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8217,
+        10.3813
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Pudukkottai North Sub Office",
+    "type": "sub",
+    "zone": "Pudukkottai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8447,
+        10.4053
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Pudukkottai South Sub Office",
+    "type": "sub",
+    "zone": "Pudukkottai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.7987,
+        10.3573
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Sivaganga Municipal Main Office",
+    "type": "main",
+    "zone": "Sivaganga",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.4836,
+        9.847
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Sivaganga North Sub Office",
+    "type": "sub",
+    "zone": "Sivaganga",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.5096,
+        9.875
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Sivaganga South Sub Office",
+    "type": "sub",
+    "zone": "Sivaganga",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.4576,
+        9.819
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Madurai Municipal Main Office",
+    "type": "main",
+    "zone": "Madurai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1198,
+        9.9252
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Madurai North Sub Office",
+    "type": "sub",
+    "zone": "Madurai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1398,
+        9.9572
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Madurai South Sub Office",
+    "type": "sub",
+    "zone": "Madurai",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.0998,
+        9.8932
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Theni Municipal Main Office",
+    "type": "main",
+    "zone": "Theni",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4768,
+        10.0104
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Theni North Sub Office",
+    "type": "sub",
+    "zone": "Theni",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4998,
+        10.0464
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Theni South Sub Office",
+    "type": "sub",
+    "zone": "Theni",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4538,
+        9.9744
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Virudhunagar Municipal Main Office",
+    "type": "main",
+    "zone": "Virudhunagar",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9579,
+        9.5851
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Virudhunagar North Sub Office",
+    "type": "sub",
+    "zone": "Virudhunagar",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9839,
+        9.6091
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Virudhunagar South Sub Office",
+    "type": "sub",
+    "zone": "Virudhunagar",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9319,
+        9.5611
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Ramanathapuram Municipal Main Office",
+    "type": "main",
+    "zone": "Ramanathapuram",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8395,
+        9.3639
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Ramanathapuram North Sub Office",
+    "type": "sub",
+    "zone": "Ramanathapuram",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8595,
+        9.3919
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Ramanathapuram South Sub Office",
+    "type": "sub",
+    "zone": "Ramanathapuram",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8195,
+        9.3359
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Thoothukudi Municipal Main Office",
+    "type": "main",
+    "zone": "Thoothukudi",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1348,
+        8.7642
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Thoothukudi North Sub Office",
+    "type": "sub",
+    "zone": "Thoothukudi",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1578,
+        8.7962
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Thoothukudi South Sub Office",
+    "type": "sub",
+    "zone": "Thoothukudi",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1118,
+        8.7322
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tenkasi Municipal Main Office",
+    "type": "main",
+    "zone": "Tenkasi",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3152,
+        8.959
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Tenkasi North Sub Office",
+    "type": "sub",
+    "zone": "Tenkasi",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3412,
+        8.995
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tenkasi South Sub Office",
+    "type": "sub",
+    "zone": "Tenkasi",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.2892,
+        8.923
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tirunelveli Municipal Main Office",
+    "type": "main",
+    "zone": "Tirunelveli",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7567,
+        8.7139
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Tirunelveli North Sub Office",
+    "type": "sub",
+    "zone": "Tirunelveli",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7767,
+        8.7379
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Tirunelveli South Sub Office",
+    "type": "sub",
+    "zone": "Tirunelveli",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7367,
+        8.6899
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Kanniyakumari Municipal Main Office",
+    "type": "main",
+    "zone": "Kanniyakumari",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4119,
+        8.1833
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 220,
+    "isActive": true
+  },
+  {
+    "name": "Nagercoil North Sub Office",
+    "type": "sub",
+    "zone": "Kanniyakumari",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4349,
+        8.2113
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  },
+  {
+    "name": "Nagercoil South Sub Office",
+    "type": "sub",
+    "zone": "Kanniyakumari",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3889,
+        8.1553
+      ]
+    },
+    "workload": 0,
+    "maxCapacity": 120,
+    "isActive": true
+  }
+]

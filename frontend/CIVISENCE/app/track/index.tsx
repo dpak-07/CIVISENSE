@@ -21,6 +21,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Reanimated, { FadeInUp } from "react-native-reanimated";
 import { getApiErrorMessage } from "@/lib/api";
+import { useAppPreferences } from "@/lib/appPreferencesContext";
+import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
 import { ComplaintRecord, deleteComplaint, getMyComplaints } from "@/lib/services/complaints";
 
@@ -292,6 +294,8 @@ const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
 export default function TrackComplaints() {
+  const { preferences } = useAppPreferences();
+  const isDark = preferences.darkMode;
   const [complaints, setComplaints] = useState<ComplaintCardModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -452,23 +456,57 @@ export default function TrackComplaints() {
     return { total: complaints.length, high, inProgress, waiting };
   }, [complaints]);
 
+  const palette = useMemo(
+    () =>
+      isDark
+        ? {
+            screenGradient: ["#0B1020", "#121C32"] as const,
+            card: "#131C31",
+            cardSoft: "#1B2642",
+            border: "rgba(148,163,184,0.25)",
+            text: "#F8FAFC",
+            subtext: "#A3B3CF",
+            accent: "#A5B4FC",
+            buttonBg: "#1E293B",
+            buttonIcon: "#F8FAFC",
+            emptyIcon: "#94A3B8",
+            hero: ["#4338CA", "#6D28D9"] as const,
+            trackBg: "#24314E",
+          }
+        : {
+            screenGradient: ["#EEF2FF", "#F8FAFF"] as const,
+            card: "#FFFFFF",
+            cardSoft: "#F8FAFF",
+            border: "#E2E8F0",
+            text: "#0F172A",
+            subtext: "#64748B",
+            accent: "#4F46E5",
+            buttonBg: "rgba(255,255,255,0.9)",
+            buttonIcon: "#1E293B",
+            emptyIcon: "#94A3B8",
+            hero: ["#4F46E5", "#7C3AED"] as const,
+            trackBg: "#E2E8F0",
+          },
+    [isDark]
+  );
+
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: isDark ? "#0B1020" : "#f8fafc" }]}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Loading complaints...</Text>
+        <Text style={[styles.loadingText, { color: palette.subtext }]}>Loading complaints...</Text>
       </View>
     );
   }
 
   if (authMissing) {
     return (
-      <LinearGradient colors={["#f8fafc", "#eef2ff"]} style={styles.container}>
-        <View style={styles.authCard}>
+      <LinearGradient colors={palette.screenGradient as any} style={styles.container}>
+        <View style={[styles.authCard, { backgroundColor: palette.card }]}>
           <Ionicons name="lock-closed" size={48} color="#2563eb" />
-          <Text style={styles.authTitle}>Sign in required</Text>
-          <Text style={styles.authText}>Please log in to view and track your complaints.</Text>
-          <Pressable style={styles.authButton} onPress={() => router.push("/auth/login")}>
+          <Text style={[styles.authTitle, { color: palette.text }]}>Sign in required</Text>
+          <Text style={[styles.authText, { color: palette.subtext }]}>Please log in to view and track your complaints.</Text>
+          <Pressable style={[styles.authButton, { backgroundColor: palette.accent }]} onPress={() => router.push("/auth")}>
             <Text style={styles.authButtonText}>Go to Login</Text>
           </Pressable>
         </View>
@@ -477,21 +515,21 @@ export default function TrackComplaints() {
   }
 
   return (
-    <LinearGradient colors={["#f8fafc", "#eef2ff"]} style={styles.container}>
+    <LinearGradient colors={palette.screenGradient as any} style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1e293b" />
+        <Pressable onPress={() => safeBack("/")} style={[styles.backButton, { backgroundColor: palette.buttonBg }]}>
+          <Ionicons name="arrow-back" size={24} color={palette.buttonIcon} />
         </Pressable>
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Unresolved Issues</Text>
-          <Text style={styles.headerSubtitle}>Live complaint pipeline</Text>
+          <Text style={[styles.headerTitle, { color: palette.text }]}>Unresolved Issues</Text>
+          <Text style={[styles.headerSubtitle, { color: palette.subtext }]}>Live complaint pipeline</Text>
         </View>
-        <Pressable onPress={() => void loadComplaints(true)} style={styles.refreshButton}>
-          <Ionicons name="refresh" size={22} color="#1e293b" />
+        <Pressable onPress={() => void loadComplaints(true)} style={[styles.refreshButton, { backgroundColor: palette.buttonBg }]}>
+          <Ionicons name="refresh" size={22} color={palette.buttonIcon} />
         </Pressable>
       </View>
 
-      <LinearGradient colors={["#1d4ed8", "#4338ca"]} style={styles.heroCard}>
+      <LinearGradient colors={palette.hero as any} style={styles.heroCard}>
         <View style={styles.heroBgOrbOne} />
         <View style={styles.heroBgOrbTwo} />
         <Text style={styles.heroTitle}>Track Board</Text>
@@ -521,10 +559,10 @@ export default function TrackComplaints() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadComplaints(true)} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={52} color="#94a3b8" />
-            <Text style={styles.emptyTitle}>No unresolved complaints</Text>
-            <Text style={styles.emptyText}>All your tracked complaints are resolved or none are active.</Text>
-            <Pressable style={styles.emptyButton} onPress={() => router.push("/report") }>
+            <Ionicons name="document-text-outline" size={52} color={palette.emptyIcon} />
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>No unresolved complaints</Text>
+            <Text style={[styles.emptyText, { color: palette.subtext }]}>All your tracked complaints are resolved or none are active.</Text>
+            <Pressable style={[styles.emptyButton, { backgroundColor: palette.accent }]} onPress={() => router.push("/report") }>
               <Text style={styles.emptyButtonText}>Report an Issue</Text>
             </Pressable>
           </View>
@@ -536,17 +574,17 @@ export default function TrackComplaints() {
           return (
             <Pressable onPress={() => setSelectedComplaint(item)}>
               <Reanimated.View entering={FadeInUp.delay(index * 60)} style={styles.cardShell}>
-                <LinearGradient colors={["#dbeafe", "#e9d5ff"]} style={styles.cardBorder}>
-                  <View style={styles.card}>
+                <LinearGradient colors={isDark ? ["#334155", "#312E81"] : ["#dbeafe", "#e9d5ff"]} style={styles.cardBorder}>
+                  <View style={[styles.card, { backgroundColor: palette.card }]}>
                 <View style={[styles.priorityStrip, { backgroundColor: priorityColor }]} />
                 <View style={styles.cardHeader}>
                   <LinearGradient colors={statusGradient} style={styles.iconWrap}>
                     <Ionicons name={item.icon} size={20} color="#fff" />
                   </LinearGradient>
                   <View style={styles.cardHeaderContent}>
-                    <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-                    <Text style={styles.cardMeta}>{item.locationLabel} | {item.dateLabel}</Text>
-                    <Text style={styles.cardOffice} numberOfLines={1}>
+                    <Text style={[styles.cardTitle, { color: palette.text }]} numberOfLines={2}>{item.title}</Text>
+                    <Text style={[styles.cardMeta, { color: palette.subtext }]}>{item.locationLabel} | {item.dateLabel}</Text>
+                    <Text style={[styles.cardOffice, { color: palette.accent }]} numberOfLines={1}>
                       Office: {item.assignedOfficeLabel}
                     </Text>
                   </View>
@@ -554,10 +592,10 @@ export default function TrackComplaints() {
 
                 <View style={styles.progressBlock}>
                   <View style={styles.progressTopRow}>
-                    <Text style={styles.progressLabel}>Progress</Text>
-                    <Text style={styles.progressPct}>{item.progress}%</Text>
+                    <Text style={[styles.progressLabel, { color: palette.subtext }]}>Progress</Text>
+                    <Text style={[styles.progressPct, { color: palette.text }]}>{item.progress}%</Text>
                   </View>
-                  <View style={styles.progressTrack}>
+                  <View style={[styles.progressTrack, { backgroundColor: palette.trackBg }]}>
                     <LinearGradient colors={statusGradient} style={[styles.progressFill, { width: `${item.progress}%` }]} />
                   </View>
                 </View>
@@ -572,8 +610,8 @@ export default function TrackComplaints() {
                   </View>
                 </View>
                 <View style={styles.openHintRow}>
-                  <Ionicons name="open-outline" size={12} color="#64748b" />
-                  <Text style={styles.openHintText}>Tap for more details</Text>
+                  <Ionicons name="open-outline" size={12} color={palette.subtext} />
+                  <Text style={[styles.openHintText, { color: palette.subtext }]}>Tap for more details</Text>
                 </View>
                   </View>
                 </LinearGradient>

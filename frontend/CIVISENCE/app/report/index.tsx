@@ -7,7 +7,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -31,6 +30,7 @@ import Animated, {
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiErrorMessage } from "@/lib/api";
+import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
 import { submitComplaintOrQueue } from "@/lib/services/complaintQueue";
 
@@ -86,8 +86,8 @@ export default function ReportIssueScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [activeModal, setActiveModal] = useState<"none" | "confirm" | "success">("none");
+  const [autoReviewRequested, setAutoReviewRequested] = useState(false);
   const [queued, setQueued] = useState(false);
   const capturePulse = useSharedValue(0);
   const captureSweep = useSharedValue(0);
@@ -116,6 +116,7 @@ export default function ReportIssueScreen() {
     if (photoParam && photoParam.length > 0) {
       log("Photo param received", { uri: photoParam });
       setImage(photoParam);
+      setAutoReviewRequested(true);
     }
   }, [photoParam, params.captureTs]);
 
@@ -225,7 +226,7 @@ export default function ReportIssueScreen() {
     void saveDraft();
     Alert.alert("Login required", "Please sign in before submitting.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign In", onPress: () => router.push({ pathname: "/auth/login", params: { returnTo: "/report" } }) },
+      { text: "Sign In", onPress: () => router.push({ pathname: "/auth", params: { returnTo: "/report" } }) },
     ]);
     return false;
   };
@@ -245,6 +246,9 @@ export default function ReportIssueScreen() {
   };
 
   const submit = async () => {
+    if (submitting) {
+      return;
+    }
     log("Confirm submit pressed");
     if (!ensureAuthenticated()) return;
     if (!coordinates) {
@@ -252,7 +256,7 @@ export default function ReportIssueScreen() {
       return;
     }
     setSubmitting(true);
-    setShowConfirm(false);
+    setActiveModal("none");
     try {
       const payload = {
         title: buildTitle(category, locationText),
@@ -266,7 +270,7 @@ export default function ReportIssueScreen() {
       const result = await submitComplaintOrQueue(payload);
       log("Submit result", result);
       setQueued(result.queued);
-      setShowSuccess(true);
+      setActiveModal("success");
       await clearDraft();
     } catch (error) {
       log("Submit failed", getApiErrorMessage(error));
@@ -291,6 +295,29 @@ export default function ReportIssueScreen() {
     Boolean(locationText) &&
     Boolean(coordinates) &&
     (description.trim().length === 0 || description.trim().length >= 10);
+
+  useEffect(() => {
+    if (!autoReviewRequested) {
+      return;
+    }
+    if (activeModal !== "none" || submitting) {
+      return;
+    }
+    if (!canSubmit) {
+      return;
+    }
+    setAutoReviewRequested(false);
+    setActiveModal("confirm");
+  }, [activeModal, autoReviewRequested, canSubmit, submitting]);
+
+  const openConfirmModal = () => {
+    if (activeModal !== "none" || submitting) {
+      return;
+    }
+    if (validateBeforeReview()) {
+      setActiveModal("confirm");
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["left", "right"]}>
@@ -318,7 +345,7 @@ export default function ReportIssueScreen() {
               },
             ]}
           >
-            <Pressable style={styles.backBtn} onPress={() => router.back()}>
+            <Pressable style={styles.backBtn} onPress={() => safeBack("/")}>
               <Text style={styles.backText}>{"\u2190"}</Text>
             </Pressable>
             <Text style={styles.headerTitle}>Report Issue</Text>
@@ -360,8 +387,11 @@ export default function ReportIssueScreen() {
                   </View>
                 </>
               ) : (
-                <View style={styles.previewWrap}>
-                  <Image source={{ uri: image }} style={styles.previewImage} />
+                <View style={styles.photoCapturedCard}>
+                  <View style={styles.photoCapturedRow}>
+                    <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                    <Text style={styles.photoCapturedText}>Photo captured successfully</Text>
+                  </View>
                   <Pressable style={styles.retakeBtn} onPress={() => router.push("/report/camera")}>
                     <Ionicons name="camera-reverse" size={16} color="#4F46E5" />
                     <Text style={styles.retakeText}>Retake Photo</Text>
@@ -422,7 +452,7 @@ export default function ReportIssueScreen() {
               },
             ]}
           >
-            <Pressable style={[styles.submit, !canSubmit && styles.submitDisabled]} onPress={() => validateBeforeReview() && setShowConfirm(true)} disabled={!canSubmit}>
+            <Pressable style={[styles.submit, !canSubmit && styles.submitDisabled]} onPress={openConfirmModal} disabled={!canSubmit}>
               <Text style={styles.submitText}>Review & Submit</Text>
               <Ionicons name="arrow-forward" size={18} color="#FFF" />
             </Pressable>
@@ -430,35 +460,77 @@ export default function ReportIssueScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      <Modal visible={showConfirm} transparent animationType="fade">
+      <Modal
+        visible={activeModal !== "none"}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => {
+          if (!submitting) {
+            setActiveModal("none");
+          }
+        }}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Review Your Report</Text>
-            <Text style={styles.modalSub}>Please verify the details before submitting</Text>
-            <Text style={styles.modalText}>Category: {category}</Text>
-            <Text style={styles.modalText}>Location: {locationText}</Text>
-            {!!description.trim() && <Text style={styles.modalText}>Description: {description.trim()}</Text>}
-            <View style={styles.modalActions}>
-              <Pressable style={styles.modalEdit} onPress={() => setShowConfirm(false)}><Text style={styles.modalEditText}>Edit</Text></Pressable>
-              <Pressable style={styles.modalSubmit} onPress={() => void submit()} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.modalSubmitText}>Submit Report</Text>}
-              </Pressable>
+          {activeModal === "confirm" ? (
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Review Your Report</Text>
+              <Text style={styles.modalSub}>Please verify the details before submitting</Text>
+              <Text style={styles.modalText}>Category: {category}</Text>
+              <Text style={styles.modalText}>Location: {locationText}</Text>
+              {!!description.trim() && <Text style={styles.modalText}>Description: {description.trim()}</Text>}
+              <View style={styles.modalActions}>
+                <Pressable style={styles.modalEdit} onPress={() => setActiveModal("none")}>
+                  <Text style={styles.modalEditText}>Edit</Text>
+                </Pressable>
+                <Pressable style={styles.modalSubmit} onPress={() => void submit()} disabled={submitting}>
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Text style={styles.modalSubmitText}>Submit Report</Text>
+                  )}
+                </Pressable>
+              </View>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={showSuccess} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Ionicons name="checkmark-circle" size={84} color="#10B981" style={{ alignSelf: "center", marginBottom: 10 }} />
-            <Text style={styles.modalTitle}>{queued ? "Queued for upload" : "Issue Reported"}</Text>
-            <Text style={styles.modalSub}>{queued ? "No internet detected. Your report is saved and will be sent automatically." : "Your complaint has been submitted successfully."}</Text>
-            <View style={styles.modalActions}>
-              <Pressable style={styles.modalEdit} onPress={() => { setShowSuccess(false); resetForm(); router.push("/"); }}><Text style={styles.modalEditText}>Back to Home</Text></Pressable>
-              <Pressable style={styles.modalSubmit} onPress={() => { setShowSuccess(false); resetForm(); router.push("/track"); }}><Text style={styles.modalSubmitText}>Track</Text></Pressable>
+          ) : (
+            <View style={styles.modalCard}>
+              <Ionicons
+                name="checkmark-circle"
+                size={84}
+                color="#10B981"
+                style={{ alignSelf: "center", marginBottom: 10 }}
+              />
+              <Text style={styles.modalTitle}>{queued ? "Queued for upload" : "Issue Reported"}</Text>
+              <Text style={styles.modalSub}>
+                {queued
+                  ? "No internet detected. Your report is saved and will be sent automatically."
+                  : "Your complaint has been submitted successfully."}
+              </Text>
+              <View style={styles.modalActions}>
+                <Pressable
+                  style={styles.modalEdit}
+                  onPress={() => {
+                    setActiveModal("none");
+                    resetForm();
+                    router.push("/");
+                  }}
+                >
+                  <Text style={styles.modalEditText}>Back to Home</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.modalSubmit}
+                  onPress={() => {
+                    setActiveModal("none");
+                    resetForm();
+                    router.push("/track");
+                  }}
+                >
+                  <Text style={styles.modalSubmitText}>Track</Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
+          )}
         </View>
       </Modal>
     </SafeAreaView>
@@ -506,8 +578,25 @@ const styles = StyleSheet.create({
   captureArrow: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   photoPlaceholder: { height: 108, borderWidth: 2, borderStyle: "dashed", borderColor: "#C7D2FE", borderRadius: 14, backgroundColor: "rgba(238,242,255,0.9)", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 },
   photoPlaceholderText: { color: "#94A3B8", fontSize: 13, fontWeight: "500", textAlign: "center" },
-  previewWrap: { gap: 12 },
-  previewImage: { width: "100%", height: 190, borderRadius: 14 },
+  photoCapturedCard: {
+    gap: 12,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#C7D2FE",
+    backgroundColor: "rgba(238,242,255,0.75)",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  photoCapturedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  photoCapturedText: {
+    color: "#334155",
+    fontSize: 13,
+    fontWeight: "600",
+  },
   retakeBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#EEF2FF", borderRadius: 10, paddingVertical: 9 },
   retakeText: { color: "#4F46E5", fontSize: 13, fontWeight: "700" },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 10 },

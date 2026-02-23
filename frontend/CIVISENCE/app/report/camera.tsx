@@ -4,7 +4,6 @@ import {
   Animated,
   Dimensions,
   Easing,
-  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -18,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { safeBack } from "@/lib/navigation";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const FRAME_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 360);
@@ -36,7 +36,6 @@ export default function CameraScreen() {
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [facing, setFacing] = useState<"back" | "front">("back");
   const [flash, setFlash] = useState<"off" | "on">("off");
   const [category, setCategory] = useState(CATEGORIES[0].key);
@@ -84,8 +83,6 @@ export default function CameraScreen() {
     outputRange: [0.7, 0],
   });
 
-  const nowMeta = new Date().toLocaleTimeString();
-
   const handleTakePicture = async () => {
     if (!cameraRef.current || isCapturing) {
       return;
@@ -97,27 +94,20 @@ export default function CameraScreen() {
         skipProcessing: false,
       });
       if (photo?.uri) {
-        setCapturedPhoto(photo.uri);
+        router.replace({
+          pathname: "/report",
+          params: {
+            photo: photo.uri,
+            captureTs: String(Date.now()),
+            category,
+          },
+        });
       }
     } catch {
       // Ignore capture failures and keep camera active.
     } finally {
       setIsCapturing(false);
     }
-  };
-
-  const handleConfirm = () => {
-    if (!capturedPhoto) {
-      return;
-    }
-    router.replace({
-      pathname: "/report",
-      params: {
-        photo: capturedPhoto,
-        captureTs: String(Date.now()),
-        category,
-      },
-    });
   };
 
   if (!permission) {
@@ -146,64 +136,10 @@ export default function CameraScreen() {
           <Pressable style={styles.permissionPrimary} onPress={requestPermission}>
             <Text style={styles.permissionPrimaryText}>Grant Camera Access</Text>
           </Pressable>
-          <Pressable style={styles.permissionSecondary} onPress={() => router.back()}>
+          <Pressable style={styles.permissionSecondary} onPress={() => safeBack("/report")}>
             <Text style={styles.permissionSecondaryText}>Not Now</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (capturedPhoto) {
-    return (
-      <SafeAreaView style={styles.previewRoot} edges={["top", "left", "right", "bottom"]}>
-        <StatusBar style="light" />
-        <Image source={{ uri: capturedPhoto }} style={styles.previewImage} resizeMode="cover" />
-        <LinearGradient
-          colors={["rgba(0,0,0,0.82)", "transparent"]}
-          style={[styles.previewTopOverlay, { paddingTop: insets.top + 8 }]}
-        >
-          <Pressable style={styles.glassButton} onPress={() => router.back()}>
-            <Ionicons name="close" size={20} color="#FFFFFF" />
-          </Pressable>
-          <Text style={styles.previewTitle}>Photo Preview</Text>
-          <View style={styles.readyBadge}>
-            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
-            <Text style={styles.readyBadgeText}>Ready</Text>
-          </View>
-        </LinearGradient>
-
-        <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.72)", "rgba(0,0,0,0.95)"]}
-          style={[styles.previewBottomOverlay, { paddingBottom: insets.bottom + 12 }]}
-        >
-          <View style={styles.metaCard}>
-            <Ionicons name="location" size={16} color="#A5B4FC" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.metaTitle}>Captured just now</Text>
-              <Text style={styles.metaSub}>{nowMeta}</Text>
-            </View>
-          </View>
-          <View style={styles.metaCard}>
-            <Ionicons name="pricetag" size={16} color="#A5B4FC" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.metaTitle}>Category: {category}</Text>
-              <Text style={styles.metaSub}>You can still change it in report screen</Text>
-            </View>
-          </View>
-          <View style={styles.previewActions}>
-            <Pressable style={styles.retakeButton} onPress={() => setCapturedPhoto(null)}>
-              <Ionicons name="refresh" size={16} color="#FFFFFF" />
-              <Text style={styles.retakeText}>Retake</Text>
-            </Pressable>
-            <Pressable style={styles.useButtonWrap} onPress={handleConfirm}>
-              <LinearGradient colors={["#4F46E5", "#7C3AED"]} style={styles.useButton}>
-                <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-                <Text style={styles.useText}>Use Photo</Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
-        </LinearGradient>
       </SafeAreaView>
     );
   }
@@ -217,7 +153,7 @@ export default function CameraScreen() {
         colors={["rgba(0,0,0,0.78)", "transparent"]}
         style={[styles.topBar, { paddingTop: insets.top + 8 }]}
       >
-        <Pressable style={styles.glassButton} onPress={() => router.back()}>
+        <Pressable style={styles.glassButton} onPress={() => safeBack("/report")}>
           <Ionicons name="close" size={20} color="#FFFFFF" />
         </Pressable>
         <Text style={styles.topTitle}>Capture Issue</Text>

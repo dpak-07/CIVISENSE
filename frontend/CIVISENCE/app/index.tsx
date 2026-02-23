@@ -1,173 +1,76 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Image,
   Animated as RNAnimated,
+  Image,
   Platform,
+  Pressable,
+  ScrollView,
+  useWindowDimensions,
+  StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  ViewStyle,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import Animated, { FadeInDown, FadeInUp, ZoomIn } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { getMyComplaints } from "@/lib/services/complaints";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getMyComplaints, ComplaintRecord } from "@/lib/services/complaints";
 import { getNotifications } from "@/lib/services/notifications";
 import { useAppPreferences } from "@/lib/appPreferencesContext";
 import { sessionStore } from "@/lib/session";
+import CiviSenseLogo from "@/components/branding/CiviSenseLogo";
 
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 
-function LogoAnimation({ isDark }: { isDark: boolean }) {
-  const rotate = useRef(new RNAnimated.Value(0)).current;
+type BadgeKind = "new" | "neutral" | "live";
+type MenuItem = {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route: string;
+  iconBg: string;
+  badgeLabel: string;
+  badgeKind: BadgeKind;
+};
 
-  useEffect(() => {
-    RNAnimated.loop(
-      RNAnimated.timing(rotate, {
-        toValue: 1,
-        duration: 8000,
-        useNativeDriver: USE_NATIVE_DRIVER,
-      })
-    ).start();
-  }, []);
-
-  const rotation = rotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  return (
-    <RNAnimated.View
-      style={[
-        isDark ? styles.rotatingBorderDark : styles.rotatingBorder,
-        {
-          transform: [{ rotate: rotation }],
-        },
-      ]}
-    />
-  );
-}
-
-function FloatingCircle({ delay = 0, duration = 4000, style }: any) {
+function FloatingBlob({ style, duration, delay }: { style?: StyleProp<ViewStyle>; duration: number; delay: number }) {
   const translateY = useRef(new RNAnimated.Value(0)).current;
-  const translateX = useRef(new RNAnimated.Value(0)).current;
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  useEffect(() => {
-    RNAnimated.loop(
-      RNAnimated.parallel([
-        RNAnimated.sequence([
-          RNAnimated.timing(translateY, {
-            toValue: -30,
-            duration: duration,
-            delay,
-            useNativeDriver: USE_NATIVE_DRIVER,
-          }),
-          RNAnimated.timing(translateY, {
-            toValue: 0,
-            duration: duration,
-            useNativeDriver: USE_NATIVE_DRIVER,
-          }),
-        ]),
-        RNAnimated.sequence([
-          RNAnimated.timing(translateX, {
-            toValue: 20,
-            duration: duration / 2,
-            delay,
-            useNativeDriver: USE_NATIVE_DRIVER,
-          }),
-          RNAnimated.timing(translateX, {
-            toValue: -20,
-            duration: duration,
-            useNativeDriver: USE_NATIVE_DRIVER,
-          }),
-          RNAnimated.timing(translateX, {
-            toValue: 0,
-            duration: duration / 2,
-            useNativeDriver: USE_NATIVE_DRIVER,
-          }),
-        ]),
-        RNAnimated.sequence([
-          RNAnimated.timing(scale, {
-            toValue: 1.1,
-            duration: duration / 2,
-            delay,
-            useNativeDriver: USE_NATIVE_DRIVER,
-          }),
-          RNAnimated.timing(scale, {
-            toValue: 1,
-            duration: duration / 2,
-            useNativeDriver: USE_NATIVE_DRIVER,
-          }),
-        ]),
-      ])
-    ).start();
-  }, []);
-
-  return (
-    <RNAnimated.View
-      style={[
-        style,
-        {
-          transform: [{ translateY }, { translateX }, { scale }],
-        },
-      ]}
-    />
-  );
-}
-
-function BackgroundDots({ isDark }: { isDark: boolean }) {
-  const opacity = useRef(new RNAnimated.Value(0.3)).current;
 
   useEffect(() => {
     RNAnimated.loop(
       RNAnimated.sequence([
-        RNAnimated.timing(opacity, {
-          toValue: 0.6,
-          duration: 3000,
+        RNAnimated.timing(translateY, {
+          toValue: -22,
+          duration,
+          delay,
           useNativeDriver: USE_NATIVE_DRIVER,
         }),
-        RNAnimated.timing(opacity, {
-          toValue: 0.3,
-          duration: 3000,
+        RNAnimated.timing(translateY, {
+          toValue: 0,
+          duration,
           useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ])
     ).start();
-  }, []);
+  }, [delay, duration, translateY]);
 
-  return (
-    <RNAnimated.View style={[styles.dotsContainer, { opacity }]}>
-      {[...Array(20)].map((_, i) => (
-        <View
-          key={i}
-          style={[
-            isDark ? styles.dotDark : styles.dot,
-            {
-              left: `${(i % 5) * 20 + 10}%`,
-              top: `${Math.floor(i / 5) * 25 + 10}%`,
-            },
-          ]}
-        />
-      ))}
-    </RNAnimated.View>
-  );
+  return <RNAnimated.View style={[style, { transform: [{ translateY }] }]} />;
 }
 
 export default function Home() {
-  const [myReportsCount, setMyReportsCount] = useState(0);
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const params = useLocalSearchParams<{ welcome?: string | string[] }>();
+  const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [user, setUser] = useState(sessionStore.getUser());
   const { preferences, setDarkMode, t } = useAppPreferences();
   const isDarkMode = preferences.darkMode;
-
-  useEffect(() => {
-    if (!sessionStore.getAccessToken()) {
-      router.replace("/auth/login");
-    }
-  }, []);
 
   useEffect(() => {
     const unsubscribe = sessionStore.subscribe(() => {
@@ -177,21 +80,23 @@ export default function Home() {
   }, []);
 
   useFocusEffect(
-    React.useCallback(() => {
-      const load = async () => {
-        if (!sessionStore.getAccessToken()) {
-          return;
-        }
+    useCallback(() => {
+      const token = sessionStore.getAccessToken();
+      if (!token) {
+        router.replace("/auth");
+        return;
+      }
 
+      const load = async () => {
         try {
-          const [complaints, notifications] = await Promise.all([
+          const [myComplaints, notifications] = await Promise.all([
             getMyComplaints(),
             getNotifications(),
           ]);
-          setMyReportsCount(complaints.length);
+          setComplaints(myComplaints);
           setUnreadNotifications(notifications.filter((item) => !item.read).length);
         } catch {
-          // Ignore home stats errors, user can still navigate.
+          // Keep home screen usable even if stats fail.
         }
       };
 
@@ -199,179 +104,266 @@ export default function Home() {
     }, [])
   );
 
-  const menuItems = [
-    {
-      id: 1,
-      title: t("home.reportIssue"),
-      subtitle: t("home.submitNewComplaint"),
-      icon: "camera",
-      color: "#2DD4BF",
-      route: "/report",
-    },
-    {
-      id: 2,
-      title: t("home.trackStatus"),
-      subtitle: t("home.reportsCount", { count: myReportsCount }),
-      icon: "time",
-      color: "#A78BFA",
-      route: "/track",
-    },
-    {
-      id: 3,
-      title: t("home.cityMap"),
-      subtitle: t("home.exploreIssues"),
-      icon: "map",
-      color: "#FB923C",
-      route: "/map",
-    },
-    {
-      id: 4,
-      title: t("home.myReports"),
-      subtitle: t("home.unreadAlerts", { count: unreadNotifications }),
-      icon: "document-text",
-      color: "#F472B6",
-      route: "/reports",
-    },
-  ];
+  const stats = useMemo(() => {
+    const total = complaints.length;
+    const resolved = complaints.filter((item) => item.status === "resolved").length;
+    const open = complaints.filter(
+      (item) => item.status !== "resolved" && item.status !== "rejected"
+    ).length;
+    const responseRate = total > 0 ? Math.round((resolved / total) * 100) : 0;
+    return { total, resolved, open, responseRate };
+  }, [complaints]);
 
-  const theme = {
-    background: isDarkMode ? ["#1a1a2e", "#16213e"] : ["#ffffff", "#f0fdfa"],
-    text: isDarkMode ? "#ffffff" : "#0f766e",
-    subText: isDarkMode ? "#cbd5e1" : "#64748b",
-    cardBg: isDarkMode ? "#0f3460" : "#fff",
-    brandGradient: isDarkMode ? ["#0f3460", "#16213e"] : ["#14b8a6", "#0d9488"],
-  };
+  const menuItems = useMemo<MenuItem[]>(
+    () => [
+      {
+        id: "report",
+        title: t("home.reportIssue"),
+        subtitle: t("home.submitNewComplaint"),
+        icon: "camera",
+        route: "/report",
+        iconBg: "#EEF2FF",
+        badgeLabel: "New",
+        badgeKind: "new",
+      },
+      {
+        id: "track",
+        title: t("home.trackStatus"),
+        subtitle: `${stats.open} active report(s)`,
+        icon: "time",
+        route: "/track",
+        iconBg: "#F5F3FF",
+        badgeLabel: `${stats.open} open`,
+        badgeKind: "neutral",
+      },
+      {
+        id: "map",
+        title: t("home.cityMap"),
+        subtitle: t("home.exploreIssues"),
+        icon: "map",
+        route: "/map",
+        iconBg: "#FFF7ED",
+        badgeLabel: "Live",
+        badgeKind: "live",
+      },
+      {
+        id: "reports",
+        title: t("home.myReports"),
+        subtitle: t("home.unreadAlerts", { count: unreadNotifications }),
+        icon: "document-text",
+        route: "/reports",
+        iconBg: "#FDF2F8",
+        badgeLabel: `${unreadNotifications} alerts`,
+        badgeKind: "neutral",
+      },
+    ],
+    [stats.open, t, unreadNotifications]
+  );
+
+  const theme = useMemo(
+    () => ({
+      screenGradient: isDarkMode ? (["#0B1020", "#11172A"] as const) : (["#E9EEFF", "#F7F9FF"] as const),
+      cardSurface: isDarkMode ? "#131C31" : "#FFFFFF",
+      cardBorder: isDarkMode ? "rgba(148,163,184,0.22)" : "#E2E8F0",
+      title: isDarkMode ? "#F8FAFC" : "#0F172A",
+      subtitle: isDarkMode ? "#A3B3CF" : "#64748B",
+      iconButtonBg: isDarkMode ? "#1B2642" : "#F5F7FF",
+      heroGradient: isDarkMode ? (["#334155", "#312E81", "#4C1D95"] as const) : (["#4F46E5", "#6D28D9", "#7C3AED"] as const),
+      quickGradient: isDarkMode ? (["#1D4ED8", "#4338CA"] as const) : (["#4F46E5", "#7C3AED"] as const),
+      badgeNeutralBg: isDarkMode ? "#1E293B" : "#F8FAFC",
+      footer: isDarkMode ? "#94A3B8" : "#94A3B8",
+    }),
+    [isDarkMode]
+  );
+
+  const firstName = (user?.name || t("home.citizen")).trim().split(" ")[0] || t("home.citizen");
+  const compact = windowHeight < 780;
+  const isFreshSignup = useMemo(() => {
+    const value = Array.isArray(params.welcome) ? params.welcome[0] : params.welcome;
+    return value === "1" || value === "true";
+  }, [params.welcome]);
 
   return (
-    <View style={[styles.container, isDarkMode && styles.containerDark]}>
-      {/* Gradient Background */}
-      <LinearGradient
-        colors={theme.background as any}
-        style={StyleSheet.absoluteFillObject}
-      />
+    <View style={styles.container}>
+      <LinearGradient colors={theme.screenGradient as any} style={StyleSheet.absoluteFillObject} />
 
-      {/* Background Dots Animation */}
-      <BackgroundDots isDark={isDarkMode} />
+      <FloatingBlob style={[styles.blob, styles.blobOne]} duration={5200} delay={0} />
+      <FloatingBlob style={[styles.blob, styles.blobTwo]} duration={6400} delay={400} />
+      <FloatingBlob style={[styles.blob, styles.blobThree]} duration={5600} delay={900} />
 
-      {/* Floating Decorative Circles */}
-      <FloatingCircle delay={0} duration={5000} style={[styles.circle, styles.circle1]} />
-      <FloatingCircle delay={1000} duration={6000} style={[styles.circle, styles.circle2]} />
-      <FloatingCircle delay={2000} duration={4500} style={[styles.circle, styles.circle3]} />
-
-      {/* Header */}
-      <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
-        <View>
-          <Text style={[styles.greeting, { color: theme.subText }]}>{t("home.welcomeBack")}</Text>
-          <Text style={[styles.userName, { color: theme.text }]}>
-            {user?.name || t("home.citizen")}
-          </Text>
-        </View>
-        <View style={styles.headerRight}>
-          {/* Dark Mode Toggle */}
-          <Pressable
-            style={[styles.themeToggle, isDarkMode && styles.themeToggleDark]}
-            onPress={() => void setDarkMode(!isDarkMode)}
-          >
-            <Ionicons
-              name={isDarkMode ? "sunny" : "moon"}
-              size={20}
-              color={isDarkMode ? "#fbbf24" : "#0f766e"}
-            />
-          </Pressable>
-
-          <Pressable
-            style={[styles.iconButton, isDarkMode && styles.iconButtonDark]}
-            onPress={() => router.push("/settings")}
-          >
-            <Ionicons
-              name="settings-outline"
-              size={24}
-              color={isDarkMode ? "#14b8a6" : "#0f766e"}
-            />
-          </Pressable>
-          <Pressable onPress={() => router.push("/profile")}>
-            <Image
-              key={user?.profilePhotoUrl || "default-avatar"}
-              source={{
-                uri: user?.profilePhotoUrl || "https://i.pravatar.cc/150?u=user",
-              }}
-              style={[styles.profilePic, isDarkMode && styles.profilePicDark]}
-            />
-          </Pressable>
-        </View>
-      </Animated.View>
-
-      {/* Logo Section */}
-      <Animated.View entering={ZoomIn.duration(800).delay(100)} style={styles.logoSection}>
-        <View style={styles.brandCard}>
-          <LinearGradient
-            colors={theme.brandGradient as any}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.brandGradient}
-          >
-            <View style={styles.logoContainer}>
-              <LogoAnimation isDark={isDarkMode} />
-              <View style={styles.logoIconWrapper}>
-                <Ionicons name="business" size={32} color="#fff" />
-              </View>
-            </View>
-            <View style={styles.brandTextContainer}>
-              <Text style={styles.brandName}>CiviSense</Text>
-              <View style={styles.taglineContainer}>
-                <View style={styles.taglineDot} />
-                <Text style={styles.brandTagline}>{t("app.tagline")}</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
-      </Animated.View>
-
-      {/* Menu Cards */}
-      <View style={styles.menuContainer}>
-        {menuItems.map((item, index) => (
-          <Animated.View
-            key={item.id}
-            entering={FadeInUp.delay(200 + index * 100).duration(700)}
-            style={styles.cardWrapper}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.menuCard,
-                isDarkMode && styles.menuCardDark,
-                pressed && styles.cardPressed,
+      <ScrollView
+        scrollEnabled={Platform.OS !== "ios"}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        alwaysBounceVertical={false}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: Math.max(insets.bottom, 10) + 6,
+            minHeight: windowHeight,
+          },
+        ]}
+      >
+        <View style={styles.mainArea}>
+          <View>
+            <Animated.View
+              entering={FadeInDown.duration(500)}
+              style={[
+                styles.header,
+                { paddingTop: Math.max(insets.top, 14) + (compact ? 2 : 6) },
               ]}
-              onPress={() => router.push(item.route as never)}
             >
-              <View style={[styles.iconBox, { backgroundColor: item.color }]}>
-                <Ionicons name={item.icon as any} size={28} color="#fff" />
-              </View>
-              <View style={styles.cardText}>
-                <Text style={[styles.cardTitle, { color: theme.text }]}>
-                  {item.title}
+              <View>
+                <Text style={[styles.greetingSub, { color: theme.subtitle }]}>
+                  {isFreshSignup ? "Welcome" : t("home.welcomeBack")}
                 </Text>
-                <Text style={[styles.cardSubtitle, { color: theme.subText }]}>
-                  {item.subtitle}
+                <Text style={[styles.greetingName, compact && styles.greetingNameCompact, { color: theme.title }]}>
+                  {firstName}
                 </Text>
               </View>
-              <View style={[styles.arrowBox, isDarkMode && styles.arrowBoxDark]}>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={isDarkMode ? "#64748b" : "#94a3b8"}
-                />
+              <View style={styles.headerActions}>
+                <Pressable
+                  style={[styles.iconBtn, { backgroundColor: theme.iconButtonBg, borderColor: theme.cardBorder }]}
+                  onPress={() => void setDarkMode(!isDarkMode)}
+                >
+                  <Ionicons name={isDarkMode ? "sunny" : "moon"} size={18} color={theme.title} />
+                </Pressable>
+                <Pressable
+                  style={[styles.iconBtn, { backgroundColor: theme.iconButtonBg, borderColor: theme.cardBorder }]}
+                  onPress={() => router.push("/settings")}
+                >
+                  <Ionicons name="settings-outline" size={18} color={theme.title} />
+                </Pressable>
+                <Pressable onPress={() => router.push("/profile")}
+                >
+                  <Image
+                    source={{ uri: user?.profilePhotoUrl || `https://i.pravatar.cc/150?u=${user?.id || "guest"}` }}
+                    style={styles.avatar}
+                  />
+                </Pressable>
               </View>
-            </Pressable>
-          </Animated.View>
-        ))}
-      </View>
+            </Animated.View>
 
-      {/* Footer */}
-      <Animated.View entering={FadeInUp.delay(600).duration(700)} style={styles.footer}>
-        <Text style={[styles.footerText, { color: theme.subText }]}>
-          {t("home.empoweringCitizens")}
-        </Text>
-      </Animated.View>
+            <Animated.View entering={FadeInUp.duration(520).delay(70)} style={[styles.heroWrap, compact && styles.heroWrapCompact]}>
+              <LinearGradient colors={theme.heroGradient as any} style={[styles.hero, compact && styles.heroCompact]}>
+                <View style={styles.heroDecorOne} />
+                <View style={styles.heroDecorTwo} />
+                <View style={styles.heroRow}>
+                  <View style={styles.heroIconWrap}>
+                    <CiviSenseLogo size={compact ? 40 : 46} />
+                  </View>
+                  <View style={styles.heroTextWrap}>
+                    <Text style={[styles.heroTitle, compact && styles.heroTitleCompact]}>CiviSense</Text>
+                    <View style={styles.heroTaglineRow}>
+                      <View style={styles.heroDot} />
+                      <Text style={[styles.heroTagline, compact && styles.heroTaglineCompact]}>{t("app.tagline")}</Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={[styles.heroStatsRow, compact && styles.heroStatsRowCompact]}>
+                  <View style={styles.heroStatItem}>
+                    <Text style={[styles.heroStatValue, compact && styles.heroStatValueCompact]}>{stats.resolved}</Text>
+                    <Text style={styles.heroStatLabel}>Resolved</Text>
+                  </View>
+                  <View style={styles.heroStatDivider} />
+                  <View style={styles.heroStatItem}>
+                    <Text style={[styles.heroStatValue, compact && styles.heroStatValueCompact]}>{stats.open}</Text>
+                    <Text style={styles.heroStatLabel}>Active Reports</Text>
+                  </View>
+                  <View style={styles.heroStatDivider} />
+                  <View style={styles.heroStatItem}>
+                    <Text style={[styles.heroStatValue, compact && styles.heroStatValueCompact]}>{stats.responseRate}%</Text>
+                    <Text style={styles.heroStatLabel}>Response Rate</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </Animated.View>
+
+            <Animated.View entering={FadeInUp.duration(520).delay(120)} style={[styles.quickWrap, compact && styles.quickWrapCompact]}>
+              <Pressable onPress={() => router.push("/report")}
+                style={({ pressed }) => [pressed && styles.cardPressed]}>
+                <LinearGradient colors={theme.quickGradient as any} style={[styles.quickAction, compact && styles.quickActionCompact]}>
+                  <View style={styles.quickIcon}>
+                    <Ionicons name="camera" size={18} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.quickTextWrap}>
+                    <Text style={styles.quickTitle}>Spot an issue? Report it now</Text>
+                    <Text style={styles.quickSubtitle}>Takes less than 60 seconds</Text>
+                  </View>
+                  <View style={styles.quickArrow}>
+                    <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+                  </View>
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+          </View>
+
+          <View>
+            <Animated.View entering={FadeInUp.duration(500).delay(160)} style={[styles.sectionWrap, compact && styles.sectionWrapCompact]}>
+              <Text style={[styles.sectionTitle, { color: theme.subtitle }]}>Quick Access</Text>
+              <View style={[styles.sectionLine, { backgroundColor: theme.cardBorder }]} />
+            </Animated.View>
+
+            <View style={[styles.menuGrid, compact && styles.menuGridCompact]}>
+              {menuItems.map((item, index) => {
+                const badgeStyle =
+                  item.badgeKind === "new"
+                    ? styles.badgeNew
+                    : item.badgeKind === "live"
+                      ? styles.badgeLive
+                      : [styles.badgeNeutral, { backgroundColor: theme.badgeNeutralBg, borderColor: theme.cardBorder }];
+
+                return (
+                  <Animated.View key={item.id} entering={FadeInUp.duration(560).delay(180 + index * 90)}>
+                    <Pressable
+                      onPress={() => router.push(item.route as never)}
+                      style={({ pressed }) => [
+                        styles.menuCard,
+                        compact && styles.menuCardCompact,
+                        { backgroundColor: theme.cardSurface, borderColor: theme.cardBorder },
+                        pressed && styles.cardPressed,
+                      ]}
+                    >
+                      <View style={[styles.menuIconWrap, compact && styles.menuIconWrapCompact, { backgroundColor: item.iconBg }]}>
+                        <Ionicons name={item.icon} size={compact ? 18 : 21} color="#0F172A" />
+                      </View>
+                      <View style={styles.menuTextWrap}>
+                        <Text style={[styles.menuTitle, compact && styles.menuTitleCompact, { color: theme.title }]} numberOfLines={1}>
+                          {item.title}
+                        </Text>
+                        <Text style={[styles.menuSubtitle, compact && styles.menuSubtitleCompact, { color: theme.subtitle }]} numberOfLines={1}>
+                          {item.subtitle}
+                        </Text>
+                      </View>
+                      <View style={styles.menuRight}>
+                        <View style={[styles.arrowBtn, { backgroundColor: theme.iconButtonBg, borderColor: theme.cardBorder }]}>
+                          <Ionicons name="arrow-forward" size={13} color={theme.subtitle} />
+                        </View>
+                        <Text style={[styles.badgeBase, badgeStyle as any]}>{item.badgeLabel}</Text>
+                      </View>
+                    </Pressable>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        <Animated.View
+          entering={FadeInUp.duration(580).delay(560)}
+          style={[
+            styles.footerWrap,
+            {
+              paddingBottom: Math.max(insets.bottom, 8) + 2,
+              marginTop: compact ? 8 : 14,
+            },
+          ]}
+        >
+          <Text style={[styles.footerText, { color: theme.footer }]}>
+            {t("home.empoweringCitizens")}
+          </Text>
+        </Animated.View>
+      </ScrollView>
     </View>
   );
 }
@@ -379,293 +371,365 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
-  containerDark: {
-    backgroundColor: "#1a1a2e",
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
   },
-
-  /* Background Dots */
-  dotsContainer: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-    zIndex: 0,
+  mainArea: {
+    flexGrow: 1,
+    justifyContent: "space-between",
   },
-  dot: {
-    position: "absolute",
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#14b8a6",
-    opacity: 0.2,
-  },
-  dotDark: {
-    position: "absolute",
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#14b8a6",
-    opacity: 0.3,
-  },
-
-  /* Decorative Elements */
-  circle: {
+  blob: {
     position: "absolute",
     borderRadius: 999,
-    opacity: 0.05,
+    opacity: 0.12,
   },
-  circle1: {
-    width: 300,
-    height: 300,
-    backgroundColor: "#2DD4BF",
-    top: -150,
-    right: -100,
+  blobOne: {
+    width: 220,
+    height: 220,
+    backgroundColor: "#6366F1",
+    top: -90,
+    right: -70,
   },
-  circle2: {
-    width: 200,
-    height: 200,
-    backgroundColor: "#A78BFA",
-    bottom: 100,
-    left: -80,
+  blobTwo: {
+    width: 170,
+    height: 170,
+    backgroundColor: "#A855F7",
+    top: 260,
+    left: -70,
   },
-  circle3: {
-    width: 150,
-    height: 150,
-    backgroundColor: "#FB923C",
-    top: 200,
-    left: -50,
+  blobThree: {
+    width: 140,
+    height: 140,
+    backgroundColor: "#F97316",
+    bottom: 120,
+    right: -60,
   },
 
-  /* Header */
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 24,
-    zIndex: 10,
+    paddingBottom: 12,
   },
-  greeting: {
-    fontSize: 14,
+  greetingSub: {
+    fontSize: 12,
     fontWeight: "500",
   },
-  userName: {
-    fontSize: 26,
-    fontWeight: "bold",
+  greetingName: {
+    marginTop: 2,
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  greetingNameCompact: {
+    fontSize: 21,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+
+  heroWrap: {
+    marginTop: 4,
+  },
+  heroWrapCompact: {
     marginTop: 2,
   },
-  headerRight: {
+  hero: {
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    overflow: "hidden",
+  },
+  heroCompact: {
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  },
+  heroDecorOne: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    top: -30,
+    right: -36,
+  },
+  heroDecorTwo: {
+    position: "absolute",
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    bottom: -22,
+    right: 34,
+  },
+  heroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  heroIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroTextWrap: {
+    flex: 1,
+  },
+  heroTitle: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  heroTitleCompact: {
+    fontSize: 19,
+  },
+  heroTaglineRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  heroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#86EFAC",
+  },
+  heroTagline: {
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 12.5,
+    fontWeight: "600",
+  },
+  heroTaglineCompact: {
+    fontSize: 11.5,
+  },
+  heroStatsRow: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.18)",
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  heroStatsRowCompact: {
+    marginTop: 12,
+    paddingTop: 10,
+  },
+  heroStatItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroStatValue: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  heroStatValueCompact: {
+    fontSize: 16,
+  },
+  heroStatLabel: {
+    marginTop: 2,
+    color: "rgba(255,255,255,0.66)",
+    fontSize: 10.5,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  heroStatDivider: {
+    width: 1,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    marginVertical: 2,
+  },
+
+  quickWrap: {
+    marginTop: 10,
+  },
+  quickWrapCompact: {
+    marginTop: 8,
+  },
+  quickAction: {
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  themeToggle: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#14b8a6",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 2,
+  quickActionCompact: {
+    paddingVertical: 11,
   },
-  themeToggleDark: {
-    backgroundColor: "#0f3460",
-  },
-  iconButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#14b8a6",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  iconButtonDark: {
-    backgroundColor: "#0f3460",
-  },
-  profilePic: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 3,
-    borderColor: "#ccfbf1",
-    shadowColor: "#14b8a6",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  profilePicDark: {
-    borderColor: "#0f3460",
-  },
-
-  /* Logo Section */
-  logoSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    zIndex: 10,
-  },
-  brandCard: {
-    borderRadius: 24,
-    overflow: "hidden",
-    shadowColor: "#14b8a6",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  brandGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-  },
-  logoContainer: {
-    position: "relative",
-    width: 70,
-    height: 70,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-  },
-  rotatingBorder: {
-    position: "absolute",
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 3,
-    borderColor: "transparent",
-    borderTopColor: "#fff",
-    borderRightColor: "#fff",
-  },
-  rotatingBorderDark: {
-    position: "absolute",
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 3,
-    borderColor: "transparent",
-    borderTopColor: "#14b8a6",
-    borderRightColor: "#14b8a6",
-  },
-  logoIconWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
+  quickIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
     alignItems: "center",
     justifyContent: "center",
   },
-  brandTextContainer: {
+  quickTextWrap: {
     flex: 1,
   },
-  brandName: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#fff",
-    letterSpacing: 0.5,
-    marginBottom: 6,
+  quickTitle: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
   },
-  taglineContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  taglineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#fff",
-    marginRight: 8,
-    opacity: 0.8,
-  },
-  brandTagline: {
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.9)",
+  quickSubtitle: {
+    marginTop: 2,
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 12,
     fontWeight: "500",
   },
-
-  /* Menu Cards */
-  menuContainer: {
-    flex: 1,
-    paddingHorizontal: 24,
+  quickArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
     justifyContent: "center",
-    zIndex: 10,
-    gap: 14,
   },
-  cardWrapper: {
-    width: "100%",
-  },
-  menuCard: {
+
+  sectionWrap: {
+    marginTop: 16,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 18,
+    gap: 8,
+  },
+  sectionWrapCompact: {
+    marginTop: 12,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  sectionLine: {
+    flex: 1,
+    height: 1,
+  },
+
+  menuGrid: {
+    marginTop: 9,
+    gap: 8,
+  },
+  menuGridCompact: {
+    marginTop: 7,
+    gap: 7,
+  },
+  menuCard: {
+    borderRadius: 20,
+    borderWidth: 1.5,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  menuCardCompact: {
+    paddingVertical: 10,
     borderRadius: 18,
-    shadowColor: "#14b8a6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
   },
-  menuCardDark: {
-    backgroundColor: "#0f3460",
-  },
-  cardPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.98 }],
-  },
-  iconBox: {
-    width: 60,
-    height: 60,
+  menuIconWrap: {
+    width: 52,
+    height: 52,
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 16,
   },
-  cardText: {
+  menuIconWrapCompact: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+  },
+  menuTextWrap: {
     flex: 1,
   },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: "bold",
-    marginBottom: 4,
+  menuTitle: {
+    fontSize: 15,
+    fontWeight: "700",
   },
-  cardSubtitle: {
-    fontSize: 13,
+  menuTitleCompact: {
+    fontSize: 14,
+  },
+  menuSubtitle: {
+    marginTop: 2,
+    fontSize: 12.5,
     fontWeight: "500",
   },
-  arrowBox: {
-    width: 36,
-    height: 36,
+  menuSubtitleCompact: {
+    fontSize: 11.5,
+  },
+  menuRight: {
+    alignItems: "flex-end",
+    gap: 6,
+  },
+  arrowBtn: {
+    width: 32,
+    height: 32,
     borderRadius: 10,
-    backgroundColor: "#f0fdfa",
+    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
-  arrowBoxDark: {
-    backgroundColor: "#1a1a2e",
+  badgeBase: {
+    fontSize: 10,
+    fontWeight: "700",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 99,
+    overflow: "hidden",
+  },
+  badgeNew: {
+    backgroundColor: "#FEE2E2",
+    color: "#DC2626",
+  },
+  badgeNeutral: {
+    color: "#64748B",
+    borderWidth: 1,
+  },
+  badgeLive: {
+    backgroundColor: "#DCFCE7",
+    color: "#16A34A",
   },
 
-  /* Footer */
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+  footerWrap: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(148,163,184,0.2)",
+    paddingTop: 7,
     alignItems: "center",
-    zIndex: 10,
   },
   footerText: {
-    fontSize: 13,
-    textAlign: "center",
+    fontSize: 11,
     fontWeight: "500",
+    opacity: 0.72,
+    textAlign: "center",
+  },
+
+  cardPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.96,
   },
 });
-

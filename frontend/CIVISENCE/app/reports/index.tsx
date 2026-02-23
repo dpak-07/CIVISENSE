@@ -20,6 +20,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { getApiErrorMessage } from "@/lib/api";
+import { useAppPreferences } from "@/lib/appPreferencesContext";
+import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
 import {
   flushQueuedComplaints,
@@ -221,45 +223,58 @@ const QueueSection = ({
   queuedItems,
   syncing,
   onSync,
+  palette,
 }: {
   queuedItems: QueuedComplaint[];
   syncing: boolean;
   onSync: () => Promise<void>;
+  palette: {
+    card: string;
+    cardSoft: string;
+    border: string;
+    text: string;
+    subtext: string;
+    accent: string;
+  };
 }) => {
   return (
-    <View style={styles.queueWrap}>
+    <View style={[styles.queueWrap, { backgroundColor: palette.card }]}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Queued Complaints</Text>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Queued Complaints</Text>
         <Pressable
-          style={[styles.syncButton, syncing && styles.syncButtonDisabled]}
+          style={[
+            styles.syncButton,
+            { borderColor: palette.border, backgroundColor: palette.cardSoft },
+            syncing && styles.syncButtonDisabled,
+          ]}
           onPress={() => void onSync()}
           disabled={syncing}
         >
           {syncing ? (
-            <ActivityIndicator size="small" color="#1d4ed8" />
+            <ActivityIndicator size="small" color={palette.accent} />
           ) : (
             <>
-              <Ionicons name="sync" size={14} color="#1d4ed8" />
-              <Text style={styles.syncButtonText}>Sync</Text>
+              <Ionicons name="sync" size={14} color={palette.accent} />
+              <Text style={[styles.syncButtonText, { color: palette.accent }]}>Sync</Text>
             </>
           )}
         </Pressable>
       </View>
 
       {queuedItems.length === 0 ? (
-        <View style={styles.queueEmpty}>
-          <Ionicons name="cloud-done-outline" size={18} color="#64748b" />
-          <Text style={styles.queueEmptyText}>No queued complaints.</Text>
+        <View style={[styles.queueEmpty, { backgroundColor: palette.cardSoft }]}>
+          <Ionicons name="cloud-done-outline" size={18} color={palette.subtext} />
+          <Text style={[styles.queueEmptyText, { color: palette.subtext }]}>No queued complaints.</Text>
         </View>
       ) : (
         <View style={styles.queueList}>
           {queuedItems.map((item) => (
-            <View key={item.id} style={styles.queueItem}>
+            <View key={item.id} style={[styles.queueItem, { borderColor: palette.border }]}>
               <View style={styles.queueTopRow}>
-                <Text style={styles.queueCategory}>{item.payload.category}</Text>
-                <Text style={styles.queueDate}>{formatDateTime(item.createdAt)}</Text>
+                <Text style={[styles.queueCategory, { color: palette.text }]}>{item.payload.category}</Text>
+                <Text style={[styles.queueDate, { color: palette.subtext }]}>{formatDateTime(item.createdAt)}</Text>
               </View>
-              <Text style={styles.queueMeta}>
+              <Text style={[styles.queueMeta, { color: palette.subtext }]}>
                 {getQueueCoordinates(item)} | Attempts: {item.attempts}
               </Text>
             </View>
@@ -271,6 +286,8 @@ const QueueSection = ({
 };
 
 export default function ReportsScreen() {
+  const { preferences } = useAppPreferences();
+  const isDark = preferences.darkMode;
   const [authMissing, setAuthMissing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -485,25 +502,55 @@ export default function ReportsScreen() {
     [reports]
   );
 
+  const palette = useMemo(
+    () =>
+      isDark
+        ? {
+            screenGradient: ["#0B1020", "#121C32"] as const,
+            card: "#131C31",
+            cardSoft: "#1B2642",
+            border: "rgba(148,163,184,0.25)",
+            text: "#F8FAFC",
+            subtext: "#A3B3CF",
+            accent: "#A5B4FC",
+            buttonBg: "#1E293B",
+            buttonIcon: "#F8FAFC",
+            emptyIcon: "#94A3B8",
+          }
+        : {
+            screenGradient: ["#EEF2FF", "#F8FAFF"] as const,
+            card: "#FFFFFF",
+            cardSoft: "#F8FAFF",
+            border: "#E2E8F0",
+            text: "#0F172A",
+            subtext: "#64748B",
+            accent: "#4F46E5",
+            buttonBg: "rgba(255,255,255,0.9)",
+            buttonIcon: "#1E293B",
+            emptyIcon: "#94A3B8",
+          },
+    [isDark]
+  );
+
   if (loading) {
     return (
-      <View style={styles.loadingWrap}>
+      <View style={[styles.loadingWrap, { backgroundColor: isDark ? "#0B1020" : "#f8fafc" }]}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Loading reports...</Text>
+        <Text style={[styles.loadingText, { color: palette.subtext }]}>Loading reports...</Text>
       </View>
     );
   }
 
   if (authMissing) {
     return (
-      <LinearGradient colors={["#f8fafc", "#eef2ff"]} style={styles.container}>
-        <View style={styles.authCard}>
+      <LinearGradient colors={palette.screenGradient as any} style={styles.container}>
+        <View style={[styles.authCard, { backgroundColor: palette.card }]}>
           <Ionicons name="lock-closed" size={48} color="#2563eb" />
-          <Text style={styles.authTitle}>Login required</Text>
-          <Text style={styles.authText}>
+          <Text style={[styles.authTitle, { color: palette.text }]}>Login required</Text>
+          <Text style={[styles.authText, { color: palette.subtext }]}>
             Sign in to view your reports and queued complaints.
           </Text>
-          <Pressable style={styles.authButton} onPress={() => router.push("/auth/login")}>
+          <Pressable style={[styles.authButton, { backgroundColor: palette.accent }]} onPress={() => router.push("/auth")}>
             <Text style={styles.authButtonText}>Go to Login</Text>
           </Pressable>
         </View>
@@ -512,17 +559,17 @@ export default function ReportsScreen() {
   }
 
   return (
-    <LinearGradient colors={["#f8fafc", "#eef2ff"]} style={styles.container}>
+    <LinearGradient colors={palette.screenGradient as any} style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={22} color="#1e293b" />
+        <Pressable onPress={() => safeBack("/")} style={[styles.headerButton, { backgroundColor: palette.buttonBg }]}>
+          <Ionicons name="arrow-back" size={22} color={palette.buttonIcon} />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>My Reports</Text>
-          <Text style={styles.headerSubtitle}>Queue and full complaint history</Text>
+          <Text style={[styles.headerTitle, { color: palette.text }]}>My Reports</Text>
+          <Text style={[styles.headerSubtitle, { color: palette.subtext }]}>Queue and full complaint history</Text>
         </View>
-        <Pressable onPress={() => void loadData(true)} style={styles.headerButton}>
-          <Ionicons name="refresh" size={22} color="#1e293b" />
+        <Pressable onPress={() => void loadData(true)} style={[styles.headerButton, { backgroundColor: palette.buttonBg }]}>
+          <Ionicons name="refresh" size={22} color={palette.buttonIcon} />
         </Pressable>
       </View>
 
@@ -533,32 +580,32 @@ export default function ReportsScreen() {
         }
       >
         <View style={styles.statRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Total Reports</Text>
-            <Text style={styles.statValue}>{reports.length}</Text>
+          <View style={[styles.statCard, { backgroundColor: palette.card }]}>
+            <Text style={[styles.statLabel, { color: palette.subtext }]}>Total Reports</Text>
+            <Text style={[styles.statValue, { color: palette.text }]}>{reports.length}</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Unresolved</Text>
-            <Text style={styles.statValue}>{unresolvedCount}</Text>
+          <View style={[styles.statCard, { backgroundColor: palette.card }]}>
+            <Text style={[styles.statLabel, { color: palette.subtext }]}>Unresolved</Text>
+            <Text style={[styles.statValue, { color: palette.text }]}>{unresolvedCount}</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Queued</Text>
-            <Text style={styles.statValue}>{queuedItems.length}</Text>
+          <View style={[styles.statCard, { backgroundColor: palette.card }]}>
+            <Text style={[styles.statLabel, { color: palette.subtext }]}>Queued</Text>
+            <Text style={[styles.statValue, { color: palette.text }]}>{queuedItems.length}</Text>
           </View>
         </View>
 
-        <QueueSection queuedItems={queuedItems} syncing={syncingQueue} onSync={syncQueue} />
+        <QueueSection queuedItems={queuedItems} syncing={syncingQueue} onSync={syncQueue} palette={palette} />
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>All My Reports</Text>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>All My Reports</Text>
         </View>
 
         {reports.length === 0 ? (
-          <View style={styles.emptyReports}>
-            <Ionicons name="document-text-outline" size={48} color="#94a3b8" />
-            <Text style={styles.emptyTitle}>No reports yet</Text>
-            <Text style={styles.emptyText}>Create your first complaint from the report page.</Text>
-            <Pressable style={styles.emptyButton} onPress={() => router.push("/report")}>
+          <View style={[styles.emptyReports, { backgroundColor: palette.card }]}>
+            <Ionicons name="document-text-outline" size={48} color={palette.emptyIcon} />
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>No reports yet</Text>
+            <Text style={[styles.emptyText, { color: palette.subtext }]}>Create your first complaint from the report page.</Text>
+            <Pressable style={[styles.emptyButton, { backgroundColor: palette.accent }]} onPress={() => router.push("/report")}>
               <Text style={styles.emptyButtonText}>Report an Issue</Text>
             </Pressable>
           </View>
@@ -575,9 +622,9 @@ export default function ReportsScreen() {
 
               return (
                 <Pressable onPress={() => setSelectedReport(item)}>
-                  <View style={styles.reportCard}>
+                  <View style={[styles.reportCard, { backgroundColor: palette.card }]}>
                     <View style={styles.reportTopRow}>
-                      <Text style={styles.reportTitle} numberOfLines={2}>
+                      <Text style={[styles.reportTitle, { color: palette.text }]} numberOfLines={2}>
                         {item.title}
                       </Text>
                       <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
@@ -587,32 +634,32 @@ export default function ReportsScreen() {
                       </View>
                     </View>
 
-                    <Text style={styles.reportMeta}>{formatDateTime(item.createdAt)}</Text>
-                    <Text style={styles.reportDesc} numberOfLines={3}>
+                    <Text style={[styles.reportMeta, { color: palette.subtext }]}>{formatDateTime(item.createdAt)}</Text>
+                    <Text style={[styles.reportDesc, { color: palette.subtext }]} numberOfLines={3}>
                       {item.description}
                     </Text>
 
                     <View style={styles.chipRow}>
-                      <View style={styles.chip}>
-                        <Ionicons name="flag-outline" size={12} color="#334155" />
-                        <Text style={styles.chipText}>Priority: {priorityLabel}</Text>
+                      <View style={[styles.chip, { backgroundColor: palette.cardSoft }]}>
+                        <Ionicons name="flag-outline" size={12} color={palette.subtext} />
+                        <Text style={[styles.chipText, { color: palette.subtext }]}>Priority: {priorityLabel}</Text>
                       </View>
-                      <View style={styles.chip}>
-                        <Ionicons name="business-outline" size={12} color="#334155" />
-                        <Text style={styles.chipText} numberOfLines={1}>
+                      <View style={[styles.chip, { backgroundColor: palette.cardSoft }]}>
+                        <Ionicons name="business-outline" size={12} color={palette.subtext} />
+                        <Text style={[styles.chipText, { color: palette.subtext }]} numberOfLines={1}>
                           {assignedOffice}
                         </Text>
                       </View>
                     </View>
 
-                    <Text style={styles.reasonLabel}>Priority Reason</Text>
-                    <Text style={styles.reasonText} numberOfLines={3}>
+                    <Text style={[styles.reasonLabel, { color: palette.subtext }]}>Priority Reason</Text>
+                    <Text style={[styles.reasonText, { color: palette.subtext }]} numberOfLines={3}>
                       {reason}
                     </Text>
 
                     <View style={styles.openHintRow}>
-                      <Ionicons name="open-outline" size={12} color="#64748b" />
-                      <Text style={styles.openHintText}>Tap to open details</Text>
+                      <Ionicons name="open-outline" size={12} color={palette.subtext} />
+                      <Text style={[styles.openHintText, { color: palette.subtext }]}>Tap to open details</Text>
                     </View>
                   </View>
                 </Pressable>

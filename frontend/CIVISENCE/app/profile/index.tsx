@@ -2,6 +2,9 @@ import React, { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   Image,
+  Linking,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,13 +20,28 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { getApiErrorMessage } from "@/lib/api";
+import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
 import { logoutUser } from "@/lib/services/auth";
 import { ComplaintRecord, getMyComplaints } from "@/lib/services/complaints";
 import { getNotifications, AppNotification } from "@/lib/services/notifications";
+import { getMunicipalOffices, MunicipalOffice } from "@/lib/services/municipalOffices";
 import { removeProfilePhoto, uploadProfilePhoto } from "@/lib/services/users";
 
 type TabKey = "statistics" | "reports" | "zones";
+type ZoneRow = {
+  id: string;
+  officeName: string;
+  zone: string;
+  complaintsCount: number;
+  isActive: boolean;
+  coordinates: { latitude: number; longitude: number } | null;
+};
+type ActivityBadge = {
+  key: "new" | "assigned" | "low" | "done";
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+};
 
 const formatLocal = (value?: string) => {
   if (!value) return "Unknown";
@@ -54,12 +72,23 @@ const toReadable = (text: string) =>
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
-const activityStatusFromTitle = (title: string) => {
+const activityStatusFromTitle = (title: string): ActivityBadge => {
   const t = title.toLowerCase();
   if (t.includes("assigned")) return { key: "assigned", label: "Assigned", icon: "business" as const };
-  if (t.includes("priority") || t.includes("low") || t.includes("high")) return { key: "low", label: "Low", icon: "warning" as const };
+  if (t.includes("priority") || t.includes("low") || t.includes("high") || t.includes("rejected")) {
+    return { key: "low", label: "Update", icon: "warning" as const };
+  }
   if (t.includes("resolved")) return { key: "done", label: "Done", icon: "checkmark-circle" as const };
   return { key: "new", label: "New", icon: "sparkles" as const };
+};
+
+const activityStatusFromComplaint = (status: string): ActivityBadge => {
+  if (status === "resolved") return { key: "done", label: "Done", icon: "checkmark-circle" };
+  if (status === "assigned" || status === "in_progress") {
+    return { key: "assigned", label: "Assigned", icon: "business" };
+  }
+  if (status === "rejected") return { key: "low", label: "Rejected", icon: "close-circle" };
+  return { key: "new", label: "New", icon: "document-text" };
 };
 
 export default function ProfileScreen() {
@@ -68,24 +97,29 @@ export default function ProfileScreen() {
   const accessToken = sessionStore.getAccessToken();
   const [activeTab, setActiveTab] = useState<TabKey>("statistics");
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
+  const [offices, setOffices] = useState<MunicipalOffice[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(user?.profilePhotoUrl ?? null);
+  const [selectedZone, setSelectedZone] = useState<ZoneRow | null>(null);
 
   const loadData = useCallback(async () => {
     if (!accessToken || !user?.id) {
       setComplaints([]);
+      setOffices([]);
       setNotifications([]);
       setProfilePhotoUri(null);
       return;
     }
 
     try {
-      const [myComplaints, myNotifications] = await Promise.all([
+      const [myComplaints, myNotifications, officeData] = await Promise.all([
         getMyComplaints(),
         getNotifications(),
+        getMunicipalOffices(),
       ]);
       setComplaints(myComplaints);
       setNotifications(myNotifications);
+      setOffices(officeData);
       setProfilePhotoUri(sessionStore.getUser()?.profilePhotoUrl ?? null);
     } catch (error) {
       Alert.alert("Profile error", getApiErrorMessage(error));
@@ -140,7 +174,7 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     try {
       await logoutUser();
-      router.replace("/auth/login");
+      router.replace("/auth");
     } catch (error) {
       Alert.alert("Logout failed", getApiErrorMessage(error));
     }
@@ -150,43 +184,114 @@ export default function ProfileScreen() {
     const total = complaints.length;
     const inProgress = complaints.filter((c) => c.status === "assigned" || c.status === "in_progress").length;
     const resolved = complaints.filter((c) => c.status === "resolved").length;
-    return { total, inProgress, resolved };
+    const rejected = complaints.filter((c) => c.status === "rejected").length;
+    const open = Math.max(0, total - resolved - rejected);
+    const resolutionRate = total > 0 ? Math.round((resolved / total) * 100) : 0;
+    const latestReport = complaints.reduce<string | undefined>((latest, complaint) => {
+      if (!complaint.createdAt) return latest;
+      if (!latest) return complaint.createdAt;
+      return new Date(complaint.createdAt).getTime() > new Date(latest).getTime()
+        ? complaint.createdAt
+        : latest;
+    }, undefined);
+    return { total, inProgress, resolved, rejected, open, resolutionRate, latestReport };
   }, [complaints]);
 
   const zoneRows = useMemo(() => {
-    const map = new Map<string, number>();
+    const complaintsPerOffice = new Map<string, number>();
+    const fallbackZoneByOffice = new Map<string, string>();
+
     for (const complaint of complaints) {
-      const zone = complaint.assignedMunicipalOffice?.name || "Unassigned";
-      map.set(zone, (map.get(zone) || 0) + 1);
+      const officeName = complaint.assignedMunicipalOffice?.name;
+      if (!officeName) continue;
+      complaintsPerOffice.set(officeName, (complaintsPerOffice.get(officeName) || 0) + 1);
+      if (complaint.assignedMunicipalOffice?.zone) {
+        fallbackZoneByOffice.set(officeName, complaint.assignedMunicipalOffice.zone);
+      }
     }
-    return [...map.entries()].map(([name, count]) => ({ name, count }));
-  }, [complaints]);
+
+    const officeByName = new Map(offices.map((office) => [office.name, office]));
+    const rows: ZoneRow[] = [];
+
+    complaintsPerOffice.forEach((count, officeName) => {
+      const office = officeByName.get(officeName);
+      rows.push({
+        id: office?._id || `zone-${officeName}`,
+        officeName,
+        zone: office?.zone || fallbackZoneByOffice.get(officeName) || "Unknown",
+        complaintsCount: count,
+        isActive: office?.isActive ?? true,
+        coordinates: toLatLng(office?.location?.coordinates),
+      });
+    });
+
+    if (rows.length === 0) {
+      return offices.slice(0, 6).map((office) => ({
+        id: office._id,
+        officeName: office.name,
+        zone: office.zone,
+        complaintsCount: 0,
+        isActive: office.isActive,
+        coordinates: toLatLng(office.location?.coordinates),
+      }));
+    }
+
+    return rows.sort((a, b) => b.complaintsCount - a.complaintsCount);
+  }, [complaints, offices]);
 
   const activityRows = useMemo(() => {
+    const joinedTs = user?.createdAt ? new Date(user.createdAt).getTime() : Date.now();
     const seeded = [
       {
         id: "joined",
         title: "Joined CiviSense",
-        time: formatLocal(user?.createdAt),
-        status: { key: "new", label: "New", icon: "person" as const },
-      },
-      {
-        id: "setup",
-        title: "Profile setup completed",
-        time: formatLocal(user?.updatedAt || user?.createdAt),
-        status: { key: "done", label: "Done", icon: "checkmark-circle" as const },
+        status: { key: "new", label: "New", icon: "person" } as ActivityBadge,
+        createdAt: joinedTs,
       },
     ];
 
-    const fromNotifications = notifications.slice(0, 5).map((item) => ({
-      id: item._id,
-      title: item.title,
-      time: formatLocal(item.createdAt),
-      status: activityStatusFromTitle(item.title),
-    }));
+    const fromComplaints = complaints.map((item) => {
+      const ts = new Date(item.updatedAt || item.createdAt).getTime();
+      let title = `Reported: ${item.title}`;
+      if (item.status === "resolved") {
+        title = `Resolved: ${item.title}`;
+      } else if (item.status === "assigned" || item.status === "in_progress") {
+        const office = item.assignedMunicipalOffice?.name ? ` to ${item.assignedMunicipalOffice.name}` : "";
+        title = `Assigned${office}: ${item.title}`;
+      } else if (item.status === "rejected") {
+        title = `Rejected: ${item.title}`;
+      }
 
-    return [...seeded, ...fromNotifications].slice(0, 6);
-  }, [notifications, user?.createdAt, user?.updatedAt]);
+      return {
+        id: `complaint-${item._id}`,
+        title,
+        status: activityStatusFromComplaint(item.status),
+        createdAt: Number.isFinite(ts) ? ts : Date.now(),
+      };
+    });
+
+    const fromNotifications = notifications.map((item) => {
+      const ts = new Date(item.createdAt).getTime();
+      return {
+        id: `notif-${item._id}`,
+        title: item.title,
+        status: activityStatusFromTitle(item.title),
+        createdAt: Number.isFinite(ts) ? ts : Date.now(),
+      };
+    });
+
+    return [...fromComplaints, ...fromNotifications, ...seeded]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 8)
+      .map((entry) => ({
+        id: entry.id,
+        title: entry.title,
+        time: `${formatLocal(new Date(entry.createdAt).toISOString())} - ${timeAgo(
+          new Date(entry.createdAt).toISOString()
+        )}`,
+        status: entry.status,
+      }));
+  }, [complaints, notifications, user?.createdAt]);
 
   if (!accessToken || !user) {
     return (
@@ -194,7 +299,7 @@ export default function ProfileScreen() {
         <StatusBar style="light" />
         <Text style={styles.loggedOutTitle}>Login Required</Text>
         <Text style={styles.loggedOutSub}>Sign in to view your profile.</Text>
-        <Pressable style={styles.loggedOutBtn} onPress={() => router.push("/auth/login")}>
+        <Pressable style={styles.loggedOutBtn} onPress={() => router.push("/auth")}>
           <Text style={styles.loggedOutBtnText}>Go to Login</Text>
         </Pressable>
       </LinearGradient>
@@ -208,7 +313,7 @@ export default function ProfileScreen() {
       <StatusBar style="dark" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <Animated.View entering={FadeInDown.duration(450)} style={[styles.header, { paddingTop: insets.top + 8 }]}>
-          <Pressable style={styles.headerBtn} onPress={() => router.back()}>
+          <Pressable style={styles.headerBtn} onPress={() => safeBack("/")}>
             <Ionicons name="arrow-back" size={18} color="#0F172A" />
           </Pressable>
           <Text style={styles.headerTitle}>Profile</Text>
@@ -230,7 +335,7 @@ export default function ProfileScreen() {
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.heroName} numberOfLines={1}>{user.name}</Text>
                 <Text style={styles.heroEmail} numberOfLines={1}>{user.email}</Text>
-                <Text style={styles.heroRole}>Citizen · CiviSense User</Text>
+                <Text style={styles.heroRole}>Citizen - CiviSense User</Text>
               </View>
             </View>
             <Pressable style={styles.removePhoto} onPress={() => void handleRemovePhoto()}>
@@ -240,19 +345,19 @@ export default function ProfileScreen() {
           </LinearGradient>
         </Animated.View>
 
-        <Animated.View entering={FadeInUp.duration(500).delay(80)} style={styles.statsGrid}>
+                <Animated.View entering={FadeInUp.duration(500).delay(80)} style={styles.statsGrid}>
           <Pressable style={styles.statCard} onPress={() => setActiveTab("statistics")}>
-            <Text style={styles.statIcon}>📋</Text>
+            <Ionicons name="document-text-outline" size={20} color="#4F46E5" />
             <Text style={[styles.statNum, { color: "#4F46E5" }]}>{stats.total}</Text>
             <Text style={styles.statLabel}>Total Reports</Text>
           </Pressable>
           <Pressable style={styles.statCard} onPress={() => setActiveTab("statistics")}>
-            <Text style={styles.statIcon}>⏳</Text>
+            <Ionicons name="time-outline" size={20} color="#F97316" />
             <Text style={[styles.statNum, { color: "#F97316" }]}>{stats.inProgress}</Text>
             <Text style={styles.statLabel}>In Progress</Text>
           </Pressable>
           <Pressable style={styles.statCard} onPress={() => setActiveTab("statistics")}>
-            <Text style={styles.statIcon}>✅</Text>
+            <Ionicons name="checkmark-circle-outline" size={20} color="#16A34A" />
             <Text style={[styles.statNum, { color: "#16A34A" }]}>{stats.resolved}</Text>
             <Text style={styles.statLabel}>Resolved</Text>
           </Pressable>
@@ -271,25 +376,52 @@ export default function ProfileScreen() {
           })}
         </View>
 
-        <View style={styles.tabContent}>
+                <View style={styles.tabContent}>
           {activeTab === "statistics" ? (
-            <EmptyState
-              icon="📊"
-              title={stats.total > 0 ? "Statistics loaded" : "No statistics yet"}
-              sub={
-                stats.total > 0
-                  ? `You have ${stats.total} report(s). Keep improving your city.`
-                  : "Start reporting issues in your city and your stats will appear here."
-              }
-              cta="Report First Issue"
-              onPress={() => router.push("/report")}
-            />
+            stats.total === 0 ? (
+              <EmptyState
+                iconName="stats-chart"
+                title="No statistics yet"
+                sub="Start reporting issues in your city and your stats will appear here."
+                cta="Report First Issue"
+                onPress={() => router.push("/report")}
+              />
+            ) : (
+              <View style={styles.statisticsCard}>
+                <View style={styles.statisticsRow}>
+                  <View style={styles.statisticsMetric}>
+                    <Text style={styles.statisticsMetricValue}>{stats.open}</Text>
+                    <Text style={styles.statisticsMetricLabel}>Open</Text>
+                  </View>
+                  <View style={styles.statisticsMetric}>
+                    <Text style={styles.statisticsMetricValue}>{stats.inProgress}</Text>
+                    <Text style={styles.statisticsMetricLabel}>Assigned/In progress</Text>
+                  </View>
+                </View>
+                <View style={styles.statisticsRow}>
+                  <View style={styles.statisticsMetric}>
+                    <Text style={[styles.statisticsMetricValue, { color: "#16A34A" }]}>{stats.resolved}</Text>
+                    <Text style={styles.statisticsMetricLabel}>Resolved</Text>
+                  </View>
+                  <View style={styles.statisticsMetric}>
+                    <Text style={[styles.statisticsMetricValue, { color: "#DC2626" }]}>{stats.rejected}</Text>
+                    <Text style={styles.statisticsMetricLabel}>Rejected</Text>
+                  </View>
+                </View>
+                <View style={styles.statisticsFooter}>
+                  <Text style={styles.statisticsFooterText}>Resolution rate: {stats.resolutionRate}%</Text>
+                  <Text style={styles.statisticsFooterText}>
+                    Last report: {stats.latestReport ? formatLocal(stats.latestReport) : "N/A"}
+                  </Text>
+                </View>
+              </View>
+            )
           ) : null}
 
           {activeTab === "reports" ? (
             complaints.length === 0 ? (
               <EmptyState
-                icon="📄"
+                iconName="document-text"
                 title="No reports submitted"
                 sub="You have not submitted any reports yet. Help make your city better."
                 cta="Submit a Report"
@@ -297,15 +429,18 @@ export default function ProfileScreen() {
               />
             ) : (
               <View style={styles.reportsList}>
-                {complaints.slice(0, 5).map((complaint) => (
-                  <View key={complaint._id} style={styles.reportRow}>
+                {complaints.slice(0, 5).map((complaint, index) => (
+                  <View
+                    key={complaint._id}
+                    style={[styles.reportRow, index === Math.min(complaints.length, 5) - 1 && styles.reportRowLast]}
+                  >
                     <View style={styles.reportIconBox}>
                       <Ionicons name="document-text-outline" size={16} color="#4F46E5" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.reportTitle} numberOfLines={1}>{complaint.title}</Text>
                       <Text style={styles.reportSub}>
-                        {toReadable(complaint.category)} · {toReadable(complaint.status)} · {timeAgo(complaint.createdAt)}
+                        {toReadable(complaint.category)} - {toReadable(complaint.status)} - {timeAgo(complaint.createdAt)}
                       </Text>
                     </View>
                   </View>
@@ -317,7 +452,7 @@ export default function ProfileScreen() {
           {activeTab === "zones" ? (
             zoneRows.length === 0 ? (
               <EmptyState
-                icon="🗺️"
+                iconName="map"
                 title="No zones assigned"
                 sub="You have not been assigned to any zones yet."
                 cta="Explore City Map"
@@ -325,16 +460,28 @@ export default function ProfileScreen() {
               />
             ) : (
               <View style={styles.reportsList}>
-                {zoneRows.map((zone) => (
-                  <View key={zone.name} style={styles.reportRow}>
+                {zoneRows.map((zone, index) => (
+                  <Pressable
+                    key={zone.id}
+                    style={[styles.reportRow, index === zoneRows.length - 1 && styles.reportRowLast]}
+                    onPress={() => setSelectedZone(zone)}
+                  >
                     <View style={styles.reportIconBox}>
                       <Ionicons name="location-outline" size={16} color="#4F46E5" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.reportTitle} numberOfLines={1}>{zone.name}</Text>
-                      <Text style={styles.reportSub}>{zone.count} complaint(s)</Text>
+                      <Text style={styles.reportTitle} numberOfLines={1}>{zone.officeName}</Text>
+                      <Text style={styles.reportSub}>
+                        Zone {zone.zone} - {zone.complaintsCount} complaint(s)
+                      </Text>
                     </View>
-                  </View>
+                    <View style={styles.zoneRight}>
+                      <Text style={[styles.zoneBadge, zone.isActive ? styles.zoneBadgeActive : styles.zoneBadgeInactive]}>
+                        {zone.isActive ? "Active" : "Inactive"}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
+                    </View>
+                  </Pressable>
                 ))}
               </View>
             )
@@ -371,18 +518,69 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      <Modal
+        visible={Boolean(selectedZone)}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setSelectedZone(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle} numberOfLines={2}>
+                  {selectedZone?.officeName}
+                </Text>
+                <Text style={styles.modalSub}>Zone {selectedZone?.zone}</Text>
+              </View>
+              <Pressable onPress={() => setSelectedZone(null)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={18} color="#475569" />
+              </Pressable>
+            </View>
+            <View style={styles.modalInfoRow}>
+              <Text style={styles.modalInfoLabel}>Assigned complaints</Text>
+              <Text style={styles.modalInfoValue}>{selectedZone?.complaintsCount ?? 0}</Text>
+            </View>
+            <View style={styles.modalInfoRow}>
+              <Text style={styles.modalInfoLabel}>Office status</Text>
+              <Text style={styles.modalInfoValue}>{selectedZone?.isActive ? "Active" : "Inactive"}</Text>
+            </View>
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalSecondaryBtn} onPress={() => setSelectedZone(null)}>
+                <Text style={styles.modalSecondaryText}>Close</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalPrimaryBtn, !selectedZone?.coordinates && styles.modalPrimaryBtnDisabled]}
+                onPress={() =>
+                  selectedZone?.coordinates
+                    ? void openDirections(
+                        selectedZone.coordinates.latitude,
+                        selectedZone.coordinates.longitude
+                      )
+                    : Alert.alert("Location unavailable", "No map coordinates for this office.")
+                }
+              >
+                <Ionicons name="navigate" size={14} color="#FFFFFF" />
+                <Text style={styles.modalPrimaryText}>Get Directions</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 function EmptyState({
-  icon,
+  iconName,
   title,
   sub,
   cta,
   onPress,
 }: {
-  icon: string;
+  iconName: keyof typeof Ionicons.glyphMap;
   title: string;
   sub: string;
   cta: string;
@@ -390,7 +588,9 @@ function EmptyState({
 }) {
   return (
     <View style={styles.emptyCard}>
-      <Text style={styles.emptyIcon}>{icon}</Text>
+      <View style={styles.emptyIconWrap}>
+        <Ionicons name={iconName} size={28} color="#4F46E5" />
+      </View>
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptySub}>{sub}</Text>
       <Pressable style={styles.emptyBtn} onPress={onPress}>
@@ -412,6 +612,29 @@ const badgeTextStyle = (key: string) => {
   if (key === "low") return { color: "#C2410C" };
   if (key === "done") return { color: "#15803D" };
   return { color: "#4F46E5" };
+};
+
+const toLatLng = (coords?: [number, number]) => {
+  if (!coords || coords.length !== 2) {
+    return null;
+  }
+  const [longitude, latitude] = coords;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+  return { latitude, longitude };
+};
+
+const openDirections = async (latitude: number, longitude: number) => {
+  const url =
+    Platform.OS === "ios"
+      ? `http://maps.apple.com/?ll=${latitude},${longitude}`
+      : `https://www.google.com/maps?q=${latitude},${longitude}`;
+  try {
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert("Directions unavailable", "Could not open maps on this device.");
+  }
 };
 
 const styles = StyleSheet.create({
@@ -460,7 +683,6 @@ const styles = StyleSheet.create({
 
   statsGrid: { marginHorizontal: 16, marginTop: 14, flexDirection: "row", gap: 10 },
   statCard: { flex: 1, backgroundColor: "#FFF", borderRadius: 18, borderWidth: 1.5, borderColor: "#E2E8F0", alignItems: "center", paddingVertical: 14, paddingHorizontal: 10 },
-  statIcon: { fontSize: 20 },
   statNum: { marginTop: 6, fontSize: 22, fontWeight: "800" },
   statLabel: { marginTop: 2, fontSize: 10.5, fontWeight: "600", color: "#64748B", textAlign: "center" },
 
@@ -471,8 +693,61 @@ const styles = StyleSheet.create({
   tabTextActive: { color: "#FFF" },
 
   tabContent: { marginHorizontal: 16, marginTop: 14 },
+  statisticsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    padding: 14,
+    gap: 10,
+  },
+  statisticsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  statisticsMetric: {
+    flex: 1,
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statisticsMetricValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1E3A8A",
+  },
+  statisticsMetricLabel: {
+    marginTop: 3,
+    fontSize: 11.5,
+    color: "#64748B",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  statisticsFooter: {
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    paddingTop: 10,
+    gap: 4,
+  },
+  statisticsFooterText: {
+    fontSize: 12,
+    color: "#475569",
+    fontWeight: "600",
+  },
   emptyCard: { backgroundColor: "#FFF", borderRadius: 20, borderWidth: 1.5, borderStyle: "dashed", borderColor: "#E2E8F0", paddingVertical: 28, paddingHorizontal: 20, alignItems: "center" },
-  emptyIcon: { fontSize: 36 },
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   emptyTitle: { marginTop: 10, fontSize: 14, fontWeight: "700", color: "#0F172A" },
   emptySub: { marginTop: 5, fontSize: 12.5, color: "#64748B", textAlign: "center", lineHeight: 18 },
   emptyBtn: { marginTop: 14, backgroundColor: "#4F46E5", borderRadius: 12, paddingHorizontal: 18, paddingVertical: 9 },
@@ -480,9 +755,22 @@ const styles = StyleSheet.create({
 
   reportsList: { backgroundColor: "#FFF", borderRadius: 16, borderWidth: 1.5, borderColor: "#E2E8F0", overflow: "hidden" },
   reportRow: { paddingVertical: 12, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderBottomColor: "#E2E8F0" },
+  reportRowLast: { borderBottomWidth: 0 },
   reportIconBox: { width: 30, height: 30, borderRadius: 8, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" },
   reportTitle: { color: "#0F172A", fontSize: 12.5, fontWeight: "700" },
   reportSub: { marginTop: 2, color: "#64748B", fontSize: 11.5 },
+  zoneRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  zoneBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    fontSize: 10,
+    fontWeight: "700",
+    overflow: "hidden",
+  },
+  zoneBadgeActive: { color: "#15803D", borderColor: "#86EFAC", backgroundColor: "#F0FDF4" },
+  zoneBadgeInactive: { color: "#B45309", borderColor: "#FCD34D", backgroundColor: "#FFFBEB" },
 
   sectionLabelWrap: { marginTop: 20, marginHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 8 },
   sectionDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#4F46E5" },
@@ -501,4 +789,100 @@ const styles = StyleSheet.create({
   signOutWrap: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 4 },
   signOutBtn: { borderRadius: 16, borderWidth: 1.5, borderColor: "#FECACA", backgroundColor: "#FFF", minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   signOutText: { color: "#DC2626", fontSize: 14, fontWeight: "700" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  modalSub: {
+    marginTop: 3,
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  modalCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalInfoRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  modalInfoLabel: {
+    fontSize: 12.5,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  modalInfoValue: {
+    fontSize: 12.5,
+    color: "#0F172A",
+    fontWeight: "700",
+  },
+  modalActions: {
+    marginTop: 16,
+    flexDirection: "row",
+    gap: 10,
+  },
+  modalSecondaryBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F8FAFC",
+  },
+  modalSecondaryText: {
+    color: "#475569",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  modalPrimaryBtn: {
+    flex: 1.3,
+    minHeight: 42,
+    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 7,
+  },
+  modalPrimaryBtnDisabled: {
+    opacity: 0.55,
+  },
+  modalPrimaryText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
 });

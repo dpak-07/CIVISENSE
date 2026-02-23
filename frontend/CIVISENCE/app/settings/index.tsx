@@ -22,6 +22,7 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiErrorMessage } from "@/lib/api";
+import { safeBack } from "@/lib/navigation";
 import { AppLanguage, AppPreferences } from "@/lib/preferences";
 import { languageLabel } from "@/lib/i18n";
 import { useAppPreferences } from "@/lib/appPreferencesContext";
@@ -232,7 +233,7 @@ export default function SettingsScreen() {
   const onLogout = async () => {
     try {
       await logoutUser();
-      router.replace("/auth/login");
+      router.replace("/auth");
     } catch (error) {
       Alert.alert("Logout failed", getApiErrorMessage(error));
     }
@@ -250,7 +251,7 @@ export default function SettingsScreen() {
       setDeleteModal(false);
       setDeleteText("");
       Alert.alert("Account deleted", "Your account was deleted.");
-      router.replace("/auth/login");
+      router.replace("/auth");
     } catch (error) {
       Alert.alert("Delete failed", getApiErrorMessage(error));
     } finally {
@@ -300,7 +301,7 @@ export default function SettingsScreen() {
               borderColor: theme.colors.border,
             },
           ]}
-          onPress={() => router.back()}
+          onPress={() => safeBack("/")}
         >
           <Ionicons name="arrow-back" size={18} color={theme.colors.text} />
         </Pressable>

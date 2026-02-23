@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { router } from "expo-router";
@@ -13,6 +14,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { getApiErrorMessage } from "@/lib/api";
+import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
 import { ComplaintRecord, getComplaints } from "@/lib/services/complaints";
 import {
@@ -22,6 +24,8 @@ import {
 
 type LatLng = { latitude: number; longitude: number };
 type MapRegion = LatLng & { latitudeDelta: number; longitudeDelta: number };
+type PriorityLevel = "high" | "medium" | "low" | "all";
+type ComplaintStatusFilter = "all" | "open" | "resolved" | "rejected";
 
 type MapItem = {
   id: string;
@@ -47,6 +51,17 @@ const priorityColor = (level?: string) => {
   if (level === "medium") return "#f59e0b";
   return "#10b981";
 };
+
+const statusColor = (status?: string) => {
+  if (status === "resolved") return "#10b981";
+  if (status === "in_progress") return "#f59e0b";
+  if (status === "assigned") return "#2563eb";
+  if (status === "rejected") return "#ef4444";
+  return "#64748b";
+};
+
+const formatStatusLabel = (status?: string) =>
+  status ? status.replace("_", " ") : "reported";
 
 const toLatLng = (coords?: [number, number]): LatLng | null => {
   if (!coords || coords.length !== 2) {
@@ -95,11 +110,26 @@ const buildRegionFromPoints = (
   return { latitude, longitude, latitudeDelta, longitudeDelta };
 };
 
+const matchesStatus = (status: string | undefined, filter: ComplaintStatusFilter) => {
+  if (filter === "all") {
+    return true;
+  }
+  if (filter === "open") {
+    return status !== "resolved" && status !== "rejected";
+  }
+  return status === filter;
+};
+
 export default function CityMapWeb() {
   const [loading, setLoading] = useState(true);
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [offices, setOffices] = useState<MunicipalOffice[]>([]);
   const [selectedItem, setSelectedItem] = useState<MapItem | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<PriorityLevel>("all");
+  const [statusFilter, setStatusFilter] = useState<ComplaintStatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showComplaints, setShowComplaints] = useState(true);
+  const [showOffices, setShowOffices] = useState(true);
 
   const loadData = useCallback(async () => {
     if (!sessionStore.getAccessToken()) {
@@ -130,8 +160,7 @@ export default function CityMapWeb() {
   );
 
   const complaintMarkers = useMemo<MapItem[]>(() => {
-    return complaints
-      .map((item) => {
+    const mapped: (MapItem | null)[] = complaints.map((item): MapItem | null => {
         const coords = toLatLng(item.location?.coordinates);
         if (!coords) {
           return null;
@@ -147,13 +176,12 @@ export default function CityMapWeb() {
           priority: item.priority?.level,
           category: item.category,
         };
-      })
-      .filter((item): item is MapItem => !!item);
+      });
+    return mapped.filter((item): item is MapItem => item !== null);
   }, [complaints]);
 
   const officeMarkers = useMemo<MapItem[]>(() => {
-    return offices
-      .map((office) => {
+    const mapped: (MapItem | null)[] = offices.map((office): MapItem | null => {
         const coords = toLatLng(office.location?.coordinates);
         if (!coords) {
           return null;
@@ -167,14 +195,54 @@ export default function CityMapWeb() {
           longitude: coords.longitude,
           status: office.isActive ? "active" : "inactive",
         };
-      })
-      .filter((item): item is MapItem => !!item);
+      });
+    return mapped.filter((item): item is MapItem => item !== null);
   }, [offices]);
 
-  const visibleMarkers = useMemo(
-    () => [...complaintMarkers, ...officeMarkers],
-    [complaintMarkers, officeMarkers]
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const searchedComplaints = useMemo(() => {
+    if (!normalizedSearch) {
+      return complaintMarkers;
+    }
+    return complaintMarkers.filter((item) => {
+      const searchable = `${item.title} ${item.subtitle} ${item.category || ""}`.toLowerCase();
+      return searchable.includes(normalizedSearch);
+    });
+  }, [complaintMarkers, normalizedSearch]);
+
+  const searchedOffices = useMemo(() => {
+    if (!normalizedSearch) {
+      return officeMarkers;
+    }
+    return officeMarkers.filter((item) => {
+      const searchable = `${item.title} ${item.subtitle}`.toLowerCase();
+      return searchable.includes(normalizedSearch);
+    });
+  }, [normalizedSearch, officeMarkers]);
+
+  const statusFilteredComplaints = useMemo(
+    () => searchedComplaints.filter((item) => matchesStatus(item.status, statusFilter)),
+    [searchedComplaints, statusFilter]
   );
+
+  const filteredComplaints = useMemo(() => {
+    if (priorityFilter === "all") {
+      return statusFilteredComplaints;
+    }
+    return statusFilteredComplaints.filter((item) => item.priority === priorityFilter);
+  }, [priorityFilter, statusFilteredComplaints]);
+
+  const visibleMarkers = useMemo(() => {
+    const items: MapItem[] = [];
+    if (showComplaints) {
+      items.push(...filteredComplaints);
+    }
+    if (showOffices) {
+      items.push(...searchedOffices);
+    }
+    return items;
+  }, [filteredComplaints, searchedOffices, showComplaints, showOffices]);
 
   const markerPoints = useMemo(() => {
     return visibleMarkers.map((item) => ({
@@ -212,7 +280,7 @@ export default function CityMapWeb() {
           <Text style={styles.centerText}>Please login to view city map insights.</Text>
           <Pressable
             style={styles.ctaButton}
-            onPress={() => router.push("/auth/login")}
+            onPress={() => router.push("/auth")}
           >
             <Text style={styles.ctaText}>Go to Login</Text>
           </Pressable>
@@ -236,7 +304,7 @@ export default function CityMapWeb() {
     <LinearGradient colors={["#eef2ff", "#e0e7ff"]} style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
+          <Pressable onPress={() => safeBack("/")}>
             <Ionicons name="arrow-back" size={28} color="#1e3a8a" />
           </Pressable>
           <Text style={styles.title}>City Map</Text>
@@ -258,6 +326,66 @@ export default function CityMapWeb() {
             <Text style={styles.summaryValue}>{stats.high}</Text>
             <Text style={styles.summaryLabel}>High priority</Text>
           </View>
+        </View>
+
+        <View style={styles.filtersWrap}>
+          <View style={styles.searchWrap}>
+            <Ionicons name="search" size={15} color="#64748b" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search complaints / offices"
+              placeholderTextColor="#94a3b8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 ? (
+              <Pressable onPress={() => setSearchQuery("")}>
+                <Ionicons name="close-circle" size={15} color="#94a3b8" />
+              </Pressable>
+            ) : null}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {(["all", "high", "medium", "low"] as PriorityLevel[]).map((level) => (
+              <Pressable
+                key={level}
+                onPress={() => setPriorityFilter(level)}
+                style={[styles.filterChip, priorityFilter === level && styles.filterChipActive]}
+              >
+                <Text style={[styles.filterText, priorityFilter === level && styles.filterTextActive]}>
+                  {level === "all" ? "All priorities" : `${level} priority`}
+                </Text>
+              </Pressable>
+            ))}
+            {(["all", "open", "resolved", "rejected"] as ComplaintStatusFilter[]).map(
+              (level) => (
+                <Pressable
+                  key={level}
+                  onPress={() => setStatusFilter(level)}
+                  style={[styles.filterChip, statusFilter === level && styles.filterChipActive]}
+                >
+                  <Text style={[styles.filterText, statusFilter === level && styles.filterTextActive]}>
+                    {level === "all" ? "All status" : level}
+                  </Text>
+                </Pressable>
+              )
+            )}
+            <Pressable
+              onPress={() => setShowComplaints((prev) => !prev)}
+              style={[styles.filterChip, showComplaints && styles.filterChipActive]}
+            >
+              <Text style={[styles.filterText, showComplaints && styles.filterTextActive]}>
+                Complaints
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setShowOffices((prev) => !prev)}
+              style={[styles.filterChip, showOffices && styles.filterChipActive]}
+            >
+              <Text style={[styles.filterText, showOffices && styles.filterTextActive]}>
+                Offices
+              </Text>
+            </Pressable>
+          </ScrollView>
         </View>
 
         <View style={styles.webMap}>
@@ -290,7 +418,43 @@ export default function CityMapWeb() {
               />
             );
           })}
-          <Text style={styles.webHint}>Interactive preview on web</Text>
+          {selectedItem ? (
+            <View style={styles.webInfoCard}>
+              <Text style={styles.webInfoTitle} numberOfLines={1}>
+                {selectedItem.title}
+              </Text>
+              <Text style={styles.webInfoSub} numberOfLines={1}>
+                {selectedItem.category || selectedItem.subtitle}
+              </Text>
+              <View style={styles.webInfoTags}>
+                <Text
+                  style={[
+                    styles.webInfoTag,
+                    {
+                      color:
+                        selectedItem.type === "office"
+                          ? statusColor(selectedItem.status)
+                          : priorityColor(selectedItem.priority),
+                    },
+                  ]}
+                >
+                  {selectedItem.type === "office"
+                    ? (selectedItem.status || "active").toUpperCase()
+                    : `${(selectedItem.priority || "low").toUpperCase()} PRIORITY`}
+                </Text>
+                <Text
+                  style={[
+                    styles.webInfoTag,
+                    { color: statusColor(selectedItem.status) },
+                  ]}
+                >
+                  {formatStatusLabel(selectedItem.status).toUpperCase()}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Text style={styles.webHint}>Tap any marker to see clear info</Text>
+          )}
         </View>
 
         <View style={styles.legend}>
@@ -329,7 +493,7 @@ export default function CityMapWeb() {
                   {selectedItem.category || selectedItem.type}
                 </Text>
                 <Text style={styles.sheetMeta}>
-                  {selectedItem.status?.replace("_", " ") || "active"}
+                  {formatStatusLabel(selectedItem.status)}
                 </Text>
               </View>
             </View>
@@ -345,7 +509,7 @@ export default function CityMapWeb() {
 
         <View style={styles.listSection}>
           <Text style={styles.sectionTitle}>Recent Complaints</Text>
-          {complaintMarkers.slice(0, 8).map((item) => (
+          {filteredComplaints.slice(0, 8).map((item) => (
             <Pressable
               key={item.id}
               style={styles.listItem}
@@ -358,8 +522,8 @@ export default function CityMapWeb() {
               </View>
             </Pressable>
           ))}
-          {complaintMarkers.length === 0 ? (
-            <Text style={styles.emptyText}>No complaints found.</Text>
+          {filteredComplaints.length === 0 ? (
+            <Text style={styles.emptyText}>No complaints found for current filters.</Text>
           ) : null}
         </View>
       </ScrollView>
@@ -438,9 +602,51 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#64748b",
   },
+  filtersWrap: {
+    marginTop: 12,
+    paddingHorizontal: 20,
+  },
+  searchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderColor: "rgba(15,23,42,0.08)",
+    borderWidth: 1,
+    borderRadius: 12,
+    minHeight: 40,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: "#0f172a",
+    paddingVertical: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.08)",
+    marginRight: 8,
+  },
+  filterChipActive: {
+    backgroundColor: "#1e3a8a",
+  },
+  filterText: {
+    fontSize: 12,
+    color: "#475569",
+    fontWeight: "600",
+  },
+  filterTextActive: {
+    color: "#fff",
+  },
   webMap: {
     marginHorizontal: 20,
-    marginTop: 16,
+    marginTop: 12,
     borderRadius: 16,
     overflow: "hidden",
     height: 320,
@@ -452,11 +658,42 @@ const styles = StyleSheet.create({
   },
   webMarker: {
     position: "absolute",
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     borderWidth: 2,
     borderColor: "#fff",
+  },
+  webInfoCard: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    right: 10,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.08)",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 3,
+  },
+  webInfoTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+  webInfoSub: {
+    fontSize: 11,
+    color: "#64748b",
+  },
+  webInfoTags: {
+    flexDirection: "row",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  webInfoTag: {
+    fontSize: 10,
+    fontWeight: "700",
   },
   webHint: {
     position: "absolute",

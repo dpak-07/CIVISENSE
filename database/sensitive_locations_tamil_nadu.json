@@ -1,0 +1,2318 @@
+[
+  {
+    "name": "Chennai Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2807,
+        13.0927
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Chennai",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2597,
+        13.0897
+      ]
+    }
+  },
+  {
+    "name": "Chennai Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2787,
+        13.0737
+      ]
+    }
+  },
+  {
+    "name": "Chennai District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2637,
+        13.0767
+      ]
+    }
+  },
+  {
+    "name": "Chennai Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2747,
+        13.0867
+      ]
+    }
+  },
+  {
+    "name": "Chengalpattu Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9946,
+        12.6941
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Chengalpattu",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9726,
+        12.6921
+      ]
+    }
+  },
+  {
+    "name": "Chengalpattu Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9916,
+        12.6741
+      ]
+    }
+  },
+  {
+    "name": "Chengalpattu District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9756,
+        12.6781
+      ]
+    }
+  },
+  {
+    "name": "Chengalpattu Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9876,
+        12.6891
+      ]
+    }
+  },
+  {
+    "name": "Kanchipuram Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.7156,
+        12.8452
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Kanchipuram",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6926,
+        12.8442
+      ]
+    }
+  },
+  {
+    "name": "Kanchipuram Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.7116,
+        12.8242
+      ]
+    }
+  },
+  {
+    "name": "Kanchipuram District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6946,
+        12.8292
+      ]
+    }
+  },
+  {
+    "name": "Kanchipuram Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.7076,
+        12.8412
+      ]
+    }
+  },
+  {
+    "name": "Tiruvallur Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9219,
+        13.1539
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Tiruvallur",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8979,
+        13.1539
+      ]
+    }
+  },
+  {
+    "name": "Tiruvallur Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9169,
+        13.1319
+      ]
+    }
+  },
+  {
+    "name": "Tiruvallur District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8989,
+        13.1379
+      ]
+    }
+  },
+  {
+    "name": "Tiruvallur Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.9129,
+        13.1509
+      ]
+    }
+  },
+  {
+    "name": "Ranipet Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.3432,
+        12.9373
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Ranipet",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.3222,
+        12.9343
+      ]
+    }
+  },
+  {
+    "name": "Ranipet Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.3412,
+        12.9183
+      ]
+    }
+  },
+  {
+    "name": "Ranipet District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.3262,
+        12.9213
+      ]
+    }
+  },
+  {
+    "name": "Ranipet Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.3372,
+        12.9313
+      ]
+    }
+  },
+  {
+    "name": "Vellore Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1435,
+        12.9265
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Vellore",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1215,
+        12.9245
+      ]
+    }
+  },
+  {
+    "name": "Vellore Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1405,
+        12.9065
+      ]
+    }
+  },
+  {
+    "name": "Vellore District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1245,
+        12.9105
+      ]
+    }
+  },
+  {
+    "name": "Vellore Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1365,
+        12.9215
+      ]
+    }
+  },
+  {
+    "name": "Tirupathur Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.579,
+        12.5053
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Tirupathur",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.556,
+        12.5043
+      ]
+    }
+  },
+  {
+    "name": "Tirupathur Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.575,
+        12.4843
+      ]
+    }
+  },
+  {
+    "name": "Tirupathur District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.558,
+        12.4893
+      ]
+    }
+  },
+  {
+    "name": "Tirupathur Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.571,
+        12.5013
+      ]
+    }
+  },
+  {
+    "name": "Krishnagiri Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.2267,
+        12.5366
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Krishnagiri",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.2027,
+        12.5366
+      ]
+    }
+  },
+  {
+    "name": "Krishnagiri Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.2217,
+        12.5146
+      ]
+    }
+  },
+  {
+    "name": "Krishnagiri District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.2037,
+        12.5206
+      ]
+    }
+  },
+  {
+    "name": "Krishnagiri Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.2177,
+        12.5336
+      ]
+    }
+  },
+  {
+    "name": "Dharmapuri Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1682,
+        12.1311
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Dharmapuri",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1472,
+        12.1281
+      ]
+    }
+  },
+  {
+    "name": "Dharmapuri Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1662,
+        12.1121
+      ]
+    }
+  },
+  {
+    "name": "Dharmapuri District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1512,
+        12.1151
+      ]
+    }
+  },
+  {
+    "name": "Dharmapuri Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1622,
+        12.1251
+      ]
+    }
+  },
+  {
+    "name": "Salem Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.157,
+        11.6743
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Salem",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.135,
+        11.6723
+      ]
+    }
+  },
+  {
+    "name": "Salem Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.154,
+        11.6543
+      ]
+    }
+  },
+  {
+    "name": "Salem District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.138,
+        11.6583
+      ]
+    }
+  },
+  {
+    "name": "Salem Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.15,
+        11.6693
+      ]
+    }
+  },
+  {
+    "name": "Namakkal Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1794,
+        11.2289
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Namakkal",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1564,
+        11.2279
+      ]
+    }
+  },
+  {
+    "name": "Namakkal Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1754,
+        11.2079
+      ]
+    }
+  },
+  {
+    "name": "Namakkal District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1584,
+        11.2129
+      ]
+    }
+  },
+  {
+    "name": "Namakkal Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1714,
+        11.2249
+      ]
+    }
+  },
+  {
+    "name": "Erode Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7302,
+        11.351
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Erode",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7062,
+        11.351
+      ]
+    }
+  },
+  {
+    "name": "Erode Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7252,
+        11.329
+      ]
+    }
+  },
+  {
+    "name": "Erode District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7072,
+        11.335
+      ]
+    }
+  },
+  {
+    "name": "Erode Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7212,
+        11.348
+      ]
+    }
+  },
+  {
+    "name": "Tiruppur Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3511,
+        11.1185
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Tiruppur",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3301,
+        11.1155
+      ]
+    }
+  },
+  {
+    "name": "Tiruppur Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3491,
+        11.0995
+      ]
+    }
+  },
+  {
+    "name": "Tiruppur District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3341,
+        11.1025
+      ]
+    }
+  },
+  {
+    "name": "Tiruppur Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3451,
+        11.1125
+      ]
+    }
+  },
+  {
+    "name": "Coimbatore Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.9668,
+        11.0268
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Coimbatore",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.9448,
+        11.0248
+      ]
+    }
+  },
+  {
+    "name": "Coimbatore Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.9638,
+        11.0068
+      ]
+    }
+  },
+  {
+    "name": "Coimbatore District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.9478,
+        11.0108
+      ]
+    }
+  },
+  {
+    "name": "Coimbatore Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.9598,
+        11.0218
+      ]
+    }
+  },
+  {
+    "name": "Nilgiris Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.707,
+        11.4202
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Nilgiris",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.684,
+        11.4192
+      ]
+    }
+  },
+  {
+    "name": "Udhagamandalam Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.703,
+        11.3992
+      ]
+    }
+  },
+  {
+    "name": "Nilgiris District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.686,
+        11.4042
+      ]
+    }
+  },
+  {
+    "name": "Udhagamandalam Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.699,
+        11.4162
+      ]
+    }
+  },
+  {
+    "name": "Dindigul Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9933,
+        10.3773
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Dindigul",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9693,
+        10.3773
+      ]
+    }
+  },
+  {
+    "name": "Dindigul Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9883,
+        10.3553
+      ]
+    }
+  },
+  {
+    "name": "Dindigul District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9703,
+        10.3613
+      ]
+    }
+  },
+  {
+    "name": "Dindigul Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9843,
+        10.3743
+      ]
+    }
+  },
+  {
+    "name": "Karur Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.0866,
+        10.9701
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Karur",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.0656,
+        10.9671
+      ]
+    }
+  },
+  {
+    "name": "Karur Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.0846,
+        10.9511
+      ]
+    }
+  },
+  {
+    "name": "Karur District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.0696,
+        10.9541
+      ]
+    }
+  },
+  {
+    "name": "Karur Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.0806,
+        10.9641
+      ]
+    }
+  },
+  {
+    "name": "Tiruchirappalli Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.7157,
+        10.8005
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Tiruchirappalli",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.6937,
+        10.7985
+      ]
+    }
+  },
+  {
+    "name": "Tiruchirappalli Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.7127,
+        10.7805
+      ]
+    }
+  },
+  {
+    "name": "Tiruchirappalli District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.6967,
+        10.7845
+      ]
+    }
+  },
+  {
+    "name": "Tiruchirappalli Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.7087,
+        10.7955
+      ]
+    }
+  },
+  {
+    "name": "Perambalur Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8953,
+        11.2433
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Perambalur",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8723,
+        11.2423
+      ]
+    }
+  },
+  {
+    "name": "Perambalur Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8913,
+        11.2223
+      ]
+    }
+  },
+  {
+    "name": "Perambalur District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8743,
+        11.2273
+      ]
+    }
+  },
+  {
+    "name": "Perambalur Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8873,
+        11.2393
+      ]
+    }
+  },
+  {
+    "name": "Ariyalur Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0916,
+        11.1501
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Ariyalur",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0676,
+        11.1501
+      ]
+    }
+  },
+  {
+    "name": "Ariyalur Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0866,
+        11.1281
+      ]
+    }
+  },
+  {
+    "name": "Ariyalur District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0686,
+        11.1341
+      ]
+    }
+  },
+  {
+    "name": "Ariyalur Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0826,
+        11.1471
+      ]
+    }
+  },
+  {
+    "name": "Cuddalore Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.778,
+        11.7547
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Cuddalore",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.757,
+        11.7517
+      ]
+    }
+  },
+  {
+    "name": "Cuddalore Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.776,
+        11.7357
+      ]
+    }
+  },
+  {
+    "name": "Cuddalore District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.761,
+        11.7387
+      ]
+    }
+  },
+  {
+    "name": "Cuddalore Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.772,
+        11.7487
+      ]
+    }
+  },
+  {
+    "name": "Viluppuram Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.4983,
+        11.9469
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Viluppuram",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.4763,
+        11.9449
+      ]
+    }
+  },
+  {
+    "name": "Viluppuram Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.4953,
+        11.9269
+      ]
+    }
+  },
+  {
+    "name": "Viluppuram District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.4793,
+        11.9309
+      ]
+    }
+  },
+  {
+    "name": "Viluppuram Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.4913,
+        11.9419
+      ]
+    }
+  },
+  {
+    "name": "Kallakurichi Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.9757,
+        11.7484
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Kallakurichi",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.9527,
+        11.7474
+      ]
+    }
+  },
+  {
+    "name": "Kallakurichi Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.9717,
+        11.7274
+      ]
+    }
+  },
+  {
+    "name": "Kallakurichi District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.9547,
+        11.7324
+      ]
+    }
+  },
+  {
+    "name": "Kallakurichi Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.9677,
+        11.7444
+      ]
+    }
+  },
+  {
+    "name": "Tiruvannamalai Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0877,
+        12.2353
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Tiruvannamalai",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0637,
+        12.2353
+      ]
+    }
+  },
+  {
+    "name": "Tiruvannamalai Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0827,
+        12.2133
+      ]
+    }
+  },
+  {
+    "name": "Tiruvannamalai District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0647,
+        12.2193
+      ]
+    }
+  },
+  {
+    "name": "Tiruvannamalai Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.0787,
+        12.2323
+      ]
+    }
+  },
+  {
+    "name": "Mayiladuthurai Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.665,
+        11.1135
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Mayiladuthurai",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.644,
+        11.1105
+      ]
+    }
+  },
+  {
+    "name": "Mayiladuthurai Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.663,
+        11.0945
+      ]
+    }
+  },
+  {
+    "name": "Mayiladuthurai District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.648,
+        11.0975
+      ]
+    }
+  },
+  {
+    "name": "Mayiladuthurai Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.659,
+        11.1075
+      ]
+    }
+  },
+  {
+    "name": "Nagapattinam Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8538,
+        10.7756
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Nagapattinam",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8318,
+        10.7736
+      ]
+    }
+  },
+  {
+    "name": "Nagapattinam Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8508,
+        10.7556
+      ]
+    }
+  },
+  {
+    "name": "Nagapattinam District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8348,
+        10.7596
+      ]
+    }
+  },
+  {
+    "name": "Nagapattinam Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.8468,
+        10.7706
+      ]
+    }
+  },
+  {
+    "name": "Thanjavur Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1498,
+        10.7967
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Thanjavur",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1268,
+        10.7957
+      ]
+    }
+  },
+  {
+    "name": "Thanjavur Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1458,
+        10.7757
+      ]
+    }
+  },
+  {
+    "name": "Thanjavur District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1288,
+        10.7807
+      ]
+    }
+  },
+  {
+    "name": "Thanjavur Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.1418,
+        10.7927
+      ]
+    }
+  },
+  {
+    "name": "Tiruvarur Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6498,
+        10.7825
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Tiruvarur",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6258,
+        10.7825
+      ]
+    }
+  },
+  {
+    "name": "Tiruvarur Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6448,
+        10.7605
+      ]
+    }
+  },
+  {
+    "name": "Tiruvarur District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6268,
+        10.7665
+      ]
+    }
+  },
+  {
+    "name": "Tiruvarur Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        79.6408,
+        10.7795
+      ]
+    }
+  },
+  {
+    "name": "Pudukkottai Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8317,
+        10.3913
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Pudukkottai",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8107,
+        10.3883
+      ]
+    }
+  },
+  {
+    "name": "Pudukkottai Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8297,
+        10.3723
+      ]
+    }
+  },
+  {
+    "name": "Pudukkottai District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8147,
+        10.3753
+      ]
+    }
+  },
+  {
+    "name": "Pudukkottai Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8257,
+        10.3853
+      ]
+    }
+  },
+  {
+    "name": "Sivaganga Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.4946,
+        9.857
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Sivaganga",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.4726,
+        9.855
+      ]
+    }
+  },
+  {
+    "name": "Sivaganga Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.4916,
+        9.837
+      ]
+    }
+  },
+  {
+    "name": "Sivaganga District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.4756,
+        9.841
+      ]
+    }
+  },
+  {
+    "name": "Sivaganga Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.4876,
+        9.852
+      ]
+    }
+  },
+  {
+    "name": "Madurai Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1318,
+        9.9352
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Madurai",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1088,
+        9.9342
+      ]
+    }
+  },
+  {
+    "name": "Madurai Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1278,
+        9.9142
+      ]
+    }
+  },
+  {
+    "name": "Madurai District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1108,
+        9.9192
+      ]
+    }
+  },
+  {
+    "name": "Madurai Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1238,
+        9.9312
+      ]
+    }
+  },
+  {
+    "name": "Theni Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4898,
+        10.0204
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Theni",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4658,
+        10.0204
+      ]
+    }
+  },
+  {
+    "name": "Theni Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4848,
+        9.9984
+      ]
+    }
+  },
+  {
+    "name": "Theni District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4668,
+        10.0044
+      ]
+    }
+  },
+  {
+    "name": "Theni Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4808,
+        10.0174
+      ]
+    }
+  },
+  {
+    "name": "Virudhunagar Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9679,
+        9.5951
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Virudhunagar",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9469,
+        9.5921
+      ]
+    }
+  },
+  {
+    "name": "Virudhunagar Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9659,
+        9.5761
+      ]
+    }
+  },
+  {
+    "name": "Virudhunagar District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9509,
+        9.5791
+      ]
+    }
+  },
+  {
+    "name": "Virudhunagar Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.9619,
+        9.5891
+      ]
+    }
+  },
+  {
+    "name": "Ramanathapuram Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8505,
+        9.3739
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Ramanathapuram",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8285,
+        9.3719
+      ]
+    }
+  },
+  {
+    "name": "Ramanathapuram Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8475,
+        9.3539
+      ]
+    }
+  },
+  {
+    "name": "Ramanathapuram District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8315,
+        9.3579
+      ]
+    }
+  },
+  {
+    "name": "Ramanathapuram Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.8435,
+        9.3689
+      ]
+    }
+  },
+  {
+    "name": "Thoothukudi Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1468,
+        8.7742
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Thoothukudi",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1238,
+        8.7732
+      ]
+    }
+  },
+  {
+    "name": "Thoothukudi Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1428,
+        8.7532
+      ]
+    }
+  },
+  {
+    "name": "Thoothukudi District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1258,
+        8.7582
+      ]
+    }
+  },
+  {
+    "name": "Thoothukudi Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        78.1388,
+        8.7702
+      ]
+    }
+  },
+  {
+    "name": "Tenkasi Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3282,
+        8.969
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Tenkasi",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3042,
+        8.969
+      ]
+    }
+  },
+  {
+    "name": "Tenkasi Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3232,
+        8.947
+      ]
+    }
+  },
+  {
+    "name": "Tenkasi District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3052,
+        8.953
+      ]
+    }
+  },
+  {
+    "name": "Tenkasi Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.3192,
+        8.966
+      ]
+    }
+  },
+  {
+    "name": "Tirunelveli Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7667,
+        8.7239
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Tirunelveli",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7457,
+        8.7209
+      ]
+    }
+  },
+  {
+    "name": "Tirunelveli Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7647,
+        8.7049
+      ]
+    }
+  },
+  {
+    "name": "Tirunelveli District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7497,
+        8.7079
+      ]
+    }
+  },
+  {
+    "name": "Tirunelveli Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.7607,
+        8.7179
+      ]
+    }
+  },
+  {
+    "name": "Kanniyakumari Government Higher Secondary School",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4229,
+        8.1933
+      ]
+    }
+  },
+  {
+    "name": "Government Hospital Kanniyakumari",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4009,
+        8.1913
+      ]
+    }
+  },
+  {
+    "name": "Nagercoil Town Police Station",
+    "type": "police",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4199,
+        8.1733
+      ]
+    }
+  },
+  {
+    "name": "Kanniyakumari District Collectorate",
+    "type": "government_building",
+    "priorityWeight": 1,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4039,
+        8.1773
+      ]
+    }
+  },
+  {
+    "name": "Nagercoil Central Bus Stand",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.4159,
+        8.1883
+      ]
+    }
+  },
+  {
+    "name": "Chennai International Airport",
+    "type": "airport",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1697,
+        12.9941
+      ]
+    }
+  },
+  {
+    "name": "Chennai Central Metro",
+    "type": "metro",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.274665,
+        13.082695
+      ]
+    }
+  },
+  {
+    "name": "Chennai Egmore Railway Station",
+    "type": "station",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2615,
+        13.0732
+      ]
+    }
+  }
+]

@@ -1,13 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Alert,
   Linking,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { router } from "expo-router";
@@ -16,7 +20,9 @@ import MapView, { Callout, Marker } from "react-native-maps";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiErrorMessage } from "@/lib/api";
+import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
 import { ComplaintRecord, getComplaints } from "@/lib/services/complaints";
 import {
@@ -27,6 +33,7 @@ import {
 type LatLng = { latitude: number; longitude: number };
 type MapRegion = LatLng & { latitudeDelta: number; longitudeDelta: number };
 type PriorityLevel = "high" | "medium" | "low" | "all";
+type ComplaintStatusFilter = "all" | "open" | "resolved" | "rejected";
 
 type MapItem = {
   id: string;
@@ -69,6 +76,9 @@ const statusColor = (status?: string) => {
   if (status === "rejected") return "#ef4444";
   return "#64748b";
 };
+
+const formatStatusLabel = (status?: string) =>
+  status ? status.replace("_", " ") : "reported";
 
 const toLatLng = (coords?: [number, number]): LatLng | null => {
   if (!coords || coords.length !== 2) {
@@ -125,18 +135,104 @@ const openDirections = (lat: number, lng: number) => {
   Linking.openURL(url).catch(() => undefined);
 };
 
+const matchesStatus = (status: string | undefined, filter: ComplaintStatusFilter) => {
+  if (filter === "all") {
+    return true;
+  }
+  if (filter === "open") {
+    return status !== "resolved" && status !== "rejected";
+  }
+  return status === filter;
+};
+
+const clamp = (value: number, min: number, max: number) => {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+};
+
 export default function CityMap() {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const mapRef = useRef<MapView | null>(null);
+  const sheetStartRef = useRef(1);
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [offices, setOffices] = useState<MunicipalOffice[]>([]);
   const [selectedItem, setSelectedItem] = useState<MapItem | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<PriorityLevel>("all");
+  const [statusFilter, setStatusFilter] = useState<ComplaintStatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showComplaints, setShowComplaints] = useState(true);
   const [showOffices, setShowOffices] = useState(true);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [region, setRegion] = useState<MapRegion | null>(null);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const sheetProgress = useRef(new Animated.Value(1)).current;
+  const sheetExpandedHeight = Math.min(Math.max(windowHeight * 0.56, 310), 430);
+  const sheetCollapsedHeight = 138;
+  const sheetTravel = Math.max(1, sheetExpandedHeight - sheetCollapsedHeight);
+
+  const handleSelectItem = useCallback((item: MapItem) => {
+    setSelectedItem(item);
+    setSheetExpanded(true);
+    mapRef.current?.animateToRegion(
+      {
+        latitude: item.latitude,
+        longitude: item.longitude,
+        latitudeDelta: 0.06,
+        longitudeDelta: 0.06,
+      },
+      420
+    );
+  }, []);
+
+  useEffect(() => {
+    Animated.spring(sheetProgress, {
+      toValue: sheetExpanded ? 0 : 1,
+      useNativeDriver: true,
+      damping: 18,
+      stiffness: 170,
+      mass: 0.7,
+    }).start();
+  }, [sheetExpanded, sheetProgress]);
+
+  const sheetPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderGrant: () => {
+          sheetProgress.stopAnimation((value) => {
+            sheetStartRef.current = value;
+          });
+        },
+        onPanResponderMove: (_, gesture) => {
+          const next = clamp(sheetStartRef.current + gesture.dy / sheetTravel, 0, 1);
+          sheetProgress.setValue(next);
+        },
+        onPanResponderRelease: (_, gesture) => {
+          const projected = clamp(
+            sheetStartRef.current + (gesture.dy + gesture.vy * 42) / sheetTravel,
+            0,
+            1
+          );
+          setSheetExpanded(projected < 0.5);
+        },
+        onPanResponderTerminate: () => {
+          sheetProgress.stopAnimation((value) => {
+            setSheetExpanded(value < 0.5);
+          });
+        },
+      }),
+    [sheetProgress, sheetTravel]
+  );
+
+  const sheetTranslateY = sheetProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, sheetTravel],
+  });
 
   const loadData = useCallback(async () => {
     if (!sessionStore.getAccessToken()) {
@@ -193,8 +289,7 @@ export default function CityMap() {
   }, [userLocation]);
 
   const complaintMarkers = useMemo<MapItem[]>(() => {
-    return complaints
-      .map((item) => {
+    const mapped: (MapItem | null)[] = complaints.map((item): MapItem | null => {
         const coords = toLatLng(item.location?.coordinates);
         if (!coords) {
           return null;
@@ -210,13 +305,12 @@ export default function CityMap() {
           priority: item.priority?.level,
           category: item.category,
         };
-      })
-      .filter((item): item is MapItem => !!item);
+      });
+    return mapped.filter((item): item is MapItem => item !== null);
   }, [complaints]);
 
   const officeMarkers = useMemo<MapItem[]>(() => {
-    return offices
-      .map((office) => {
+    const mapped: (MapItem | null)[] = offices.map((office): MapItem | null => {
         const coords = toLatLng(office.location?.coordinates);
         if (!coords) {
           return null;
@@ -230,16 +324,43 @@ export default function CityMap() {
           longitude: coords.longitude,
           status: office.isActive ? "active" : "inactive",
         };
-      })
-      .filter((item): item is MapItem => !!item);
+      });
+    return mapped.filter((item): item is MapItem => item !== null);
   }, [offices]);
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const searchedComplaints = useMemo(() => {
+    if (!normalizedSearch) {
+      return complaintMarkers;
+    }
+    return complaintMarkers.filter((item) => {
+      const searchable = `${item.title} ${item.subtitle} ${item.category || ""}`.toLowerCase();
+      return searchable.includes(normalizedSearch);
+    });
+  }, [complaintMarkers, normalizedSearch]);
+
+  const searchedOffices = useMemo(() => {
+    if (!normalizedSearch) {
+      return officeMarkers;
+    }
+    return officeMarkers.filter((item) => {
+      const searchable = `${item.title} ${item.subtitle}`.toLowerCase();
+      return searchable.includes(normalizedSearch);
+    });
+  }, [normalizedSearch, officeMarkers]);
+
+  const statusFilteredComplaints = useMemo(
+    () => searchedComplaints.filter((item) => matchesStatus(item.status, statusFilter)),
+    [searchedComplaints, statusFilter]
+  );
 
   const filteredComplaints = useMemo(() => {
     if (priorityFilter === "all") {
-      return complaintMarkers;
+      return statusFilteredComplaints;
     }
-    return complaintMarkers.filter((item) => item.priority === priorityFilter);
-  }, [complaintMarkers, priorityFilter]);
+    return statusFilteredComplaints.filter((item) => item.priority === priorityFilter);
+  }, [priorityFilter, statusFilteredComplaints]);
 
   const visibleMarkers = useMemo(() => {
     const items: MapItem[] = [];
@@ -247,10 +368,10 @@ export default function CityMap() {
       items.push(...filteredComplaints);
     }
     if (showOffices) {
-      items.push(...officeMarkers);
+      items.push(...searchedOffices);
     }
     return items;
-  }, [filteredComplaints, officeMarkers, showComplaints, showOffices]);
+  }, [filteredComplaints, searchedOffices, showComplaints, showOffices]);
 
   const markerPoints = useMemo(() => {
     return visibleMarkers.map((item) => ({
@@ -274,6 +395,8 @@ export default function CityMap() {
     };
   }, [complaintMarkers, officeMarkers]);
 
+  const mapBottomPadding = sheetExpanded ? sheetExpandedHeight + 24 : sheetCollapsedHeight + 36;
+
   useEffect(() => {
     if (region || markerPoints.length === 0) {
       return;
@@ -288,7 +411,7 @@ export default function CityMap() {
 
     if (markerPoints.length > 0) {
       mapRef.current?.fitToCoordinates(markerPoints, {
-        edgePadding: { top: 120, right: 60, bottom: 320, left: 60 },
+        edgePadding: { top: 120, right: 60, bottom: mapBottomPadding, left: 60 },
         animated: true,
       });
       return;
@@ -298,7 +421,7 @@ export default function CityMap() {
       const focusRegion = buildRegionFromPoints([], userLocation);
       mapRef.current?.animateToRegion(focusRegion, 600);
     }
-  }, [mapReady, markerPoints, userLocation]);
+  }, [mapBottomPadding, mapReady, markerPoints, userLocation]);
 
   const handleLocate = async () => {
     try {
@@ -328,7 +451,7 @@ export default function CityMap() {
       return;
     }
     mapRef.current.fitToCoordinates(markerPoints, {
-      edgePadding: { top: 80, right: 40, bottom: 320, left: 40 },
+      edgePadding: { top: 80, right: 40, bottom: mapBottomPadding, left: 40 },
       animated: true,
     });
   };
@@ -342,7 +465,7 @@ export default function CityMap() {
           <Text style={styles.centerText}>Please login to view city map insights.</Text>
           <Pressable
             style={styles.ctaButton}
-            onPress={() => router.push("/auth/login")}
+            onPress={() => router.push("/auth")}
           >
             <Text style={styles.ctaText}>Go to Login</Text>
           </Pressable>
@@ -374,13 +497,17 @@ export default function CityMap() {
         showsTraffic={false}
         onMapReady={() => setMapReady(true)}
         onRegionChangeComplete={(nextRegion) => setRegion(nextRegion)}
+        onPress={() => setSelectedItem(null)}
       >
         {showComplaints
           ? filteredComplaints.map((item) => (
               <Marker
                 key={`complaint-${item.id}`}
                 coordinate={{ latitude: item.latitude, longitude: item.longitude }}
-                onPress={() => setSelectedItem(item)}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  handleSelectItem(item);
+                }}
               >
                 <View
                   style={[
@@ -388,10 +515,23 @@ export default function CityMap() {
                     { backgroundColor: priorityColor(item.priority) },
                   ]}
                 />
-                <Callout>
+                <Callout tooltip>
                   <View style={styles.callout}>
                     <Text style={styles.calloutTitle}>{item.title}</Text>
-                    <Text style={styles.calloutSub}>{item.subtitle}</Text>
+                    <Text style={styles.calloutSub}>{item.category || "Complaint"}</Text>
+                    <View style={styles.calloutMetaRow}>
+                      <Text
+                        style={[
+                          styles.calloutTag,
+                          { color: priorityColor(item.priority), borderColor: priorityColor(item.priority) },
+                        ]}
+                      >
+                        {(item.priority || "low").toUpperCase()}
+                      </Text>
+                      <Text style={[styles.calloutTag, { color: statusColor(item.status), borderColor: statusColor(item.status) }]}>
+                        {formatStatusLabel(item.status).toUpperCase()}
+                      </Text>
+                    </View>
                   </View>
                 </Callout>
               </Marker>
@@ -399,19 +539,27 @@ export default function CityMap() {
           : null}
 
         {showOffices
-          ? officeMarkers.map((item) => (
+          ? searchedOffices.map((item) => (
               <Marker
                 key={`office-${item.id}`}
                 coordinate={{ latitude: item.latitude, longitude: item.longitude }}
-                onPress={() => setSelectedItem(item)}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  handleSelectItem(item);
+                }}
               >
                 <View style={styles.officeMarker}>
                   <Ionicons name="business" size={14} color="#fff" />
                 </View>
-                <Callout>
+                <Callout tooltip>
                   <View style={styles.callout}>
                     <Text style={styles.calloutTitle}>{item.title}</Text>
                     <Text style={styles.calloutSub}>{item.subtitle}</Text>
+                    <View style={styles.calloutMetaRow}>
+                      <Text style={[styles.calloutTag, { color: statusColor(item.status), borderColor: statusColor(item.status) }]}>
+                        {(item.status || "active").toUpperCase()}
+                      </Text>
+                    </View>
                   </View>
                 </Callout>
               </Marker>
@@ -419,8 +567,11 @@ export default function CityMap() {
           : null}
       </MapView>
 
-      <LinearGradient colors={["#f8fafc", "#e0e7ff"]} style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.headerButton}>
+      <LinearGradient
+        colors={["#f8fafc", "#e0e7ff"]}
+        style={[styles.header, { paddingTop: insets.top + 8 }]}
+      >
+        <Pressable onPress={() => safeBack("/")} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={20} color="#1e3a8a" />
         </Pressable>
         <View style={styles.headerText}>
@@ -434,7 +585,23 @@ export default function CityMap() {
         </Pressable>
       </LinearGradient>
 
-      <View style={styles.filters} pointerEvents="box-none">
+      <View style={[styles.filters, { top: insets.top + 72 }]} pointerEvents="box-none">
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={16} color="#64748b" />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search complaints / offices"
+            placeholderTextColor="#94a3b8"
+            style={styles.searchInput}
+          />
+          {searchQuery.length > 0 ? (
+            <Pressable onPress={() => setSearchQuery("")}>
+              <Ionicons name="close-circle" size={16} color="#94a3b8" />
+            </Pressable>
+          ) : null}
+        </View>
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {(["all", "high", "medium", "low"] as PriorityLevel[]).map((level) => (
             <Pressable
@@ -455,6 +622,24 @@ export default function CityMap() {
               </Text>
             </Pressable>
           ))}
+          {(["all", "open", "resolved", "rejected"] as ComplaintStatusFilter[]).map(
+            (level) => (
+              <Pressable
+                key={level}
+                onPress={() => setStatusFilter(level)}
+                style={[styles.filterChip, statusFilter === level && styles.filterChipActive]}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    statusFilter === level && styles.filterTextActive,
+                  ]}
+                >
+                  {level === "all" ? "All status" : level}
+                </Text>
+              </Pressable>
+            )
+          )}
           <Pressable
             onPress={() => setShowComplaints((prev) => !prev)}
             style={[
@@ -484,7 +669,7 @@ export default function CityMap() {
         </ScrollView>
       </View>
 
-      <View style={styles.mapActions} pointerEvents="box-none">
+      <View style={[styles.mapActions, { top: insets.top + 180 }]} pointerEvents="box-none">
         <Pressable style={styles.actionButton} onPress={handleLocate}>
           <Ionicons name="locate" size={18} color="#1e3a8a" />
         </Pressable>
@@ -493,7 +678,7 @@ export default function CityMap() {
         </Pressable>
       </View>
 
-      <View style={styles.legend} pointerEvents="box-none">
+      <View style={[styles.legend, { top: insets.top + 210 }]} pointerEvents="box-none">
         <View style={styles.legendItem}>
           <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
           <Text style={styles.legendText}>High</Text>
@@ -512,120 +697,131 @@ export default function CityMap() {
         </View>
       </View>
 
-      <View style={styles.bottomSheet} pointerEvents="box-none">
-        <View style={styles.sheetCard}>
-          {selectedItem ? (
-            <View>
-              <View style={styles.sheetHeader}>
-                <View style={styles.sheetTitleWrap}>
-                  <Text style={styles.sheetTitle}>{selectedItem.title}</Text>
-                  <Text style={styles.sheetSub}>{selectedItem.subtitle}</Text>
-                </View>
-                <Pressable onPress={() => setSelectedItem(null)}>
-                  <Ionicons name="close" size={20} color="#64748b" />
-                </Pressable>
-              </View>
-              <View style={styles.sheetRow}>
-                <View
-                  style={[
-                    styles.statusPill,
-                    {
-                      backgroundColor: `${statusColor(selectedItem.status)}20`,
-                      borderColor: statusColor(selectedItem.status),
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      { color: statusColor(selectedItem.status) },
-                    ]}
-                  >
-                    {selectedItem.type === "office"
-                      ? selectedItem.status || "active"
-                      : selectedItem.status?.replace("_", " ") || "reported"}
-                  </Text>
-                </View>
-                {selectedItem.type === "complaint" ? (
-                  <View
-                    style={[
-                      styles.statusPill,
-                      {
-                        backgroundColor: `${priorityColor(selectedItem.priority)}20`,
-                        borderColor: priorityColor(selectedItem.priority),
-                      },
-                    ]}
-                  >
-                    <Text
+      <Animated.View
+        style={[
+          styles.bottomSheet,
+          { height: sheetExpandedHeight, transform: [{ translateY: sheetTranslateY }] },
+        ]}
+      >
+        <View style={[styles.sheetCard, { paddingBottom: Math.max(12, insets.bottom + 2) }]}>
+          <View style={styles.sheetHandleWrap} {...sheetPanResponder.panHandlers}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetPeekTitle}>City overview</Text>
+            <Pressable onPress={() => setSheetExpanded((prev) => !prev)} style={styles.sheetToggleButton}>
+              <Ionicons
+                name={sheetExpanded ? "chevron-down" : "chevron-up"}
+                size={18}
+                color="#475569"
+              />
+            </Pressable>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryValue}>{stats.high}</Text>
+              <Text style={styles.summaryLabel}>High priority</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryValue}>{stats.medium}</Text>
+              <Text style={styles.summaryLabel}>Medium</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryValue}>{stats.low}</Text>
+              <Text style={styles.summaryLabel}>Low</Text>
+            </View>
+          </View>
+
+          {!sheetExpanded ? (
+            <Text style={styles.sheetHintText}>
+              Swipe up to view recent complaints across the city.
+            </Text>
+          ) : (
+            <View style={styles.sheetExpandedBody}>
+              {selectedItem ? (
+                <View style={styles.selectedCard}>
+                  <View style={styles.sheetHeader}>
+                    <View style={styles.sheetTitleWrap}>
+                      <Text style={styles.sheetTitle}>{selectedItem.title}</Text>
+                      <Text style={styles.sheetSub}>{selectedItem.subtitle}</Text>
+                    </View>
+                    <Pressable onPress={() => setSelectedItem(null)}>
+                      <Ionicons name="close" size={18} color="#64748b" />
+                    </Pressable>
+                  </View>
+                  <View style={styles.sheetRow}>
+                    <View
                       style={[
-                        styles.statusText,
-                        { color: priorityColor(selectedItem.priority) },
+                        styles.statusPill,
+                        {
+                          backgroundColor: `${statusColor(selectedItem.status)}20`,
+                          borderColor: statusColor(selectedItem.status),
+                        },
                       ]}
                     >
-                      {selectedItem.priority || "low"} priority
-                    </Text>
+                      <Text
+                        style={[styles.statusText, { color: statusColor(selectedItem.status) }]}
+                      >
+                        {selectedItem.type === "office"
+                          ? selectedItem.status || "active"
+                          : formatStatusLabel(selectedItem.status)}
+                      </Text>
+                    </View>
+                    {selectedItem.type === "complaint" ? (
+                      <View
+                        style={[
+                          styles.statusPill,
+                          {
+                            backgroundColor: `${priorityColor(selectedItem.priority)}20`,
+                            borderColor: priorityColor(selectedItem.priority),
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusText,
+                            { color: priorityColor(selectedItem.priority) },
+                          ]}
+                        >
+                          {selectedItem.priority || "low"} priority
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
-                ) : null}
-              </View>
-              <Pressable
-                style={styles.directionsButton}
-                onPress={() =>
-                  openDirections(selectedItem.latitude, selectedItem.longitude)
-                }
-              >
-                <Ionicons name="navigate" size={16} color="#fff" />
-                <Text style={styles.directionsText}>Open directions</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View>
-              <Text style={styles.sheetTitle}>City overview</Text>
-              <View style={styles.summaryRow}>
-                <View style={styles.summaryCard}>
-                  <Text style={styles.summaryValue}>{stats.high}</Text>
-                  <Text style={styles.summaryLabel}>High priority</Text>
+                  <Pressable
+                    style={styles.directionsButton}
+                    onPress={() => openDirections(selectedItem.latitude, selectedItem.longitude)}
+                  >
+                    <Ionicons name="navigate" size={16} color="#fff" />
+                    <Text style={styles.directionsText}>Get directions</Text>
+                  </Pressable>
                 </View>
-                <View style={styles.summaryCard}>
-                  <Text style={styles.summaryValue}>{stats.medium}</Text>
-                  <Text style={styles.summaryLabel}>Medium</Text>
-                </View>
-                <View style={styles.summaryCard}>
-                  <Text style={styles.summaryValue}>{stats.low}</Text>
-                  <Text style={styles.summaryLabel}>Low</Text>
-                </View>
-              </View>
+              ) : null}
 
               <Text style={styles.sectionTitle}>Recent complaints</Text>
               <ScrollView showsVerticalScrollIndicator={false} style={styles.list}>
-                {filteredComplaints.slice(0, 6).map((item) => (
+                {filteredComplaints.slice(0, 10).map((item) => (
                   <Pressable
                     key={item.id}
                     style={styles.listItem}
-                    onPress={() => setSelectedItem(item)}
+                    onPress={() => handleSelectItem(item)}
                   >
-                    <View
-                      style={[
-                        styles.dot,
-                        { backgroundColor: priorityColor(item.priority) },
-                      ]}
-                    />
+                    <View style={[styles.dot, { backgroundColor: priorityColor(item.priority) }]} />
                     <View style={styles.listBody}>
                       <Text style={styles.listTitle}>{item.title}</Text>
                       <Text style={styles.listSub}>
-                        {item.category || "Complaint"} •{" "}
-                        {item.status?.replace("_", " ")}
+                        {item.category || "Complaint"} - {formatStatusLabel(item.status)}
                       </Text>
                     </View>
                   </Pressable>
                 ))}
                 {filteredComplaints.length === 0 ? (
-                  <Text style={styles.emptyText}>No complaints available.</Text>
+                  <Text style={styles.emptyText}>No complaints found for current filters.</Text>
                 ) : null}
               </ScrollView>
             </View>
           )}
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -639,16 +835,21 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   markerDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 2,
     borderColor: "#fff",
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
   },
   officeMarker: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: "#1e3a8a",
     alignItems: "center",
     justifyContent: "center",
@@ -656,25 +857,44 @@ const styles = StyleSheet.create({
     borderColor: "#fff",
   },
   callout: {
-    maxWidth: 200,
-    padding: 6,
+    width: 220,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.98)",
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.1)",
   },
   calloutTitle: {
     fontSize: 13,
     fontWeight: "700",
     color: "#0f172a",
+    lineHeight: 17,
   },
   calloutSub: {
-    marginTop: 2,
-    fontSize: 11,
+    marginTop: 3,
+    fontSize: 12,
     color: "#64748b",
+  },
+  calloutMetaRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  calloutTag: {
+    borderWidth: 1,
+    borderRadius: 999,
+    fontSize: 10,
+    fontWeight: "700",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
   },
   header: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    paddingTop: 44,
     paddingHorizontal: 16,
     paddingBottom: 12,
     flexDirection: "row",
@@ -710,6 +930,24 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
   },
+  searchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.08)",
+    borderRadius: 14,
+    minHeight: 40,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: "#0f172a",
+    paddingVertical: 8,
+  },
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -733,7 +971,7 @@ const styles = StyleSheet.create({
   mapActions: {
     position: "absolute",
     right: 12,
-    top: 160,
+    top: 212,
     gap: 10,
   },
   actionButton: {
@@ -747,7 +985,7 @@ const styles = StyleSheet.create({
   legend: {
     position: "absolute",
     left: 12,
-    top: 190,
+    top: 242,
     backgroundColor: "rgba(255,255,255,0.92)",
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -783,6 +1021,53 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: "rgba(15,23,42,0.08)",
+    flex: 1,
+    overflow: "hidden",
+  },
+  sheetHandleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: -2,
+    marginBottom: 8,
+  },
+  sheetHandle: {
+    width: 46,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#cbd5e1",
+    marginRight: 10,
+  },
+  sheetPeekTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+  sheetToggleButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetHintText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  sheetExpandedBody: {
+    flex: 1,
+    minHeight: 120,
+  },
+  selectedCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.08)",
+    backgroundColor: "#f8fafc",
+    padding: 10,
+    marginBottom: 8,
   },
   sheetHeader: {
     flexDirection: "row",
@@ -865,7 +1150,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   list: {
-    maxHeight: 150,
+    flex: 1,
+    minHeight: 120,
   },
   listItem: {
     flexDirection: "row",
