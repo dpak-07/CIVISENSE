@@ -9,5 +9,7 @@ router.use(authMiddleware);
 
 router.post('/profile-photo', uploadProfilePhoto, userController.updateProfilePhoto);
 router.delete('/profile-photo', userController.removeProfilePhoto);
+router.patch('/preferences/language', userController.updateLanguagePreference);
+router.delete('/account', userController.deleteAccount);
 
 module.exports = router;

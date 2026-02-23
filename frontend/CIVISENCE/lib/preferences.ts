@@ -1,8 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+export type AppLanguage = "en" | "ta" | "hi";
+
 export type AppPreferences = {
   notificationsEnabled: boolean;
   locationEnabled: boolean;
+  darkMode: boolean;
+  language: AppLanguage;
 };
 
 const PREFERENCES_KEY = "civisense.app.preferences.v1";
@@ -10,6 +14,23 @@ const PREFERENCES_KEY = "civisense.app.preferences.v1";
 const defaultPreferences: AppPreferences = {
   notificationsEnabled: true,
   locationEnabled: true,
+  darkMode: false,
+  language: "en",
+};
+
+const normalizeLanguage = (value: unknown): AppLanguage => {
+  if (value === "en" || value === "ta" || value === "hi") {
+    return value;
+  }
+
+  const legacy = typeof value === "string" ? value.toLowerCase().trim() : "";
+  if (legacy.includes("tamil")) {
+    return "ta";
+  }
+  if (legacy.includes("hindi")) {
+    return "hi";
+  }
+  return "en";
 };
 
 export const getPreferences = async (): Promise<AppPreferences> => {
@@ -29,6 +50,14 @@ export const getPreferences = async (): Promise<AppPreferences> => {
         typeof parsed.locationEnabled === "boolean"
           ? parsed.locationEnabled
           : defaultPreferences.locationEnabled,
+      darkMode:
+        typeof parsed.darkMode === "boolean"
+          ? parsed.darkMode
+          : defaultPreferences.darkMode,
+      language:
+        parsed.language !== undefined
+          ? normalizeLanguage(parsed.language)
+          : defaultPreferences.language,
     };
   } catch {
     return defaultPreferences;

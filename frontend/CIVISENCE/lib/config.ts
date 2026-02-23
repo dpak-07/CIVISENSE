@@ -1,10 +1,11 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-const FORCED_API_BASE_URL = "http://43.204.139.225/api";
-const envBaseUrl = FORCED_API_BASE_URL;
+const DEFAULT_PROD_API_BASE_URL = "https://civisence.duckdns.org/api";
+const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || "";
 const PROD_API_BASE_URLS = [
-  FORCED_API_BASE_URL,
+  DEFAULT_PROD_API_BASE_URL,
+  "http://43.204.139.225/api",
 ];
 
 const normalizeBaseUrl = (value: string): string =>
@@ -120,7 +121,7 @@ const resolveEnvBaseUrl = (): string | null => {
 };
 
 const resolveDefaultBaseUrl = (): string => {
-  return FORCED_API_BASE_URL;
+  return DEFAULT_PROD_API_BASE_URL;
 };
 
 const resolveApiBaseUrls = (): string[] => {

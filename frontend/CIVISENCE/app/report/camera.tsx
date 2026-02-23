@@ -1,67 +1,108 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
   ActivityIndicator,
+  Animated,
+  Dimensions,
+  Easing,
   Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const FRAME_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 360);
+const FRAME_HEIGHT = FRAME_WIDTH * 1.25;
+const USE_NATIVE_DRIVER = Platform.OS !== "web";
+
+const CATEGORIES = [
+  { key: "Pothole", icon: "construct" as const },
+  { key: "Streetlight", icon: "bulb" as const },
+  { key: "Garbage", icon: "trash" as const },
+  { key: "Water Leak", icon: "water" as const },
+];
 
 export default function CameraScreen() {
   const cameraRef = useRef<CameraView | null>(null);
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [facing, setFacing] = useState<"back" | "front">("back");
+  const [flash, setFlash] = useState<"off" | "on">("off");
+  const [category, setCategory] = useState(CATEGORIES[0].key);
 
-  if (!permission) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Loading camera...</Text>
-      </View>
-    );
-  }
+  const scanAnim = useRef(new Animated.Value(0)).current;
+  const ringAnim = useRef(new Animated.Value(0)).current;
 
-  if (!permission.granted) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.permissionContent}>
-          <Ionicons name="camera" size={64} color="#3B82F6" />
-          <Text style={styles.permissionTitle}>Camera Access Required</Text>
-          <Text style={styles.permissionMessage}>
-            We need access to your camera to capture issue photos
-          </Text>
-          <Pressable
-            style={styles.permissionButton}
-            onPress={requestPermission}
-          >
-            <Text style={styles.permissionButtonText}>Grant Permission</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(scanAnim, {
+        toValue: 1,
+        duration: 2500,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: USE_NATIVE_DRIVER,
+      })
+    ).start();
 
-  const takePicture = async () => {
-    if (cameraRef.current && !isCapturing) {
-      try {
-        setIsCapturing(true);
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
-          base64: false,
-        });
+    Animated.loop(
+      Animated.timing(ringAnim, {
+        toValue: 1,
+        duration: 2000,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: USE_NATIVE_DRIVER,
+      })
+    ).start();
+  }, [ringAnim, scanAnim]);
+
+  const scanTranslateY = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [4, FRAME_HEIGHT - 8],
+  });
+
+  const scanOpacity = scanAnim.interpolate({
+    inputRange: [0, 0.1, 0.9, 1],
+    outputRange: [0, 1, 1, 0],
+  });
+
+  const ringScale = ringAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.2],
+  });
+
+  const ringOpacity = ringAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.7, 0],
+  });
+
+  const nowMeta = new Date().toLocaleTimeString();
+
+  const handleTakePicture = async () => {
+    if (!cameraRef.current || isCapturing) {
+      return;
+    }
+    setIsCapturing(true);
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.9,
+        skipProcessing: false,
+      });
+      if (photo?.uri) {
         setCapturedPhoto(photo.uri);
-      } catch (error) {
-        console.error("Camera Error:", error);
-      } finally {
-        setIsCapturing(false);
       }
+    } catch {
+      // Ignore capture failures and keep camera active.
+    } finally {
+      setIsCapturing(false);
     }
   };
 
@@ -69,365 +110,608 @@ export default function CameraScreen() {
     if (!capturedPhoto) {
       return;
     }
-
     router.replace({
       pathname: "/report",
       params: {
         photo: capturedPhoto,
         captureTs: String(Date.now()),
+        category,
       },
     });
   };
 
-  const handleRetake = () => {
-    setCapturedPhoto(null);
-  };
-
-  // Show preview if photo is captured
-  if (capturedPhoto) {
+  if (!permission) {
     return (
-      <SafeAreaView style={styles.previewContainer}>
-        {/* Preview Image */}
-        <Image
-          source={{ uri: capturedPhoto }}
-          style={styles.previewImage}
-          resizeMode="cover"
-        />
+      <View style={styles.loadingWrap}>
+        <StatusBar style="light" />
+        <ActivityIndicator size="large" color="#818CF8" />
+        <Text style={styles.loadingText}>Loading camera...</Text>
+      </View>
+    );
+  }
 
-        {/* Header */}
-        <View style={styles.previewHeader}>
-          <Pressable
-            style={styles.closeButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="close" size={28} color="#fff" />
+  if (!permission.granted) {
+    return (
+      <SafeAreaView style={styles.permissionRoot} edges={["top", "left", "right", "bottom"]}>
+        <StatusBar style="dark" />
+        <LinearGradient colors={["#F5F7FF", "#EEF2FF"]} style={StyleSheet.absoluteFillObject} />
+        <View style={styles.permissionCard}>
+          <View style={styles.permissionIconWrap}>
+            <Ionicons name="camera" size={34} color="#FFFFFF" />
+          </View>
+          <Text style={styles.permissionTitle}>Camera Access Required</Text>
+          <Text style={styles.permissionSub}>
+            We need your camera to capture issue photos and help resolve city problems faster.
+          </Text>
+          <Pressable style={styles.permissionPrimary} onPress={requestPermission}>
+            <Text style={styles.permissionPrimaryText}>Grant Camera Access</Text>
           </Pressable>
-          <Text style={styles.previewHeaderText}>Photo Preview</Text>
-          <View style={{ width: 50 }} />
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.previewActions}>
-          <Pressable
-            style={styles.retakeButton}
-            onPress={handleRetake}
-          >
-            <Ionicons name="refresh" size={24} color="#fff" />
-            <Text style={styles.retakeButtonText}>Retake</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.confirmButtonWrapper}
-            onPress={handleConfirm}
-          >
-            <LinearGradient
-              colors={["#10B981", "#059669"]}
-              style={styles.confirmButton}
-            >
-              <Ionicons name="checkmark-circle" size={24} color="#fff" />
-              <Text style={styles.confirmButtonText}>Use Photo</Text>
-            </LinearGradient>
+          <Pressable style={styles.permissionSecondary} onPress={() => router.back()}>
+            <Text style={styles.permissionSecondaryText}>Not Now</Text>
           </Pressable>
         </View>
       </SafeAreaView>
     );
   }
 
-  // Camera view
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.cameraWrapper}>
-        <CameraView style={styles.camera} ref={cameraRef} facing="back" />
-
-        <View style={styles.cameraOverlay} pointerEvents="box-none">
-        {/* Close Button */}
-        <View style={styles.headerBar}>
-          <Pressable
-            style={styles.closeButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="close" size={32} color="#fff" />
+  if (capturedPhoto) {
+    return (
+      <SafeAreaView style={styles.previewRoot} edges={["top", "left", "right", "bottom"]}>
+        <StatusBar style="light" />
+        <Image source={{ uri: capturedPhoto }} style={styles.previewImage} resizeMode="cover" />
+        <LinearGradient
+          colors={["rgba(0,0,0,0.82)", "transparent"]}
+          style={[styles.previewTopOverlay, { paddingTop: insets.top + 8 }]}
+        >
+          <Pressable style={styles.glassButton} onPress={() => router.back()}>
+            <Ionicons name="close" size={20} color="#FFFFFF" />
           </Pressable>
-          <Text style={styles.headerText}>Capture Issue</Text>
-          <View style={{ width: 50 }} />
-        </View>
-
-        {/* Instructions */}
-        <View style={styles.instructionsBox}>
-          <View style={styles.instructionsContent}>
-            <Ionicons
-              name="information-circle"
-              size={24}
-              color="#fff"
-              style={{ marginBottom: 8 }}
-            />
-            <Text style={styles.instructionsText}>
-              Keep the issue centered and well-lit
-            </Text>
+          <Text style={styles.previewTitle}>Photo Preview</Text>
+          <View style={styles.readyBadge}>
+            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+            <Text style={styles.readyBadgeText}>Ready</Text>
           </View>
-        </View>
+        </LinearGradient>
 
-        {/* Capture Frame */}
-        <View style={styles.frameContainer}>
-          <View style={styles.frameOverlay} />
-          <View style={styles.frameBox} />
-          <View style={styles.frameOverlay} />
-        </View>
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.72)", "rgba(0,0,0,0.95)"]}
+          style={[styles.previewBottomOverlay, { paddingBottom: insets.bottom + 12 }]}
+        >
+          <View style={styles.metaCard}>
+            <Ionicons name="location" size={16} color="#A5B4FC" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.metaTitle}>Captured just now</Text>
+              <Text style={styles.metaSub}>{nowMeta}</Text>
+            </View>
+          </View>
+          <View style={styles.metaCard}>
+            <Ionicons name="pricetag" size={16} color="#A5B4FC" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.metaTitle}>Category: {category}</Text>
+              <Text style={styles.metaSub}>You can still change it in report screen</Text>
+            </View>
+          </View>
+          <View style={styles.previewActions}>
+            <Pressable style={styles.retakeButton} onPress={() => setCapturedPhoto(null)}>
+              <Ionicons name="refresh" size={16} color="#FFFFFF" />
+              <Text style={styles.retakeText}>Retake</Text>
+            </Pressable>
+            <Pressable style={styles.useButtonWrap} onPress={handleConfirm}>
+              <LinearGradient colors={["#4F46E5", "#7C3AED"]} style={styles.useButton}>
+                <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                <Text style={styles.useText}>Use Photo</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
+    );
+  }
 
-        {/* Bottom Controls */}
-        <View style={styles.controlsBar}>
-          <Pressable
-            style={styles.captureButton}
-            onPress={takePicture}
-            disabled={isCapturing}
-          >
-            {isCapturing ? (
-              <ActivityIndicator color="#1F2937" size="large" />
-            ) : (
-              <View style={styles.captureButtonInner} />
-            )}
-          </Pressable>
-          <Text style={styles.captureHint}>
-            {isCapturing ? "Capturing..." : "Press to capture"}
-          </Text>
-        </View>
+  return (
+    <SafeAreaView style={styles.root} edges={["top", "left", "right", "bottom"]}>
+      <StatusBar style="light" />
+      <CameraView style={StyleSheet.absoluteFillObject} ref={cameraRef} facing={facing} flash={flash} />
+
+      <LinearGradient
+        colors={["rgba(0,0,0,0.78)", "transparent"]}
+        style={[styles.topBar, { paddingTop: insets.top + 8 }]}
+      >
+        <Pressable style={styles.glassButton} onPress={() => router.back()}>
+          <Ionicons name="close" size={20} color="#FFFFFF" />
+        </Pressable>
+        <Text style={styles.topTitle}>Capture Issue</Text>
+        <Pressable
+          style={styles.glassButton}
+          onPress={() => setFlash((prev) => (prev === "off" ? "on" : "off"))}
+        >
+          <Ionicons name={flash === "off" ? "flash-off" : "flash"} size={18} color="#FFFFFF" />
+        </Pressable>
+      </LinearGradient>
+
+      <View style={[styles.hintPill, { top: insets.top + 76 }]}>
+        <Ionicons name="information-circle" size={14} color="#FFFFFF" />
+        <Text style={styles.hintText}>Keep the issue centered and well-lit</Text>
+      </View>
+
+      <View style={styles.frameCenter}>
+        <View style={[styles.frame, { width: FRAME_WIDTH, height: FRAME_HEIGHT }]}>
+          <View style={[styles.gridH, { top: "33.3%" }]} />
+          <View style={[styles.gridH, { top: "66.6%" }]} />
+          <View style={[styles.gridV, { left: "33.3%" }]} />
+          <View style={[styles.gridV, { left: "66.6%" }]} />
+
+          <Animated.View
+            style={[
+              styles.scanLine,
+              {
+                transform: [{ translateY: scanTranslateY }],
+                opacity: scanOpacity,
+              },
+            ]}
+          />
+
+          <View style={[styles.corner, styles.cornerTL]} />
+          <View style={[styles.corner, styles.cornerTR]} />
+          <View style={[styles.corner, styles.cornerBL]} />
+          <View style={[styles.corner, styles.cornerBR]} />
         </View>
       </View>
+
+      <LinearGradient
+        colors={["transparent", "rgba(0,0,0,0.62)", "rgba(0,0,0,0.92)"]}
+        style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}
+      >
+        <ScrollView
+          horizontal
+          contentContainerStyle={styles.chips}
+          showsHorizontalScrollIndicator={false}
+        >
+          {CATEGORIES.map((item) => {
+            const active = item.key === category;
+            return (
+              <Pressable
+                key={item.key}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => setCategory(item.key)}
+              >
+                <Ionicons
+                  name={item.icon}
+                  size={12}
+                  color={active ? "#FFFFFF" : "rgba(255,255,255,0.72)"}
+                />
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.key}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.controlsRow}>
+          <View style={styles.sideButtonSpacer} />
+
+          <View style={styles.captureWrap}>
+            <Pressable style={styles.captureOuter} onPress={() => void handleTakePicture()} disabled={isCapturing}>
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.captureRing,
+                  {
+                    transform: [{ scale: ringScale }],
+                    opacity: ringOpacity,
+                  },
+                ]}
+              />
+              {isCapturing ? (
+                <ActivityIndicator color="#111827" size="small" />
+              ) : (
+                <View style={styles.captureInner} />
+              )}
+            </Pressable>
+            <Text style={styles.captureLabel}>CAPTURE</Text>
+          </View>
+
+          <Pressable
+            style={styles.sideButton}
+            onPress={() => setFacing((prev) => (prev === "back" ? "front" : "back"))}
+          >
+            <Ionicons name="camera-reverse" size={19} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      </LinearGradient>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: { flex: 1, backgroundColor: "#000000" },
+  loadingWrap: {
     flex: 1,
-    backgroundColor: "#000",
-    justifyContent: "center",
+    backgroundColor: "#0F172A",
     alignItems: "center",
-  },
-  camera: {
-    flex: 1,
-    width: "100%",
-  },
-  cameraWrapper: {
-    flex: 1,
-    width: "100%",
-  },
-  cameraOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "space-between",
+    justifyContent: "center",
+    gap: 10,
   },
   loadingText: {
-    color: "#fff",
-    fontSize: 16,
-    marginTop: 16,
+    color: "#E2E8F0",
+    fontSize: 14,
+    fontWeight: "600",
   },
 
-  /* Permission */
-  permissionContent: {
+  permissionRoot: {
     flex: 1,
+    backgroundColor: "#F5F7FF",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  permissionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    padding: 20,
+    alignItems: "center",
+  },
+  permissionIconWrap: {
+    width: 82,
+    height: 82,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 32,
-    backgroundColor: "#fff",
+    backgroundColor: "#4F46E5",
+    marginBottom: 10,
   },
   permissionTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "800",
-    color: "#1F2937",
-    marginTop: 20,
+    color: "#0F172A",
     textAlign: "center",
   },
-  permissionMessage: {
+  permissionSub: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+    color: "#64748B",
+  },
+  permissionPrimary: {
+    marginTop: 16,
+    width: "100%",
+    borderRadius: 14,
+    backgroundColor: "#4F46E5",
+    minHeight: 46,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  permissionPrimaryText: {
+    color: "#FFFFFF",
     fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-    marginTop: 12,
-    lineHeight: 20,
-  },
-  permissionButton: {
-    marginTop: 32,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    backgroundColor: "#3B82F6",
-    borderRadius: 12,
-  },
-  permissionButtonText: {
-    color: "#fff",
-    fontSize: 16,
     fontWeight: "700",
   },
+  permissionSecondary: {
+    marginTop: 10,
+    width: "100%",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  permissionSecondaryText: {
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "600",
+  },
 
-  /* Header */
-  headerBar: {
+  topBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    paddingHorizontal: 18,
+    paddingBottom: 12,
   },
-  headerText: {
-    color: "#fff",
-    fontSize: 18,
+  glassButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.13)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.24)",
+  },
+  topTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
     fontWeight: "700",
   },
-  closeButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: "center",
+  hintPill: {
+    position: "absolute",
+    alignSelf: "center",
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
+    gap: 6,
+    borderRadius: 99,
+    backgroundColor: "rgba(79,70,229,0.88)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.2)",
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  hintText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "600",
   },
 
-  /* Instructions */
-  instructionsBox: {
+  frameCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  frame: {
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: "rgba(0,0,0,0.18)",
+  },
+  gridH: {
     position: "absolute",
-    top: "25%",
     left: 0,
     right: 0,
-    paddingHorizontal: 24,
-    zIndex: 10,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
-  instructionsContent: {
-    backgroundColor: "rgba(0,0,0,0.6)",
-    borderRadius: 14,
-    paddingVertical: 16,
+  gridV: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  scanLine: {
+    position: "absolute",
+    left: 2,
+    right: 2,
+    height: 2,
+    borderRadius: 99,
+    backgroundColor: "rgba(79,70,229,0.8)",
+  },
+  corner: {
+    position: "absolute",
+    width: 24,
+    height: 24,
+    borderColor: "#4F46E5",
+  },
+  cornerTL: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 10,
+  },
+  cornerTR: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 10,
+  },
+  cornerBL: {
+    left: 0,
+    bottom: 0,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 10,
+  },
+  cornerBR: {
+    right: 0,
+    bottom: 0,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 10,
+  },
+
+  bottomBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 14,
     paddingHorizontal: 20,
+  },
+  chips: {
+    gap: 8,
+    paddingBottom: 10,
+  },
+  chip: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 5,
+    borderRadius: 99,
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  instructionsText: {
-    color: "#fff",
-    fontSize: 15,
-    textAlign: "center",
+  chipActive: {
+    backgroundColor: "rgba(79,70,229,0.9)",
+    borderColor: "rgba(79,70,229,0.95)",
+  },
+  chipText: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 10.5,
     fontWeight: "600",
   },
-
-  /* Frame */
-  frameContainer: {
-    flex: 1,
+  chipTextActive: {
+    color: "#FFFFFF",
+  },
+  controlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+  },
+  sideButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
     justifyContent: "center",
+  },
+  sideButtonSpacer: {
+    width: 46,
+    height: 46,
+  },
+  captureWrap: {
     alignItems: "center",
+    gap: 8,
   },
-  frameOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    width: "100%",
-  },
-  frameBox: {
-    width: "85%",
-    aspectRatio: 4 / 5,
-    borderWidth: 2.5,
-    borderColor: "#3B82F6",
-    borderRadius: 20,
-    backgroundColor: "transparent",
-  },
-
-  /* Controls */
-  controlsBar: {
-    paddingBottom: 32,
-    paddingTop: 20,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    alignItems: "center",
-  },
-  captureButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    justifyContent: "center",
-    alignItems: "center",
+  captureOuter: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.4)",
+    borderColor: "rgba(255,255,255,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
   },
-  captureButtonInner: {
-    width: 65,
-    height: 65,
-    borderRadius: 32.5,
-    backgroundColor: "#fff",
+  captureRing: {
+    position: "absolute",
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 2,
+    borderColor: "rgba(79,70,229,0.6)",
   },
-  captureHint: {
-    color: "#fff",
-    fontSize: 12,
-    marginTop: 16,
-    fontWeight: "600",
+  captureInner: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#FFFFFF",
+  },
+  captureLabel: {
+    color: "rgba(255,255,255,0.66)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.8,
   },
 
-  /* Preview */
-  previewContainer: {
+  previewRoot: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#000000",
   },
   previewImage: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
   },
-  previewHeader: {
+  previewTopOverlay: {
     position: "absolute",
-    top: 0,
     left: 0,
     right: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 18,
+    paddingBottom: 12,
   },
-  previewHeaderText: {
-    color: "#fff",
-    fontSize: 18,
+  previewTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
     fontWeight: "700",
   },
-  previewActions: {
+  readyBadge: {
+    minHeight: 24,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    backgroundColor: "rgba(79,70,229,0.88)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  readyBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  previewBottomOverlay: {
     position: "absolute",
-    bottom: 0,
     left: 0,
     right: 0,
+    bottom: 0,
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    gap: 10,
+  },
+  metaCard: {
     flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    paddingBottom: 40,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  metaTitle: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  metaSub: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 10,
+    marginTop: 1,
+  },
+  previewActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 2,
   },
   retakeButton: {
     flex: 1,
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(255,255,255,0.12)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.3)",
-    gap: 8,
+    gap: 6,
   },
-  retakeButtonText: {
-    color: "#fff",
-    fontSize: 16,
+  retakeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
     fontWeight: "700",
   },
-  confirmButtonWrapper: {
-    flex: 1,
-    borderRadius: 12,
+  useButtonWrap: {
+    flex: 1.6,
+    borderRadius: 14,
     overflow: "hidden",
   },
-  confirmButton: {
+  useButton: {
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    gap: 8,
+    gap: 6,
   },
-  confirmButtonText: {
-    color: "#fff",
-    fontSize: 16,
+  useText: {
+    color: "#FFFFFF",
+    fontSize: 13,
     fontWeight: "700",
   },
 });

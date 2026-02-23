@@ -27,6 +27,11 @@ const userSchema = new mongoose.Schema(
       enum: ROLE_VALUES,
       default: 'citizen'
     },
+    language: {
+      type: String,
+      enum: ['en', 'ta', 'hi'],
+      default: 'en'
+    },
     isActive: {
       type: Boolean,
       default: true

@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api";
+import { AppLanguage } from "@/lib/preferences";
 import { AuthUser, sessionStore } from "@/lib/session";
 import { Platform } from "react-native";
 
@@ -64,4 +65,21 @@ export const removeProfilePhoto = async (): Promise<AuthUser> => {
   const user = response.data.data;
   await updateSessionUser(user);
   return user;
+};
+
+export const updateUserLanguage = async (language: AppLanguage): Promise<AuthUser> => {
+  const response = await apiClient.patch<Envelope<AuthUser>>("/users/preferences/language", {
+    language,
+  });
+  const user = response.data.data;
+  await updateSessionUser(user);
+  return user;
+};
+
+export const deleteAccount = async (): Promise<void> => {
+  try {
+    await apiClient.delete<Envelope<{ deleted: boolean }>>("/users/account");
+  } finally {
+    await sessionStore.clear();
+  }
 };

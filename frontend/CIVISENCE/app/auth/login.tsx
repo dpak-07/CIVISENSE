@@ -14,10 +14,16 @@ import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiErrorMessage } from "@/lib/api";
+import { useAppPreferences } from "@/lib/appPreferencesContext";
 import { loginUser } from "@/lib/services/auth";
 
 export default function Login() {
+  const insets = useSafeAreaInsets();
+  const { preferences, theme, t } = useAppPreferences();
+  const isDark = preferences.darkMode;
   const params = useLocalSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,7 +45,7 @@ export default function Login() {
       });
 
       const returnTo = typeof params?.returnTo === "string" ? params.returnTo : "/";
-      router.replace(returnTo);
+      router.replace(returnTo as never);
     } catch (error) {
       Alert.alert("Login failed", getApiErrorMessage(error));
     } finally {
@@ -49,16 +55,17 @@ export default function Login() {
 
   return (
     <LinearGradient
-      colors={["#f1f6fc", "#e0eaff"]}
+      colors={isDark ? ["#0B1220", "#111C31"] : ["#F1F6FC", "#E0EAFF"]}
       style={styles.container}
     >
+      <StatusBar style={theme.statusBar} />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.wrapper}
+        style={[styles.wrapper, { paddingTop: insets.top + 8 }]}
       >
         <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
-          <Ionicons name="arrow-back" size={28} color="#1e3a8a" onPress={() => router.back()} />
-          <Text style={styles.title}>Welcome Back</Text>
+          <Ionicons name="arrow-back" size={28} color={theme.colors.text} onPress={() => router.back()} />
+          <Text style={[styles.title, { color: theme.colors.text }]}>{t("auth.welcomeBack")}</Text>
         </Animated.View>
 
         <Animated.View
@@ -67,16 +74,24 @@ export default function Login() {
         >
           {/* Email Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
-            <View style={styles.inputWrapper}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>{t("auth.emailAddress")}</Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: isDark ? "#0F172A" : "rgba(255,255,255,0.8)",
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
               <Ionicons
                 name="mail-outline"
                 size={20}
-                color="#2563eb"
+                color={theme.colors.accent}
                 style={styles.inputIcon}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="you@example.com"
                 placeholderTextColor="#9ca3af"
                 keyboardType="email-address"
@@ -90,16 +105,24 @@ export default function Login() {
 
           {/* Password Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputWrapper}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>{t("auth.password")}</Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: isDark ? "#0F172A" : "rgba(255,255,255,0.8)",
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
               <Ionicons
                 name="lock-closed-outline"
                 size={20}
-                color="#2563eb"
+                color={theme.colors.accent}
                 style={styles.inputIcon}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="Enter your password"
                 placeholderTextColor="#9ca3af"
                 secureTextEntry={!showPassword}
@@ -110,7 +133,7 @@ export default function Login() {
                 <Ionicons
                   name={showPassword ? "eye-off" : "eye"}
                   size={20}
-                  color="#2563eb"
+                  color={theme.colors.accent}
                 />
               </Pressable>
             </View>
@@ -118,7 +141,7 @@ export default function Login() {
 
           {/* Forgot Password */}
           <Pressable>
-            <Text style={styles.forgotPassword}>Forgot Password?</Text>
+            <Text style={styles.forgotPassword}>{t("auth.forgotPassword")}</Text>
           </Pressable>
 
           {/* Login Button */}
@@ -130,16 +153,18 @@ export default function Login() {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
+                <Text style={styles.buttonText}>{t("auth.signIn")}</Text>
               )}
             </Pressable>
           </LinearGradient>
 
           {/* Register Link */}
           <View style={styles.registerLink}>
-            <Text style={styles.registerText}>Don&apos;t have an account? </Text>
+            <Text style={[styles.registerText, { color: theme.colors.subText }]}>
+              {t("auth.dontHaveAccount")}{" "}
+            </Text>
             <Pressable onPress={() => router.push("/auth/register")}>
-              <Text style={styles.registerLink2}>Sign Up</Text>
+              <Text style={styles.registerLink2}>{t("auth.signUp")}</Text>
             </Pressable>
           </View>
         </Animated.View>

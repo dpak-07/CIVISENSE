@@ -1,10 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AppLanguage } from "@/lib/preferences";
 
 export type AuthUser = {
   id: string;
   name: string;
   email: string;
   role: string;
+  language?: AppLanguage;
   isActive: boolean;
   profilePhotoUrl?: string | null;
   createdAt?: string;

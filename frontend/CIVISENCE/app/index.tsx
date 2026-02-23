@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { getMyComplaints } from "@/lib/services/complaints";
 import { getNotifications } from "@/lib/services/notifications";
+import { useAppPreferences } from "@/lib/appPreferencesContext";
 import { sessionStore } from "@/lib/session";
 
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
@@ -156,10 +157,11 @@ function BackgroundDots({ isDark }: { isDark: boolean }) {
 }
 
 export default function Home() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [myReportsCount, setMyReportsCount] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [user, setUser] = useState(sessionStore.getUser());
+  const { preferences, setDarkMode, t } = useAppPreferences();
+  const isDarkMode = preferences.darkMode;
 
   useEffect(() => {
     if (!sessionStore.getAccessToken()) {
@@ -200,32 +202,32 @@ export default function Home() {
   const menuItems = [
     {
       id: 1,
-      title: "Report Issue",
-      subtitle: "Submit new complaint",
+      title: t("home.reportIssue"),
+      subtitle: t("home.submitNewComplaint"),
       icon: "camera",
       color: "#2DD4BF",
       route: "/report",
     },
     {
       id: 2,
-      title: "Track Status",
-      subtitle: `${myReportsCount} report(s)`,
+      title: t("home.trackStatus"),
+      subtitle: t("home.reportsCount", { count: myReportsCount }),
       icon: "time",
       color: "#A78BFA",
       route: "/track",
     },
     {
       id: 3,
-      title: "City Map",
-      subtitle: "Explore issues",
+      title: t("home.cityMap"),
+      subtitle: t("home.exploreIssues"),
       icon: "map",
       color: "#FB923C",
       route: "/map",
     },
     {
       id: 4,
-      title: "My Reports",
-      subtitle: `${unreadNotifications} unread alerts`,
+      title: t("home.myReports"),
+      subtitle: t("home.unreadAlerts", { count: unreadNotifications }),
       icon: "document-text",
       color: "#F472B6",
       route: "/reports",
@@ -259,16 +261,16 @@ export default function Home() {
       {/* Header */}
       <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
         <View>
-          <Text style={[styles.greeting, { color: theme.subText }]}>Welcome back</Text>
+          <Text style={[styles.greeting, { color: theme.subText }]}>{t("home.welcomeBack")}</Text>
           <Text style={[styles.userName, { color: theme.text }]}>
-            {user?.name || "Citizen"}
+            {user?.name || t("home.citizen")}
           </Text>
         </View>
         <View style={styles.headerRight}>
           {/* Dark Mode Toggle */}
           <Pressable
             style={[styles.themeToggle, isDarkMode && styles.themeToggleDark]}
-            onPress={() => setIsDarkMode(!isDarkMode)}
+            onPress={() => void setDarkMode(!isDarkMode)}
           >
             <Ionicons
               name={isDarkMode ? "sunny" : "moon"}
@@ -318,7 +320,7 @@ export default function Home() {
               <Text style={styles.brandName}>CiviSense</Text>
               <View style={styles.taglineContainer}>
                 <View style={styles.taglineDot} />
-                <Text style={styles.brandTagline}>Making Cities Better</Text>
+                <Text style={styles.brandTagline}>{t("app.tagline")}</Text>
               </View>
             </View>
           </LinearGradient>
@@ -367,7 +369,7 @@ export default function Home() {
       {/* Footer */}
       <Animated.View entering={FadeInUp.delay(600).duration(700)} style={styles.footer}>
         <Text style={[styles.footerText, { color: theme.subText }]}>
-          Empowering citizens to build better communities
+          {t("home.empoweringCitizens")}
         </Text>
       </Animated.View>
     </View>
