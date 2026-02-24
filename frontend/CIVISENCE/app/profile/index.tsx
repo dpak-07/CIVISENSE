@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Linking,
@@ -100,7 +101,13 @@ export default function ProfileScreen() {
   const [offices, setOffices] = useState<MunicipalOffice[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(user?.profilePhotoUrl ?? null);
+  const [profilePhotoLoadFailed, setProfilePhotoLoadFailed] = useState(false);
+  const [photoUpdating, setPhotoUpdating] = useState(false);
   const [selectedZone, setSelectedZone] = useState<ZoneRow | null>(null);
+
+  useEffect(() => {
+    setProfilePhotoLoadFailed(false);
+  }, [profilePhotoUri]);
 
   const loadData = useCallback(async () => {
     if (!accessToken || !user?.id) {
@@ -154,20 +161,26 @@ export default function ProfileScreen() {
     if (result.canceled || !result.assets?.[0]?.uri) return;
 
     try {
+      setPhotoUpdating(true);
       const updated = await uploadProfilePhoto(result.assets[0].uri);
       setProfilePhotoUri(updated.profilePhotoUrl ?? null);
     } catch (error) {
       Alert.alert("Profile photo failed", getApiErrorMessage(error));
+    } finally {
+      setPhotoUpdating(false);
     }
   };
 
   const handleRemovePhoto = async () => {
     if (!accessToken) return;
     try {
+      setPhotoUpdating(true);
       const updated = await removeProfilePhoto();
       setProfilePhotoUri(updated.profilePhotoUrl ?? null);
     } catch (error) {
       Alert.alert("Profile photo failed", getApiErrorMessage(error));
+    } finally {
+      setPhotoUpdating(false);
     }
   };
 
@@ -306,8 +319,6 @@ export default function ProfileScreen() {
     );
   }
 
-  const avatar = profilePhotoUri || `https://i.pravatar.cc/180?u=${user.id}`;
-
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
@@ -326,10 +337,28 @@ export default function ProfileScreen() {
           <LinearGradient colors={["#4F46E5", "#7C3AED", "#A855F7"]} style={styles.heroGradient}>
             <View style={styles.heroTop}>
               <View style={styles.avatarWrap}>
-                <Image source={{ uri: avatar }} style={styles.avatar} />
+                {profilePhotoUri && !profilePhotoLoadFailed ? (
+                  <Image
+                    source={{ uri: profilePhotoUri }}
+                    style={styles.avatar}
+                    onError={() => setProfilePhotoLoadFailed(true)}
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" size={30} color="rgba(255,255,255,0.9)" />
+                  </View>
+                )}
                 <View style={styles.onlineDot} />
-                <Pressable style={styles.avatarEdit} onPress={() => void handlePickProfilePhoto()}>
-                  <Ionicons name="pencil" size={12} color="#4F46E5" />
+                <Pressable
+                  style={[styles.avatarEdit, photoUpdating && { opacity: 0.7 }]}
+                  onPress={() => void handlePickProfilePhoto()}
+                  disabled={photoUpdating}
+                >
+                  {photoUpdating ? (
+                    <ActivityIndicator size="small" color="#4F46E5" />
+                  ) : (
+                    <Ionicons name="pencil" size={12} color="#4F46E5" />
+                  )}
                 </Pressable>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -338,9 +367,15 @@ export default function ProfileScreen() {
                 <Text style={styles.heroRole}>Citizen - CiviSense User</Text>
               </View>
             </View>
-            <Pressable style={styles.removePhoto} onPress={() => void handleRemovePhoto()}>
+            <Pressable
+              style={[styles.removePhoto, photoUpdating && { opacity: 0.7 }]}
+              onPress={() => void handleRemovePhoto()}
+              disabled={photoUpdating}
+            >
               <Ionicons name="trash-outline" size={14} color="rgba(255,255,255,0.75)" />
-              <Text style={styles.removePhotoText}>Tap to remove profile photo</Text>
+              <Text style={styles.removePhotoText}>
+                {photoUpdating ? "Updating profile photo..." : "Tap to remove profile photo"}
+              </Text>
             </Pressable>
           </LinearGradient>
         </Animated.View>
@@ -673,6 +708,16 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: "row", alignItems: "center", gap: 16 },
   avatarWrap: { position: "relative" },
   avatar: { width: 68, height: 68, borderRadius: 20, borderWidth: 3, borderColor: "rgba(255,255,255,0.35)" },
+  avatarPlaceholder: {
+    width: 68,
+    height: 68,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: "rgba(255,255,255,0.35)",
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   onlineDot: { position: "absolute", top: -3, right: -3, width: 14, height: 14, borderRadius: 7, borderWidth: 2.5, borderColor: "#4F46E5", backgroundColor: "#22C55E" },
   avatarEdit: { position: "absolute", bottom: -4, right: -4, width: 24, height: 24, borderRadius: 8, backgroundColor: "#FFF", alignItems: "center", justifyContent: "center" },
   heroName: { color: "#FFF", fontSize: 20, fontWeight: "800" },

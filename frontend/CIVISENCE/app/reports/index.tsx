@@ -13,12 +13,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiErrorMessage } from "@/lib/api";
 import { useAppPreferences } from "@/lib/appPreferencesContext";
 import { safeBack } from "@/lib/navigation";
@@ -27,6 +29,7 @@ import {
   flushQueuedComplaints,
   getQueuedComplaints,
   type QueuedComplaint,
+  updateQueuedComplaint,
 } from "@/lib/services/complaintQueue";
 import {
   ComplaintRecord,
@@ -127,6 +130,26 @@ const getLocationText = (item: ComplaintRecord): string => {
 const getQueueCoordinates = (item: QueuedComplaint): string =>
   `${item.payload.latitude.toFixed(4)}, ${item.payload.longitude.toFixed(4)}`;
 
+const getReviewExpiryLabel = (expiresAt?: string): string => {
+  if (!expiresAt) {
+    return "within 1 hour";
+  }
+  const expiryMs = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiryMs)) {
+    return "within 1 hour";
+  }
+  const deltaMs = expiryMs - Date.now();
+  if (deltaMs <= 0) {
+    return "now";
+  }
+  const totalMinutes = Math.ceil(deltaMs / 60000);
+  if (totalMinutes >= 60) {
+    const hours = Math.ceil(totalMinutes / 60);
+    return `in ${hours}h`;
+  }
+  return `in ${totalMinutes}m`;
+};
+
 const isUnresolved = (status: string): boolean =>
   status !== "resolved" && status !== "rejected";
 
@@ -137,6 +160,27 @@ const SHEET_MAX_TRANSLATE = SHEET_EXPANDED_HEIGHT - SHEET_COLLAPSED_HEIGHT;
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
+
+const isAuthLikeErrorMessage = (message: string): boolean => {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("authorization") ||
+    lower.includes("unauthorized") ||
+    lower.includes("token") ||
+    lower.includes("forbidden")
+  );
+};
+
+const isNetworkLikeErrorMessage = (message: string): boolean => {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("network") ||
+    lower.includes("offline") ||
+    lower.includes("timeout") ||
+    lower.includes("failed to fetch") ||
+    lower.includes("internet")
+  );
+};
 
 type TimelineEvent = {
   title: string;
@@ -223,11 +267,15 @@ const QueueSection = ({
   queuedItems,
   syncing,
   onSync,
+  onEditQueued,
+  helperText,
   palette,
 }: {
   queuedItems: QueuedComplaint[];
   syncing: boolean;
   onSync: () => Promise<void>;
+  onEditQueued: (item: QueuedComplaint) => void;
+  helperText?: string | null;
   palette: {
     card: string;
     cardSoft: string;
@@ -277,15 +325,36 @@ const QueueSection = ({
               <Text style={[styles.queueMeta, { color: palette.subtext }]}>
                 {getQueueCoordinates(item)} | Attempts: {item.attempts}
               </Text>
+              {item.reviewRequired ? (
+                <View style={[styles.queueWarningWrap, { backgroundColor: palette.cardSoft }]}>
+                  <Ionicons name="warning-outline" size={14} color="#b45309" />
+                  <Text style={[styles.queueWarningText, { color: palette.subtext }]}>
+                    Duplicate-like error. Update category/description {getReviewExpiryLabel(item.reviewExpiresAt)} or this queued item will be removed.
+                  </Text>
+                </View>
+              ) : null}
+              <View style={styles.queueActionsRow}>
+                <Pressable
+                  onPress={() => onEditQueued(item)}
+                  style={[styles.queueEditButton, { borderColor: palette.border, backgroundColor: palette.cardSoft }]}
+                >
+                  <Ionicons name="create-outline" size={13} color={palette.accent} />
+                  <Text style={[styles.queueEditButtonText, { color: palette.accent }]}>Edit</Text>
+                </Pressable>
+              </View>
             </View>
           ))}
         </View>
       )}
+      {helperText ? (
+        <Text style={[styles.queueHelperText, { color: palette.subtext }]}>{helperText}</Text>
+      ) : null}
     </View>
   );
 };
 
 export default function ReportsScreen() {
+  const insets = useSafeAreaInsets();
   const { preferences } = useAppPreferences();
   const isDark = preferences.darkMode;
   const [authMissing, setAuthMissing] = useState(false);
@@ -297,6 +366,11 @@ export default function ReportsScreen() {
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [reports, setReports] = useState<ComplaintRecord[]>([]);
   const [queuedItems, setQueuedItems] = useState<QueuedComplaint[]>([]);
+  const [syncInfoMessage, setSyncInfoMessage] = useState<string | null>(null);
+  const [editingQueueItem, setEditingQueueItem] = useState<QueuedComplaint | null>(null);
+  const [editQueueCategory, setEditQueueCategory] = useState("");
+  const [editQueueDescription, setEditQueueDescription] = useState("");
+  const [savingQueueEdit, setSavingQueueEdit] = useState(false);
   const sheetTranslateY = useRef(new Animated.Value(SHEET_MAX_TRANSLATE)).current;
   const sheetCurrentYRef = useRef(SHEET_MAX_TRANSLATE);
   const sheetStartYRef = useRef(SHEET_MAX_TRANSLATE);
@@ -395,6 +469,7 @@ export default function ReportsScreen() {
       setAuthMissing(true);
       setReports([]);
       setQueuedItems([]);
+      setSyncInfoMessage(null);
       setLoading(false);
       setRefreshing(false);
       return;
@@ -407,21 +482,39 @@ export default function ReportsScreen() {
       setLoading(true);
     }
 
+    let queue: QueuedComplaint[] = [];
     try {
-      const [complaints, queue] = await Promise.all([
-        getMyComplaints(),
-        getQueuedComplaints(),
-      ]);
+      queue = await getQueuedComplaints();
+      setQueuedItems(queue);
+    } catch {
+      queue = [];
+      setQueuedItems([]);
+    }
 
+    try {
+      const complaints = await getMyComplaints();
       const sortedComplaints = [...complaints].sort(
         (left, right) =>
           new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
       );
 
       setReports(sortedComplaints);
-      setQueuedItems(queue);
+      setSyncInfoMessage(null);
     } catch (error) {
-      Alert.alert("Failed to load reports", getApiErrorMessage(error));
+      const message = getApiErrorMessage(error);
+      if (isAuthLikeErrorMessage(message)) {
+        setAuthMissing(true);
+        setReports([]);
+        setSyncInfoMessage(null);
+      } else if (isNetworkLikeErrorMessage(message)) {
+        setSyncInfoMessage(
+          queue.length > 0
+            ? "No internet. Queued complaints are shown and will appear in My Reports after network returns."
+            : "No internet. Pull to refresh after network returns."
+        );
+      } else {
+        Alert.alert("Failed to load reports", message);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -439,6 +532,16 @@ export default function ReportsScreen() {
           "Queue synced",
           `${result.sent} complaint${result.sent === 1 ? "" : "s"} uploaded.`
         );
+      } else if (result.reviewRequired > 0) {
+        Alert.alert(
+          "Action needed",
+          `${result.reviewRequired} queued complaint${result.reviewRequired === 1 ? "" : "s"} need category/description updates within 1 hour.`
+        );
+      } else if (result.dropped > 0) {
+        Alert.alert(
+          "Queue updated",
+          `${result.dropped} queued complaint${result.dropped === 1 ? "" : "s"} removed due to validation errors (for example duplicate reports).`
+        );
       } else if (result.remaining > 0) {
         Alert.alert(
           "Queue pending",
@@ -453,6 +556,53 @@ export default function ReportsScreen() {
       setSyncingQueue(false);
     }
   }, [loadData]);
+
+  const openQueueEditor = useCallback((item: QueuedComplaint) => {
+    setEditingQueueItem(item);
+    setEditQueueCategory(item.payload.category || "");
+    setEditQueueDescription(item.payload.description || "");
+  }, []);
+
+  const saveQueueEdit = useCallback(async () => {
+    if (!editingQueueItem) {
+      return;
+    }
+
+    const nextCategory = editQueueCategory.trim();
+    const nextDescription = editQueueDescription.trim();
+    if (!nextCategory) {
+      Alert.alert("Category required", "Please enter a category.");
+      return;
+    }
+    if (nextDescription.length > 0 && nextDescription.length < 10) {
+      Alert.alert("Description too short", "Description should be at least 10 characters.");
+      return;
+    }
+
+    try {
+      setSavingQueueEdit(true);
+      const updated = await updateQueuedComplaint(editingQueueItem.id, {
+        category: nextCategory,
+        description: nextDescription,
+      });
+      if (!updated) {
+        Alert.alert("Update failed", "Queued complaint was not found.");
+        return;
+      }
+
+      await flushQueuedComplaints();
+      await loadData(true);
+      setEditingQueueItem(null);
+      Alert.alert(
+        "Queued complaint updated",
+        "Changes saved. The app will retry sending this complaint."
+      );
+    } catch (error) {
+      Alert.alert("Update failed", getApiErrorMessage(error));
+    } finally {
+      setSavingQueueEdit(false);
+    }
+  }, [editQueueCategory, editQueueDescription, editingQueueItem, loadData]);
 
   const handleDeleteUnresolvedReport = useCallback((report: ComplaintRecord) => {
     if (!isUnresolved(report.status)) {
@@ -560,7 +710,7 @@ export default function ReportsScreen() {
 
   return (
     <LinearGradient colors={palette.screenGradient as any} style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => safeBack("/")} style={[styles.headerButton, { backgroundColor: palette.buttonBg }]}>
           <Ionicons name="arrow-back" size={22} color={palette.buttonIcon} />
         </Pressable>
@@ -579,6 +729,12 @@ export default function ReportsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => void loadData(true)} />
         }
       >
+        {syncInfoMessage ? (
+          <View style={[styles.syncInfoCard, { backgroundColor: palette.card }]}>
+            <Ionicons name="cloud-offline-outline" size={16} color={palette.subtext} />
+            <Text style={[styles.syncInfoText, { color: palette.subtext }]}>{syncInfoMessage}</Text>
+          </View>
+        ) : null}
         <View style={styles.statRow}>
           <View style={[styles.statCard, { backgroundColor: palette.card }]}>
             <Text style={[styles.statLabel, { color: palette.subtext }]}>Total Reports</Text>
@@ -594,7 +750,14 @@ export default function ReportsScreen() {
           </View>
         </View>
 
-        <QueueSection queuedItems={queuedItems} syncing={syncingQueue} onSync={syncQueue} palette={palette} />
+        <QueueSection
+          queuedItems={queuedItems}
+          syncing={syncingQueue}
+          onSync={syncQueue}
+          onEditQueued={openQueueEditor}
+          helperText="Queued complaints will upload automatically when internet is available."
+          palette={palette}
+        />
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>All My Reports</Text>
@@ -668,6 +831,81 @@ export default function ReportsScreen() {
           />
         )}
       </ScrollView>
+
+      <Modal
+        visible={Boolean(editingQueueItem)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!savingQueueEdit) {
+            setEditingQueueItem(null);
+          }
+        }}
+      >
+        <View style={styles.queueEditModalOverlay}>
+          <View style={[styles.queueEditModalCard, { backgroundColor: palette.card }]}>
+            <Text style={[styles.queueEditTitle, { color: palette.text }]}>Update queued complaint</Text>
+            <Text style={[styles.queueEditSub, { color: palette.subtext }]}>
+              If unchanged for 1 hour after duplicate warning, it will be removed.
+            </Text>
+
+            <Text style={[styles.queueEditLabel, { color: palette.subtext }]}>Category</Text>
+            <TextInput
+              value={editQueueCategory}
+              onChangeText={setEditQueueCategory}
+              placeholder="Category"
+              placeholderTextColor={palette.subtext}
+              style={[
+                styles.queueEditInput,
+                {
+                  color: palette.text,
+                  borderColor: palette.border,
+                  backgroundColor: palette.cardSoft,
+                },
+              ]}
+            />
+
+            <Text style={[styles.queueEditLabel, { color: palette.subtext }]}>Description</Text>
+            <TextInput
+              value={editQueueDescription}
+              onChangeText={setEditQueueDescription}
+              placeholder="Description"
+              placeholderTextColor={palette.subtext}
+              multiline
+              textAlignVertical="top"
+              style={[
+                styles.queueEditTextArea,
+                {
+                  color: palette.text,
+                  borderColor: palette.border,
+                  backgroundColor: palette.cardSoft,
+                },
+              ]}
+            />
+
+            <View style={styles.queueEditActions}>
+              <Pressable
+                onPress={() => setEditingQueueItem(null)}
+                disabled={savingQueueEdit}
+                style={[styles.queueEditCancel, { borderColor: palette.border }]}
+              >
+                <Text style={[styles.queueEditCancelText, { color: palette.subtext }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void saveQueueEdit()}
+                disabled={savingQueueEdit}
+                style={[styles.queueEditSave, { backgroundColor: palette.accent }]}
+              >
+                {savingQueueEdit ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.queueEditSaveText}>Save & Retry</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={Boolean(selectedReport)}
@@ -1040,6 +1278,132 @@ const styles = StyleSheet.create({
     color: "#475569",
     fontSize: 12,
     fontWeight: "600",
+  },
+  queueWarningWrap: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "flex-start",
+    marginTop: 2,
+  },
+  queueWarningText: {
+    flex: 1,
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontWeight: "600",
+  },
+  queueActionsRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 4,
+  },
+  queueEditButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  queueEditButtonText: {
+    fontSize: 11.5,
+    fontWeight: "700",
+  },
+  queueHelperText: {
+    marginTop: 2,
+    fontSize: 11.5,
+    fontWeight: "600",
+  },
+  queueEditModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    padding: 18,
+  },
+  queueEditModalCard: {
+    borderRadius: 14,
+    padding: 14,
+    gap: 8,
+  },
+  queueEditTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+  },
+  queueEditSub: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 4,
+  },
+  queueEditLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  queueEditInput: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  queueEditTextArea: {
+    borderRadius: 10,
+    borderWidth: 1,
+    minHeight: 100,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "500",
+  },
+  queueEditActions: {
+    marginTop: 4,
+    flexDirection: "row",
+    gap: 10,
+  },
+  queueEditCancel: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  queueEditCancelText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  queueEditSave: {
+    flex: 1.4,
+    minHeight: 42,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  queueEditSaveText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  syncInfoCard: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  syncInfoText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 17,
   },
   emptyReports: {
     marginTop: 10,

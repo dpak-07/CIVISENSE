@@ -2,20 +2,26 @@ import React, { useEffect, useRef, useState } from "react";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppPreferencesProvider, useAppPreferences } from "@/lib/appPreferencesContext";
 import { sendLocalPush } from "@/lib/push";
 import { sessionStore } from "@/lib/session";
 import { getNotifications } from "@/lib/services/notifications";
 import Loader from "@/components/ui/Loader";
+import { apiClient } from "@/lib/api";
 import {
   flushQueuedComplaints,
   initComplaintQueueSync,
   stopComplaintQueueSync,
 } from "@/lib/services/complaintQueue";
+import {
+  BackendHealthStatus,
+  probeBackendHealth,
+} from "@/lib/services/backendHealth";
 
 const NOTIFICATION_POLL_INTERVAL_MS = 30000;
+const BACKEND_HEALTH_POLL_INTERVAL_MS = 20000;
 const MIN_LOADER_DURATION_MS = 2200;
 
 export default function RootLayout() {
@@ -32,6 +38,8 @@ function RootLayoutContent() {
   const { preferences, theme, t } = useAppPreferences();
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionVersion, setSessionVersion] = useState(0);
+  const backendStatusRef = useRef<BackendHealthStatus>("checking");
+  const offlinePopupShownRef = useRef(false);
   const knownNotificationIdsRef = useRef<Set<string>>(new Set());
   const notificationBaselineReadyRef = useRef(false);
 
@@ -147,6 +155,55 @@ function RootLayoutContent() {
       }
     };
   }, [preferences.notificationsEnabled, sessionReady, sessionVersion]);
+
+  useEffect(() => {
+    if (!sessionReady) {
+      return;
+    }
+
+    let active = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const pollBackendHealth = async () => {
+      const result = await probeBackendHealth();
+      if (!active) {
+        return;
+      }
+
+      if (result.activeBaseUrl) {
+        apiClient.defaults.baseURL = result.activeBaseUrl;
+      }
+
+      const nextStatus: BackendHealthStatus = result.isOnline ? "online" : "offline";
+      const previousStatus = backendStatusRef.current;
+      backendStatusRef.current = nextStatus;
+
+      if (nextStatus === "online") {
+        offlinePopupShownRef.current = false;
+        return;
+      }
+
+      if (previousStatus !== "offline" && !offlinePopupShownRef.current) {
+        offlinePopupShownRef.current = true;
+        Alert.alert(
+          "App is offline",
+          "Backend is unreachable. Check backend server or internet connection."
+        );
+      }
+    };
+
+    void pollBackendHealth();
+    timer = setInterval(() => {
+      void pollBackendHealth();
+    }, BACKEND_HEALTH_POLL_INTERVAL_MS);
+
+    return () => {
+      active = false;
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [sessionReady]);
 
   if (!sessionReady) {
     return (

@@ -24,6 +24,7 @@ import { getApiErrorMessage } from "@/lib/api";
 import { useAppPreferences } from "@/lib/appPreferencesContext";
 import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
+import { getQueuedComplaints, type QueuedComplaint } from "@/lib/services/complaintQueue";
 import { ComplaintRecord, deleteComplaint, getMyComplaints } from "@/lib/services/complaints";
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -293,13 +294,49 @@ const SHEET_MAX_TRANSLATE = SHEET_EXPANDED_HEIGHT - SHEET_COLLAPSED_HEIGHT;
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
+const isAuthLikeErrorMessage = (message: string): boolean => {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("authorization") ||
+    lower.includes("unauthorized") ||
+    lower.includes("token") ||
+    lower.includes("forbidden")
+  );
+};
+
+const isNetworkLikeErrorMessage = (message: string): boolean => {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("network") ||
+    lower.includes("offline") ||
+    lower.includes("timeout") ||
+    lower.includes("failed to fetch") ||
+    lower.includes("internet")
+  );
+};
+
+const formatQueueDate = (value: string): string => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "-";
+  }
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 export default function TrackComplaints() {
   const { preferences } = useAppPreferences();
   const isDark = preferences.darkMode;
   const [complaints, setComplaints] = useState<ComplaintCardModel[]>([]);
+  const [queuedItems, setQueuedItems] = useState<QueuedComplaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [authMissing, setAuthMissing] = useState(false);
+  const [syncInfoMessage, setSyncInfoMessage] = useState<string | null>(null);
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintCardModel | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const sheetTranslateY = useRef(new Animated.Value(SHEET_MAX_TRANSLATE)).current;
@@ -397,6 +434,8 @@ export default function TrackComplaints() {
     if (!sessionStore.getAccessToken() || !user?.id) {
       setAuthMissing(true);
       setComplaints([]);
+      setQueuedItems([]);
+      setSyncInfoMessage(null);
       setLoading(false);
       setRefreshing(false);
       return;
@@ -410,14 +449,32 @@ export default function TrackComplaints() {
       setLoading(true);
     }
 
+    let queue: QueuedComplaint[] = [];
+    try {
+      queue = await getQueuedComplaints();
+      setQueuedItems(queue);
+    } catch {
+      queue = [];
+      setQueuedItems([]);
+    }
+
     try {
       const records = await getMyComplaints();
       const unresolved = records.filter((item) => isUnresolvedStatus(item.status));
       setComplaints(unresolved.map(toViewModel));
+      setSyncInfoMessage(null);
     } catch (error) {
       const message = getApiErrorMessage(error);
-      if (message.toLowerCase().includes("authorization") || message.toLowerCase().includes("token")) {
+      if (isAuthLikeErrorMessage(message)) {
         setAuthMissing(true);
+        setComplaints([]);
+        setSyncInfoMessage(null);
+      } else if (isNetworkLikeErrorMessage(message)) {
+        setSyncInfoMessage(
+          queue.length > 0
+            ? "No internet. Queued complaints are saved and will be available after network returns."
+            : "No internet. Pull to refresh after network returns."
+        );
       } else {
         Alert.alert("Could not load complaints", message);
       }
@@ -551,6 +608,30 @@ export default function TrackComplaints() {
           </View>
         </View>
       </LinearGradient>
+
+      {(syncInfoMessage || queuedItems.length > 0) ? (
+        <View style={[styles.queueCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={styles.queueCardHead}>
+            <Ionicons name="cloud-upload-outline" size={16} color={palette.accent} />
+            <Text style={[styles.queueCardTitle, { color: palette.text }]}>
+              Queued complaints: {queuedItems.length}
+            </Text>
+          </View>
+          <Text style={[styles.queueCardSub, { color: palette.subtext }]}>
+            {syncInfoMessage || "These complaints will sync automatically when internet is back."}
+          </Text>
+          {queuedItems.slice(0, 3).map((item) => (
+            <View key={item.id} style={[styles.queueRow, { borderColor: palette.border }]}>
+              <Text style={[styles.queueRowTitle, { color: palette.text }]} numberOfLines={1}>
+                {item.payload.category}
+              </Text>
+              <Text style={[styles.queueRowDate, { color: palette.subtext }]}>
+                {formatQueueDate(item.createdAt)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       <FlatList
         data={complaints}
@@ -937,6 +1018,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     marginTop: 2,
+  },
+  queueCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 7,
+  },
+  queueCardHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  queueCardTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  queueCardSub: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+  queueRow: {
+    borderTopWidth: 1,
+    paddingTop: 7,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  queueRowTitle: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
+  queueRowDate: {
+    fontSize: 11,
+    fontWeight: "600",
   },
   listContent: {
     paddingHorizontal: 16,

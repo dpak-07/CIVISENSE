@@ -1,14 +1,14 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
   Easing,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -16,12 +16,9 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { safeBack } from "@/lib/navigation";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const FRAME_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 360);
-const FRAME_HEIGHT = FRAME_WIDTH * 1.25;
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 
 const CATEGORIES = [
@@ -33,7 +30,7 @@ const CATEGORIES = [
 
 export default function CameraScreen() {
   const cameraRef = useRef<CameraView | null>(null);
-  const insets = useSafeAreaInsets();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
   const [facing, setFacing] = useState<"back" | "front">("back");
@@ -42,30 +39,70 @@ export default function CameraScreen() {
 
   const scanAnim = useRef(new Animated.Value(0)).current;
   const ringAnim = useRef(new Animated.Value(0)).current;
+  const { frameWidth, frameHeight } = useMemo(() => {
+    const ratio = 1.25;
+    let nextWidth = Math.min(screenWidth * 0.82, 360);
+    let nextHeight = nextWidth * ratio;
+    const maxHeight = screenHeight * 0.46;
+
+    if (nextHeight > maxHeight) {
+      nextHeight = maxHeight;
+      nextWidth = nextHeight / ratio;
+    }
+
+    return { frameWidth: nextWidth, frameHeight: nextHeight };
+  }, [screenHeight, screenWidth]);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.timing(scanAnim, {
-        toValue: 1,
-        duration: 2500,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      })
-    ).start();
+    scanAnim.setValue(0);
+    ringAnim.setValue(0);
 
-    Animated.loop(
-      Animated.timing(ringAnim, {
-        toValue: 1,
-        duration: 2000,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      })
-    ).start();
+    const scanLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnim, {
+          toValue: 1,
+          duration: 1800,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        Animated.timing(scanAnim, {
+          toValue: 0,
+          duration: 1800,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+      ])
+    );
+
+    const ringLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(ringAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        Animated.timing(ringAnim, {
+          toValue: 0,
+          duration: 600,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+      ])
+    );
+
+    scanLoop.start();
+    ringLoop.start();
+
+    return () => {
+      scanLoop.stop();
+      ringLoop.stop();
+    };
   }, [ringAnim, scanAnim]);
 
   const scanTranslateY = scanAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [4, FRAME_HEIGHT - 8],
+    outputRange: [4, Math.max(10, frameHeight - 8)],
   });
 
   const scanOpacity = scanAnim.interpolate({
@@ -151,7 +188,7 @@ export default function CameraScreen() {
 
       <LinearGradient
         colors={["rgba(0,0,0,0.78)", "transparent"]}
-        style={[styles.topBar, { paddingTop: insets.top + 8 }]}
+        style={styles.topBar}
       >
         <Pressable style={styles.glassButton} onPress={() => safeBack("/report")}>
           <Ionicons name="close" size={20} color="#FFFFFF" />
@@ -165,13 +202,15 @@ export default function CameraScreen() {
         </Pressable>
       </LinearGradient>
 
-      <View style={[styles.hintPill, { top: insets.top + 76 }]}>
+      <View style={[styles.hintPill, { top: 76, maxWidth: screenWidth - 30 }]}>
         <Ionicons name="information-circle" size={14} color="#FFFFFF" />
-        <Text style={styles.hintText}>Keep the issue centered and well-lit</Text>
+        <Text style={styles.hintText} numberOfLines={1}>
+          Keep the issue centered and well-lit
+        </Text>
       </View>
 
       <View style={styles.frameCenter}>
-        <View style={[styles.frame, { width: FRAME_WIDTH, height: FRAME_HEIGHT }]}>
+        <View style={[styles.frame, { width: frameWidth, height: frameHeight }]}>
           <View style={[styles.gridH, { top: "33.3%" }]} />
           <View style={[styles.gridH, { top: "66.6%" }]} />
           <View style={[styles.gridV, { left: "33.3%" }]} />
@@ -196,7 +235,7 @@ export default function CameraScreen() {
 
       <LinearGradient
         colors={["transparent", "rgba(0,0,0,0.62)", "rgba(0,0,0,0.92)"]}
-        style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}
+        style={styles.bottomBar}
       >
         <ScrollView
           horizontal

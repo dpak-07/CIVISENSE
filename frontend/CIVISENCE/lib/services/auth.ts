@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api";
+import { normalizeMobileUploadUri } from "@/lib/services/uploadUtils";
 import { AuthSession, sessionStore } from "@/lib/session";
 import { Platform } from "react-native";
 
@@ -52,11 +53,12 @@ export const registerUser = async (
     formData.append("email", input.email);
     formData.append("password", input.password);
 
-    const fileName = buildImageName(input.profilePhotoUri);
-    const mimeType = buildMimeType(input.profilePhotoUri);
+    const normalizedUri = await normalizeMobileUploadUri(input.profilePhotoUri);
+    const fileName = buildImageName(normalizedUri);
+    const mimeType = buildMimeType(normalizedUri);
 
     if (Platform.OS === "web") {
-      const imageResponse = await fetch(input.profilePhotoUri);
+      const imageResponse = await fetch(normalizedUri);
       const imageBlob = await imageResponse.blob();
       const file = new File([imageBlob], fileName, {
         type: imageBlob.type || mimeType,
@@ -64,14 +66,19 @@ export const registerUser = async (
       formData.append("photo", file);
     } else {
       const file = {
-        uri: input.profilePhotoUri,
+        uri: normalizedUri,
         name: fileName,
         type: mimeType,
       };
       formData.append("photo", file as unknown as Blob);
     }
 
-    const response = await apiClient.post<AuthEnvelope>("/auth/register", formData);
+    const response = await apiClient.post<AuthEnvelope>("/auth/register", formData, {
+      timeout: 60000,
+      headers: {
+        Accept: "application/json",
+      },
+    });
     return saveSession(response.data.data);
   }
 

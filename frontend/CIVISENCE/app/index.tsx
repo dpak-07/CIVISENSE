@@ -69,6 +69,7 @@ export default function Home() {
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [user, setUser] = useState(sessionStore.getUser());
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const { preferences, setDarkMode, t } = useAppPreferences();
   const isDarkMode = preferences.darkMode;
 
@@ -78,6 +79,10 @@ export default function Home() {
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [user?.profilePhotoUrl]);
 
   useFocusEffect(
     useCallback(() => {
@@ -236,10 +241,17 @@ export default function Home() {
                 </Pressable>
                 <Pressable onPress={() => router.push("/profile")}
                 >
-                  <Image
-                    source={{ uri: user?.profilePhotoUrl || `https://i.pravatar.cc/150?u=${user?.id || "guest"}` }}
-                    style={styles.avatar}
-                  />
+                  {user?.profilePhotoUrl && !avatarLoadFailed ? (
+                    <Image
+                      source={{ uri: user.profilePhotoUrl }}
+                      style={styles.avatar}
+                      onError={() => setAvatarLoadFailed(true)}
+                    />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Ionicons name="person" size={16} color="#64748B" />
+                    </View>
+                  )}
                 </Pressable>
               </View>
             </Animated.View>
@@ -444,6 +456,16 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     borderWidth: 2,
     borderColor: "#FFFFFF",
+  },
+  avatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    backgroundColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   heroWrap: {

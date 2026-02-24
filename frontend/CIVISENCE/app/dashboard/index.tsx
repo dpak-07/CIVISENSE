@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiErrorMessage } from "@/lib/api";
 import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
@@ -109,6 +110,7 @@ const toNotificationActivity = (notification: AppNotification): ActivityItem => 
 });
 
 export default function Dashboard() {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -197,7 +199,7 @@ export default function Dashboard() {
   return (
     <LinearGradient colors={["#f1f6fc", "#e0eaff"]} style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <Pressable onPress={() => safeBack("/")}>
             <Ionicons name="arrow-back" size={28} color="#1e3a8a" />
           </Pressable>

@@ -13,17 +13,26 @@ export type QueuedComplaint = {
   payload: CreateComplaintInput;
   createdAt: string;
   attempts: number;
+  reviewRequired?: boolean;
+  reviewReason?: string;
+  reviewNotifiedAt?: string;
+  reviewExpiresAt?: string;
+  lastErrorMessage?: string;
 };
 
 type FlushResult = {
   sent: number;
   remaining: number;
+  dropped: number;
+  reviewRequired: number;
+  expiredRemoved: number;
   skipped: boolean;
 };
 
 const QUEUE_STORAGE_KEY = "civisense.complaints.queue.v1";
 const QUEUE_DIR = "complaint-queue";
 const MAX_QUEUE_SIZE = 50;
+const REVIEW_WINDOW_MS = 60 * 60 * 1000;
 
 let queueSyncInitialized = false;
 let unsubscribeNetInfo: (() => void) | null = null;
@@ -103,9 +112,68 @@ const loadQueue = async (): Promise<QueuedComplaint[]> => {
   }
 };
 
+const saveQueue = async (queue: QueuedComplaint[]) => {
+  await AsyncStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
+};
+
+const parseIsoMs = (value?: string): number | null => {
+  if (!value) {
+    return null;
+  }
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+};
+
+const pruneExpiredReviewItems = async (
+  queue: QueuedComplaint[]
+): Promise<{ queue: QueuedComplaint[]; expiredRemoved: number }> => {
+  const now = Date.now();
+  const kept: QueuedComplaint[] = [];
+  let expiredRemoved = 0;
+
+  for (const item of queue) {
+    if (!item.reviewRequired) {
+      kept.push(item);
+      continue;
+    }
+
+    const expiryMs = parseIsoMs(item.reviewExpiresAt);
+    if (!expiryMs || expiryMs > now) {
+      kept.push(item);
+      continue;
+    }
+
+    expiredRemoved += 1;
+    await cleanupImage(item.payload.imageUri);
+  }
+
+  return { queue: kept, expiredRemoved };
+};
+
+const notifyExpiryRemoval = async (count: number) => {
+  if (count <= 0) {
+    return;
+  }
+  const preferences = await getPreferences();
+  if (!preferences.notificationsEnabled) {
+    return;
+  }
+  await sendLocalPush(
+    "Queued report removed",
+    count === 1
+      ? "1 queued report was removed after 1 hour without required edits."
+      : `${count} queued reports were removed after 1 hour without required edits.`
+  );
+};
+
 export const getQueuedComplaints = async (): Promise<QueuedComplaint[]> => {
   const queue = await loadQueue();
-  return [...queue].sort(
+  const { queue: activeQueue, expiredRemoved } = await pruneExpiredReviewItems(queue);
+  if (expiredRemoved > 0) {
+    await saveQueue(activeQueue);
+  }
+
+  return [...activeQueue].sort(
     (left, right) =>
       new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
   );
@@ -113,11 +181,11 @@ export const getQueuedComplaints = async (): Promise<QueuedComplaint[]> => {
 
 export const getQueuedComplaintsCount = async (): Promise<number> => {
   const queue = await loadQueue();
-  return queue.length;
-};
-
-const saveQueue = async (queue: QueuedComplaint[]) => {
-  await AsyncStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
+  const { queue: activeQueue, expiredRemoved } = await pruneExpiredReviewItems(queue);
+  if (expiredRemoved > 0) {
+    await saveQueue(activeQueue);
+  }
+  return activeQueue.length;
 };
 
 const isDefinitelyOffline = async (): Promise<boolean> => {
@@ -133,6 +201,26 @@ const isDefinitelyOffline = async (): Promise<boolean> => {
 const isLikelyNetworkError = (error: unknown): boolean => {
   const message = getApiErrorMessage(error).toLowerCase();
   return message.includes("network") || message.includes("timeout");
+};
+
+const isLikelyDuplicateValidationError = (message: string): boolean => {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("similar complaint") ||
+    lower.includes("duplicate") ||
+    lower.includes("already submitted")
+  );
+};
+
+const clampMessage = (message: string): string => {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    return "Validation failed";
+  }
+  if (trimmed.length > 180) {
+    return `${trimmed.slice(0, 177)}...`;
+  }
+  return trimmed;
 };
 
 const log = (...args: unknown[]) => {
@@ -190,67 +278,207 @@ export const queueComplaint = async (payload: CreateComplaintInput): Promise<voi
   log("Queued complaint", { id, queueSize: queue.length });
 };
 
+export const updateQueuedComplaint = async (
+  queueId: string,
+  updates: { category?: string; description?: string }
+): Promise<boolean> => {
+  const queue = await loadQueue();
+  let found = false;
+  const nextCategory = updates.category?.trim();
+  const nextDescription = updates.description?.trim();
+
+  const nextQueue = queue.map((item) => {
+    if (item.id !== queueId) {
+      return item;
+    }
+
+    found = true;
+    return {
+      ...item,
+      payload: {
+        ...item.payload,
+        category: nextCategory || item.payload.category,
+        description: nextDescription || item.payload.description,
+      },
+      attempts: 0,
+      reviewRequired: undefined,
+      reviewReason: undefined,
+      reviewNotifiedAt: undefined,
+      reviewExpiresAt: undefined,
+      lastErrorMessage: undefined,
+    };
+  });
+
+  if (!found) {
+    return false;
+  }
+
+  await saveQueue(nextQueue);
+  return true;
+};
+
 export const flushQueuedComplaints = async (): Promise<FlushResult> => {
   if (isFlushing) {
     log("Flush skipped, already running");
-    return { sent: 0, remaining: 0, skipped: true };
+    return {
+      sent: 0,
+      remaining: 0,
+      dropped: 0,
+      reviewRequired: 0,
+      expiredRemoved: 0,
+      skipped: true,
+    };
   }
 
   isFlushing = true;
 
   const queue = await loadQueue();
-  if (queue.length === 0) {
+  const { queue: activeQueue, expiredRemoved } = await pruneExpiredReviewItems(queue);
+  if (expiredRemoved > 0) {
+    await saveQueue(activeQueue);
+    try {
+      await notifyExpiryRemoval(expiredRemoved);
+    } catch {
+      // Ignore notification errors.
+    }
+  }
+
+  if (activeQueue.length === 0) {
     log("Flush skipped, queue empty");
     isFlushing = false;
-    return { sent: 0, remaining: 0, skipped: true };
+    return {
+      sent: 0,
+      remaining: 0,
+      dropped: 0,
+      reviewRequired: 0,
+      expiredRemoved,
+      skipped: true,
+    };
   }
 
   if (!sessionStore.getAccessToken()) {
     log("Flush skipped, no access token");
     isFlushing = false;
-    return { sent: 0, remaining: queue.length, skipped: true };
+    return {
+      sent: 0,
+      remaining: activeQueue.length,
+      dropped: 0,
+      reviewRequired: activeQueue.filter((item) => item.reviewRequired).length,
+      expiredRemoved,
+      skipped: true,
+    };
   }
 
   if (await isDefinitelyOffline()) {
     log("Flush skipped, offline");
     isFlushing = false;
-    return { sent: 0, remaining: queue.length, skipped: true };
+    return {
+      sent: 0,
+      remaining: activeQueue.length,
+      dropped: 0,
+      reviewRequired: activeQueue.filter((item) => item.reviewRequired).length,
+      expiredRemoved,
+      skipped: true,
+    };
   }
 
   const remaining: QueuedComplaint[] = [];
   let sent = 0;
+  let dropped = 0;
+  let reviewRequired = 0;
+  let newlyFlaggedForReview = 0;
+  const droppedMessages: string[] = [];
 
-  for (const item of queue) {
+  for (let index = 0; index < activeQueue.length; index += 1) {
+    const item = activeQueue[index];
+
+    if (item.reviewRequired) {
+      reviewRequired += 1;
+      remaining.push(item);
+      continue;
+    }
+
     try {
       log("Sending queued complaint", item.id);
       await createComplaint(item.payload);
       sent += 1;
       await cleanupImage(item.payload.imageUri);
     } catch (error) {
+      const message = getApiErrorMessage(error);
       if (isLikelyNetworkError(error)) {
-        log("Network error during flush, stopping", getApiErrorMessage(error));
-        remaining.push(item);
+        log("Network error during flush, stopping", message);
+        remaining.push(item, ...activeQueue.slice(index + 1));
         break;
       }
-      log("Non-network error during flush, keeping item", getApiErrorMessage(error));
-      remaining.push({
-        ...item,
-        attempts: item.attempts + 1,
-      });
+
+      if (isLikelyDuplicateValidationError(message)) {
+        const reviewMessage = clampMessage(message);
+        const reviewExpiresAt = new Date(Date.now() + REVIEW_WINDOW_MS).toISOString();
+        remaining.push({
+          ...item,
+          attempts: item.attempts + 1,
+          reviewRequired: true,
+          reviewReason: reviewMessage,
+          reviewNotifiedAt: new Date().toISOString(),
+          reviewExpiresAt,
+          lastErrorMessage: reviewMessage,
+        });
+        reviewRequired += 1;
+        newlyFlaggedForReview += 1;
+        log("Queue item requires category/description update", {
+          id: item.id,
+          reviewExpiresAt,
+        });
+        continue;
+      }
+
+      log("Non-network error during flush, dropping item", message);
+      dropped += 1;
+      droppedMessages.push(message);
+      await cleanupImage(item.payload.imageUri);
     }
   }
 
   await saveQueue(remaining);
-  log("Flush finished", { sent, remaining: remaining.length });
+  log("Flush finished", {
+    sent,
+    dropped,
+    reviewRequired,
+    expiredRemoved,
+    remaining: remaining.length,
+  });
   isFlushing = false;
 
-  if (sent > 0) {
+  if (sent > 0 || dropped > 0 || newlyFlaggedForReview > 0) {
     try {
       const preferences = await getPreferences();
-      if (preferences.notificationsEnabled) {
+      if (preferences.notificationsEnabled && sent > 0) {
         await sendLocalPush(
           "Queued report sent",
           `${sent} report${sent === 1 ? "" : "s"} sent after reconnecting.`
+        );
+      }
+
+      if (preferences.notificationsEnabled && dropped > 0) {
+        const firstDroppedMessage = droppedMessages[0] || "Validation failed";
+        const compactReason =
+          firstDroppedMessage.length > 96
+            ? `${firstDroppedMessage.slice(0, 93)}...`
+            : firstDroppedMessage;
+        await sendLocalPush(
+          "Queued report removed",
+          dropped === 1
+            ? `1 queued report was removed: ${compactReason}`
+            : `${dropped} queued reports were removed due to server validation errors.`
+        );
+      }
+
+      if (preferences.notificationsEnabled && newlyFlaggedForReview > 0) {
+        await sendLocalPush(
+          "Action needed for queued report",
+          newlyFlaggedForReview === 1
+            ? "1 queued report needs category/description changes within 1 hour."
+            : `${newlyFlaggedForReview} queued reports need category/description changes within 1 hour.`
         );
       }
     } catch {
@@ -258,7 +486,14 @@ export const flushQueuedComplaints = async (): Promise<FlushResult> => {
     }
   }
 
-  return { sent, remaining: remaining.length, skipped: false };
+  return {
+    sent,
+    remaining: remaining.length,
+    dropped,
+    reviewRequired,
+    expiredRemoved,
+    skipped: false,
+  };
 };
 
 export const initComplaintQueueSync = () => {
