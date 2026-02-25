@@ -2,9 +2,9 @@
     position: fixed;
     inset: 0;
     background:
-        radial-gradient(circle at 16% 10%, rgba(79, 140, 255, 0.18), transparent 40%),
-        radial-gradient(circle at 86% 86%, rgba(34, 211, 238, 0.15), transparent 36%),
-        rgba(3, 7, 20, 0.72);
+        radial-gradient(circle at 16% 10%, rgba(79, 140, 255, 0.14), transparent 40%),
+        radial-gradient(circle at 86% 86%, rgba(34, 211, 238, 0.12), transparent 36%),
+        rgba(255, 255, 255, 0.74);
     backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
@@ -24,8 +24,8 @@
     display: flex;
     flex-direction: column;
     box-shadow:
-        0 26px 80px rgba(0, 0, 0, 0.45),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        0 22px 56px rgba(15, 23, 42, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.82);
     animation: modalEnter 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
     overflow: hidden;
 }

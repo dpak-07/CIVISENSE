@@ -21,36 +21,10 @@ body {
   font-family: var(--font-family);
   font-size: var(--font-base);
   color: var(--text-primary);
-  background: var(--bg-body-base);
+  background: #ffffff;
   line-height: 1.65;
   min-height: 100vh;
   overflow-x: hidden;
-  position: relative;
-  isolation: isolate;
-}
-
-body::before,
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-}
-
-body::before {
-  background:
-    radial-gradient(circle at 14% 0%, var(--bg-body-gradient-a), transparent 42%),
-    radial-gradient(circle at 92% 10%, var(--bg-body-gradient-b), transparent 42%),
-    radial-gradient(circle at 54% 100%, var(--bg-body-gradient-b), transparent 34%);
-}
-
-body::after {
-  background-image:
-    linear-gradient(var(--bg-grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--bg-grid-line) 1px, transparent 1px);
-  background-size: 60px 60px;
-  opacity: var(--bg-grid-opacity);
 }
 
 a {
@@ -273,9 +247,9 @@ textarea.input {
   margin: 0 0 var(--space-5);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
-  border: 1px solid rgba(251, 113, 133, 0.4);
-  background: rgba(244, 63, 94, 0.14);
-  color: #ffc3cf;
+  border: 1px solid rgba(244, 63, 94, 0.28);
+  background: rgba(244, 63, 94, 0.08);
+  color: #be123c;
   font-size: var(--font-sm);
 }
 

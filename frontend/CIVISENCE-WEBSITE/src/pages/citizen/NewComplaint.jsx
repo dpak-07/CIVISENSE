@@ -178,7 +178,7 @@ export default function NewComplaint() {
                                 step="any"
                             />
                             <button type="button" className="btn btn-secondary" onClick={getLocation} disabled={gettingLocation}>
-                                {gettingLocation ? 'Getting...' : '📍 Get My Location'}
+                                {gettingLocation ? 'Getting...' : 'Use Current Location'}
                             </button>
                         </div>
                     </div>

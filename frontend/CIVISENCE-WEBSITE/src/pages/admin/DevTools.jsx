@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import EmptyState from '../../components/EmptyState';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import {
     getDevToolsData,
     updateDevAppConfig,
@@ -14,8 +13,6 @@ import { getErrorMessage } from '../../utils/helpers';
 import {
     HiOutlineArrowRightOnRectangle,
     HiOutlineArrowTopRightOnSquare,
-    HiOutlineMoon,
-    HiOutlineSun,
     HiOutlineWrenchScrewdriver
 } from 'react-icons/hi2';
 import './DevTools.css';
@@ -28,7 +25,6 @@ const emptyConfig = {
 export default function DevTools() {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
-    const { isDark, toggleTheme } = useTheme();
 
     const [loading, setLoading] = useState(true);
     const [savingConfig, setSavingConfig] = useState(false);
@@ -267,9 +263,6 @@ export default function DevTools() {
                     </div>
                 </div>
                 <div className="dev-console-topbar__right">
-                    <button type="button" className="topbar__theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
-                        {isDark ? <HiOutlineSun /> : <HiOutlineMoon />}
-                    </button>
                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate('/admin')}>
                         <HiOutlineArrowTopRightOnSquare /> Admin Portal
                     </button>

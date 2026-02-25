@@ -1,6 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import './DashboardLayout.css';
 import {
     HiOutlineHome,
@@ -9,9 +8,7 @@ import {
     HiOutlineMapPin,
     HiOutlineChartBar,
     HiOutlineBell,
-    HiOutlineArrowRightOnRectangle,
-    HiOutlineMoon,
-    HiOutlineSun
+    HiOutlineArrowRightOnRectangle
 } from 'react-icons/hi2';
 import { useState, useEffect, useRef } from 'react';
 import { getNotifications, markAsRead } from '../../api/notifications';
@@ -44,7 +41,6 @@ const navItems = {
 
 export default function DashboardLayout({ children }) {
     const { user, logout } = useAuth();
-    const { isDark, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
@@ -135,9 +131,6 @@ export default function DashboardLayout({ children }) {
                         </button>
 
                         <div className="topbar__right">
-                            <button type="button" className="topbar__theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
-                                {isDark ? <HiOutlineSun /> : <HiOutlineMoon />}
-                            </button>
                             <div className="topbar__notifications">
                                 <button
                                     className="topbar__bell"

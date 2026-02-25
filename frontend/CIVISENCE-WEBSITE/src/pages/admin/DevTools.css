@@ -53,18 +53,6 @@
     color: var(--text-muted);
 }
 
-.dev-console-topbar__right .topbar__theme-toggle {
-    width: 34px;
-    height: 34px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .dev-section {
     margin-bottom: var(--space-8);
 }

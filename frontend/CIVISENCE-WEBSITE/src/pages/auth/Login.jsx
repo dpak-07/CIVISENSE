@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { getErrorMessage, getRolePath } from '../../utils/helpers';
 import CiviSenseLogo from '../../components/branding/CiviSenseLogo';
-import { HiOutlineMoon, HiOutlineSun } from 'react-icons/hi2';
 import './Auth.css';
 
 const portalModes = [
@@ -33,7 +31,6 @@ export default function Login() {
     const [info, setInfo] = useState('');
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
-    const { isDark, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const fillDemo = (role) => {
@@ -66,17 +63,7 @@ export default function Login() {
 
     return (
         <div className="auth-page">
-            <div className="auth-bg" aria-hidden="true">
-                <div className="auth-bg__orb auth-bg__orb--1" />
-                <div className="auth-bg__orb auth-bg__orb--2" />
-                <div className="auth-bg__orb auth-bg__orb--3" />
-                <div className="auth-bg__grid" />
-            </div>
-
             <div className="auth-card glass">
-                <button type="button" className="auth-theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
-                    {isDark ? <HiOutlineSun /> : <HiOutlineMoon />}
-                </button>
                 <div className="auth-card__header">
                     <Link to="/" className="auth-card__logo">
                         <CiviSenseLogo size={42} />

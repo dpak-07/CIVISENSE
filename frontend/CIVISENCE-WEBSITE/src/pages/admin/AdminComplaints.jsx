@@ -7,8 +7,7 @@ import Modal from '../../components/Modal';
 import {
     getComplaints,
     getComplaintById,
-    updateComplaintStatus,
-    deleteComplaint
+    updateComplaintStatus
 } from '../../api/complaints';
 import {
     formatDateTime,
@@ -129,26 +128,6 @@ export default function AdminComplaints() {
         setReviewError('');
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Delete this complaint?')) return;
-        try {
-            if (isDemoSession()) {
-                setComplaints((prev) => prev.filter((c) => c._id !== id));
-                if (selectedComplaint?._id === id) {
-                    closeReviewModal();
-                }
-                return;
-            }
-            await deleteComplaint(id);
-            setComplaints((prev) => prev.filter((c) => c._id !== id));
-            if (selectedComplaint?._id === id) {
-                closeReviewModal();
-            }
-        } catch (err) {
-            alert(getErrorMessage(err));
-        }
-    };
-
     const updateComplaintInState = (updatedComplaint) => {
         setComplaints((prev) =>
             prev.map((item) => (item._id === updatedComplaint._id ? updatedComplaint : item))
@@ -258,7 +237,6 @@ export default function AdminComplaints() {
                             showReporter
                             showReviewButton
                             onReview={openReviewModal}
-                            onDelete={handleDelete}
                             isUpdating={Boolean(updating && selectedComplaint?._id === c._id)}
                         />
                     ))}

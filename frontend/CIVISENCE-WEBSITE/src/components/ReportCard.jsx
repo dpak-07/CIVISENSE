@@ -33,7 +33,7 @@ export default function ReportCard({
 
     return (
         <article className="report-card card ring-1 ring-indigo-300/20 hover:-translate-y-1 transition-all duration-300">
-            <div className="report-card__media-wrap bg-slate-900/20">
+            <div className="report-card__media-wrap">
                 {imageUrl ? (
                     <img src={imageUrl} alt={complaint.title} className="report-card__media" />
                 ) : (

@@ -40,13 +40,6 @@ export default function Register() {
 
     return (
         <div className="auth-page">
-            <div className="auth-bg" aria-hidden="true">
-                <div className="auth-bg__orb auth-bg__orb--1" />
-                <div className="auth-bg__orb auth-bg__orb--2" />
-                <div className="auth-bg__orb auth-bg__orb--3" />
-                <div className="auth-bg__grid" />
-            </div>
-
             <div className="auth-card glass">
                 <div className="auth-card__header">
                     <Link to="/" className="auth-card__logo">

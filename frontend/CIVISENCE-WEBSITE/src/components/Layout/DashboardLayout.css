@@ -13,11 +13,9 @@
     top: 0;
     z-index: 60;
     border-bottom: 1px solid var(--border-color);
-    background:
-        linear-gradient(180deg, rgba(12, 18, 42, 0.78), rgba(12, 18, 42, 0.58)),
-        var(--bg-glass);
-    backdrop-filter: blur(16px);
-    box-shadow: 0 10px 32px rgba(10, 16, 40, 0.16);
+    background: #ffffff;
+    backdrop-filter: none;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
 
 .topbar__top {
@@ -65,7 +63,7 @@
     align-items: center;
     justify-content: flex-start;
     padding: 10px var(--space-6) 12px;
-    border-top: 1px solid rgba(160, 170, 255, 0.08);
+    border-top: 1px solid var(--border-color);
     gap: var(--space-3);
     width: 100%;
     max-width: calc(var(--max-width) + (var(--space-6) * 2));
@@ -78,7 +76,7 @@
     gap: var(--space-2);
     overflow-x: auto;
     scrollbar-width: thin;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.94);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     padding: 6px;
@@ -87,6 +85,7 @@
 }
 
 .topbar__nav-link {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -100,16 +99,34 @@
     transition: all var(--transition-fast);
 }
 
+.topbar__nav-link::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 5px;
+    height: 2px;
+    border-radius: var(--radius-full);
+    background: var(--primary-light);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 220ms ease;
+}
+
 .topbar__nav-link:hover {
     background: var(--bg-elevated);
     color: var(--text-primary);
 }
 
 .topbar__nav-link.active {
-    color: #fff;
-    border-color: rgba(99, 102, 241, 0.38);
-    background: linear-gradient(135deg, rgba(79, 140, 255, 0.58), rgba(34, 211, 238, 0.28));
-    box-shadow: 0 10px 22px rgba(17, 93, 255, 0.24);
+    color: var(--text-primary);
+    border-color: var(--border-light);
+    background: var(--bg-elevated);
+}
+
+.topbar__nav-link.active::after {
+    transform: scaleX(1);
+    animation: tab-switch-in 260ms ease;
 }
 
 .topbar__nav-icon {
@@ -123,23 +140,6 @@
     gap: var(--space-3);
     flex-wrap: wrap;
     justify-content: flex-end;
-}
-
-.topbar__theme-toggle {
-    width: 34px;
-    height: 34px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-}
-
-.topbar__theme-toggle:hover {
-    border-color: var(--border-light);
 }
 
 .topbar__notifications {
@@ -337,6 +337,17 @@
     margin: 0 auto;
     padding: var(--space-8);
     animation: fadeIn 0.35s ease;
+}
+
+@keyframes tab-switch-in {
+    from {
+        opacity: 0.2;
+        transform: scaleX(0.65);
+    }
+    to {
+        opacity: 1;
+        transform: scaleX(1);
+    }
 }
 
 @media (max-width: 900px) {

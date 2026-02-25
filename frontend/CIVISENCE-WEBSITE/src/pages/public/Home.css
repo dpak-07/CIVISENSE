@@ -1,68 +1,9 @@
 .home-hero {
     position: relative;
-    overflow: hidden;
     min-height: calc(100vh - 78px);
     display: flex;
     align-items: center;
     padding: var(--space-20) 0 var(--space-16);
-}
-
-.home-hero__bg {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-}
-
-.home-hero__orb {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(110px);
-}
-
-.home-hero__orb--a {
-    width: 520px;
-    height: 520px;
-    background: var(--bg-body-gradient-a);
-    top: -220px;
-    right: -120px;
-    animation: float 12s ease-in-out infinite;
-}
-
-.home-hero__orb--b {
-    width: 420px;
-    height: 420px;
-    background: var(--bg-body-gradient-b);
-    left: -130px;
-    bottom: -220px;
-    animation: float 15s ease-in-out infinite reverse;
-}
-
-.home-hero__grid {
-    position: absolute;
-    inset: 0;
-    background-image:
-        linear-gradient(var(--bg-grid-line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--bg-grid-line) 1px, transparent 1px);
-    background-size: 62px 62px;
-    mask-image: linear-gradient(180deg, transparent 0%, black 14%, black 80%, transparent 100%);
-}
-
-.home-hero__city {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 220px;
-    background:
-        linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, var(--city-shadow) 65%),
-        repeating-linear-gradient(
-            90deg,
-            var(--bg-line-highlight) 0,
-            var(--bg-line-highlight) 2px,
-            transparent 2px,
-            transparent 68px
-        );
-    opacity: 0.42;
 }
 
 .home-hero__content {
@@ -170,17 +111,6 @@
 
 .role-card {
     position: relative;
-    overflow: hidden;
-}
-
-.role-card::after {
-    content: '';
-    position: absolute;
-    right: -52px;
-    top: -52px;
-    width: 130px;
-    height: 130px;
-    background: radial-gradient(circle, rgba(167, 139, 250, 0.26), transparent 72%);
 }
 
 .role-card__icon {
@@ -227,7 +157,7 @@
 }
 
 .feature-section {
-    background: var(--feature-section-bg);
+    background: #ffffff;
 }
 
 .feature-grid {
@@ -271,7 +201,7 @@
     padding: var(--space-10);
     border-radius: var(--radius-2xl);
     border: 1px solid var(--border-light);
-    background: linear-gradient(130deg, var(--bg-body-gradient-a), var(--bg-body-gradient-b));
+    background: #ffffff;
 }
 
 .app-promo h2 {
@@ -311,7 +241,7 @@
     padding: 10px;
     border: 1px solid var(--border-light);
     background: var(--bg-soft-strong);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
 }
 
 .app-mockup__screen {
@@ -319,10 +249,7 @@
     height: 460px;
     border-radius: 24px;
     overflow: hidden;
-    background:
-        radial-gradient(circle at 30% 8%, rgba(99, 102, 241, 0.34), transparent 36%),
-        radial-gradient(circle at 80% 80%, rgba(34, 211, 238, 0.25), transparent 42%),
-        var(--bg-secondary);
+    background: var(--bg-secondary);
     padding: 20px;
 }
 
@@ -347,16 +274,7 @@
 }
 
 .app-mockup__pulse {
-    position: absolute;
-    width: 140px;
-    height: 140px;
-    border-radius: 50%;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 26px;
-    border: 1px solid rgba(34, 211, 238, 0.5);
-    box-shadow: 0 0 24px rgba(34, 211, 238, 0.4);
-    animation: pulse 2.6s ease-in-out infinite;
+    display: none;
 }
 
 @media (max-width: 1024px) {

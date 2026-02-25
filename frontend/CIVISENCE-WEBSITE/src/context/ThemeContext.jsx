@@ -1,31 +1,24 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo } from 'react';
 
 const ThemeContext = createContext(null);
 const THEME_STORAGE_KEY = 'theme';
 
-const getInitialTheme = () => {
-    if (typeof window === 'undefined') return 'dark';
-    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-    if (storedTheme === 'light' || storedTheme === 'dark') return storedTheme;
-    return 'dark';
-};
-
 export function ThemeProvider({ children }) {
-    const [theme, setTheme] = useState(getInitialTheme);
+    const theme = 'light';
 
     useEffect(() => {
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem(THEME_STORAGE_KEY, theme);
-    }, [theme]);
+        document.documentElement.setAttribute('data-theme', 'light');
+        localStorage.setItem(THEME_STORAGE_KEY, 'light');
+    }, []);
 
     const value = useMemo(
         () => ({
             theme,
-            isDark: theme === 'dark',
-            setTheme,
-            toggleTheme: () => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+            isDark: false,
+            setTheme: () => {},
+            toggleTheme: () => {}
         }),
-        [theme]
+        []
     );
 
     return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

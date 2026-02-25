@@ -7,8 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
     getSensitiveLocations,
     createSensitiveLocation,
-    updateSensitiveLocation,
-    deleteSensitiveLocation
+    updateSensitiveLocation
 } from '../../api/sensitiveLocations';
 import { getErrorMessage } from '../../utils/helpers';
 import { isDemoSession } from '../../utils/authStorage';
@@ -64,7 +63,6 @@ export default function AdminZones() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
-    const [deletingId, setDeletingId] = useState('');
 
     useEffect(() => {
         void loadZones();
@@ -244,24 +242,6 @@ export default function AdminZones() {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!isSuperAdmin || !window.confirm('Delete this sensitive zone?')) return;
-        setDeletingId(id);
-        setError('');
-        try {
-            if (isDemoSession()) {
-                setZones((prev) => prev.filter((item) => item._id !== id));
-                return;
-            }
-            await deleteSensitiveLocation(id);
-            setZones((prev) => prev.filter((item) => item._id !== id));
-        } catch (err) {
-            setError(getErrorMessage(err));
-        } finally {
-            setDeletingId('');
-        }
-    };
-
     const handleFieldChange = (event) => {
         const { name, value, type, checked } = event.target;
         setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
@@ -323,14 +303,6 @@ export default function AdminZones() {
                                         <div className="sensitive-card__actions">
                                             <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(location)}>
                                                 Edit
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn btn-danger btn-sm"
-                                                disabled={deletingId === location._id}
-                                                onClick={() => void handleDelete(location._id)}
-                                            >
-                                                {deletingId === location._id ? 'Deleting...' : 'Delete'}
                                             </button>
                                         </div>
                                     ) : null}

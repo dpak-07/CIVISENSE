@@ -4,7 +4,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import EmptyState from '../../components/EmptyState';
 import Modal from '../../components/Modal';
 import { useAuth } from '../../context/AuthContext';
-import { getOffices, createOffice, updateOffice, deleteOffice } from '../../api/offices';
+import { getOffices, createOffice, updateOffice } from '../../api/offices';
 import { getErrorMessage } from '../../utils/helpers';
 import { isDemoSession } from '../../utils/authStorage';
 import { DEMO_OFFICES } from '../../constants/demoData';
@@ -53,7 +53,6 @@ export default function AdminOffices() {
     const [officeForm, setOfficeForm] = useState(EMPTY_OFFICE_FORM);
     const [officeError, setOfficeError] = useState('');
     const [officeSaving, setOfficeSaving] = useState(false);
-    const [deletingOfficeId, setDeletingOfficeId] = useState('');
 
     useEffect(() => {
         void loadAll();
@@ -244,26 +243,6 @@ export default function AdminOffices() {
         }
     };
 
-    const handleDeleteOffice = async (officeId) => {
-        if (!isSuperAdmin) return;
-        if (!window.confirm('Delete this office? This will also delete linked office login accounts.')) return;
-
-        setDeletingOfficeId(officeId);
-        setOfficeError('');
-        try {
-            if (isDemoSession()) {
-                setOffices((prev) => prev.filter((office) => office._id !== officeId));
-                return;
-            }
-            await deleteOffice(officeId);
-            setOffices((prev) => prev.filter((office) => office._id !== officeId));
-        } catch (err) {
-            setOfficeError(getErrorMessage(err));
-        } finally {
-            setDeletingOfficeId('');
-        }
-    };
-
     const handleOfficeFieldChange = (event) => {
         const { name, value, type, checked } = event.target;
         setOfficeForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
@@ -325,18 +304,6 @@ export default function AdminOffices() {
                                             )}
                                         </div>
                                     </div>
-                                    {isSuperAdmin ? (
-                                        <div className="office-card__actions" onClick={(event) => event.stopPropagation()}>
-                                            <button
-                                                type="button"
-                                                className="btn btn-danger btn-sm"
-                                                disabled={deletingOfficeId === office._id}
-                                                onClick={() => void handleDeleteOffice(office._id)}
-                                            >
-                                                {deletingOfficeId === office._id ? 'Deleting...' : 'Delete Office'}
-                                            </button>
-                                        </div>
-                                    ) : null}
                                 </div>
                             ))}
                         </div>

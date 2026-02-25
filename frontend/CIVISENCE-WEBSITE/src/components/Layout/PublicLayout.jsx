@@ -1,8 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { HiOutlineBars3, HiOutlineXMark, HiOutlineArrowDownTray, HiOutlineMoon, HiOutlineSun } from 'react-icons/hi2';
+import { HiOutlineBars3, HiOutlineXMark, HiOutlineArrowDownTray } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { getRolePath } from '../../utils/helpers';
 import CiviSenseLogo from '../branding/CiviSenseLogo';
 import { ANDROID_APK_URL, IOS_FUNNY_NOTE } from '../../constants/appLinks';
@@ -18,19 +17,12 @@ const navItems = [
 export default function PublicLayout({ children }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const { user, isAuthenticated } = useAuth();
-    const { isDark, toggleTheme } = useTheme();
     const location = useLocation();
 
     const closeMenu = () => setMenuOpen(false);
 
     return (
         <div className="public-layout">
-            <div className="public-ambient" aria-hidden="true">
-                <span className="public-ambient__orb public-ambient__orb--a" />
-                <span className="public-ambient__orb public-ambient__orb--b" />
-                <span className="public-ambient__line" />
-            </div>
-
             <header className="public-header glass">
                 <div className="container public-header__inner">
                     <Link to="/" className="public-logo" onClick={closeMenu}>
@@ -54,9 +46,6 @@ export default function PublicLayout({ children }) {
                     </nav>
 
                     <div className="public-actions">
-                        <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
-                            {isDark ? <HiOutlineSun /> : <HiOutlineMoon />}
-                        </button>
                         {isAuthenticated ? (
                             <Link to={getRolePath(user.role)} className="btn btn-primary btn-sm">Dashboard</Link>
                         ) : (

@@ -107,12 +107,6 @@ export default function Developers() {
     return (
         <PublicLayout>
             <section className="dev-page__hero">
-                <div className="dev-page__ambient" aria-hidden="true">
-                    <span className="dev-page__ambient-orb dev-page__ambient-orb--a" />
-                    <span className="dev-page__ambient-orb dev-page__ambient-orb--b" />
-                    <span className="dev-page__ambient-grid" />
-                </div>
-
                 <div className="container">
                     <div className="dev-page__hero-brand">
                         <CiviSenseLogo size={58} className="dev-page__hero-logo" />

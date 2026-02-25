@@ -95,13 +95,6 @@ export default function Home() {
     return (
         <PublicLayout>
             <section className="home-hero">
-                <div className="home-hero__bg" aria-hidden="true">
-                    <div className="home-hero__orb home-hero__orb--a" />
-                    <div className="home-hero__orb home-hero__orb--b" />
-                    <div className="home-hero__grid" />
-                    <div className="home-hero__city" />
-                </div>
-
                 <div className="container home-hero__content">
                     <div className="home-hero__identity">
                         <CiviSenseLogo size={74} className="home-hero__logo" />
