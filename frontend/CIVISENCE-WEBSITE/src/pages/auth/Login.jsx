@@ -7,52 +7,32 @@ import './Auth.css';
 
 const portalModes = [
     { id: 'citizen', label: 'Citizen' },
-    { id: 'officer', label: 'Sub Office' },
+    { id: 'officer', label: 'Municipal' },
     { id: 'admin', label: 'Admin' }
 ];
 
 const roleLabelMap = {
     citizen: 'Citizen',
-    officer: 'Sub Office',
+    officer: 'Municipal',
     admin: 'Admin'
-};
-
-const demoCredentials = {
-    officer: { email: 'abc', password: '1234' },
-    admin: { email: 'abc', password: '1234' }
 };
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [portalMode, setPortalMode] = useState('citizen');
     const [showPassword, setShowPassword] = useState(false);
+    const [portalMode, setPortalMode] = useState('citizen');
     const [error, setError] = useState('');
-    const [info, setInfo] = useState('');
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
-    const fillDemo = (role) => {
-        const creds = demoCredentials[role];
-        if (!creds) return;
-        setPortalMode(role);
-        setEmail(creds.email);
-        setPassword(creds.password);
-        setError('');
-        setInfo(`${roleLabelMap[role]} demo credentials loaded.`);
-    };
-
     const handleSubmit = async (event) => {
         event.preventDefault();
         setError('');
-        setInfo('');
         setLoading(true);
         try {
             const user = await login(email, password, portalMode);
-            if (user.role !== portalMode) {
-                setInfo(`Signed in as ${roleLabelMap[user.role] || user.role}. Redirecting to your portal.`);
-            }
             navigate(getRolePath(user.role), { replace: true });
         } catch (err) {
             setError(getErrorMessage(err));
@@ -62,16 +42,26 @@ export default function Login() {
     };
 
     return (
-        <div className="auth-page">
-            <div className="auth-card glass">
-                <div className="auth-card__header">
-                    <Link to="/" className="auth-card__logo">
-                        <CiviSenseLogo size={42} />
-                        <span>CiviSense</span>
+        <div className="auth-page auth-page--app">
+            <div className="auth-page__glow auth-page__glow--one" />
+            <div className="auth-page__glow auth-page__glow--two" />
+
+            <div className="auth-card auth-card--app glass">
+                <div className="auth-card__header auth-card__header--left">
+                    <Link to="/" className="auth-back">
+                        Back to home
                     </Link>
-                    <h1>Login Portal</h1>
-                    <p>Choose your portal mode, then sign in.</p>
+                    <div className="auth-brand-row">
+                        <div className="auth-logo-pill">
+                            <CiviSenseLogo size={28} />
+                        </div>
+                        <span className="auth-brand-name">CiviSense</span>
+                    </div>
+                    <h1>Welcome Back</h1>
+                    <p>Sign in to continue reporting issues in your city.</p>
                 </div>
+
+                {error && <div className="auth-error">{error}</div>}
 
                 <div className="auth-portal-toggle" role="tablist" aria-label="Portal mode">
                     {portalModes.map((mode) => (
@@ -86,30 +76,14 @@ export default function Login() {
                     ))}
                 </div>
 
-                {error && <div className="auth-error">{error}</div>}
-                {info && <div className="auth-info">{info}</div>}
-
-                <div className="auth-demo-card">
-                    <h4>Demo Credentials</h4>
-                    <p>Admin / Sub Office demo: <code>abc</code> / <code>1234</code></p>
-                    <div className="auth-demo-card__actions">
-                        <button type="button" onClick={() => fillDemo('officer')} className="btn btn-ghost btn-sm">
-                            Use Sub Office Demo
-                        </button>
-                        <button type="button" onClick={() => fillDemo('admin')} className="btn btn-ghost btn-sm">
-                            Use Admin Demo
-                        </button>
-                    </div>
-                </div>
-
                 <form onSubmit={handleSubmit} className="auth-form">
                     <div className="input-group">
-                        <label htmlFor="email">Email / Demo ID</label>
+                        <label htmlFor="email">Email</label>
                         <input
                             id="email"
-                            type="text"
+                            type="email"
                             className="input"
-                            placeholder="you@example.com or demo id"
+                            placeholder="you@example.com"
                             value={email}
                             onChange={(event) => setEmail(event.target.value)}
                             required

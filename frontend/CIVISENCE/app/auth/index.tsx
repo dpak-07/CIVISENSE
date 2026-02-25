@@ -21,12 +21,13 @@ import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiErrorMessage } from "@/lib/api";
 import { useAppPreferences } from "@/lib/appPreferencesContext";
-import { loginUser, registerUser } from "@/lib/services/auth";
+import { loginUser, registerUser, requestRegisterOtp } from "@/lib/services/auth";
 import CiviSenseLogo from "@/components/branding/CiviSenseLogo";
 
 type Mode = "signin" | "signup";
 
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
+const OTP_RESEND_SECONDS = 60;
 
 function FloatingGlow({
   style,
@@ -78,6 +79,9 @@ export default function AuthEntryScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
 
   useEffect(() => {
     if (modeParam === "signup") {
@@ -97,7 +101,16 @@ export default function AuthEntryScreen() {
   const resetSharedFields = () => {
     setPassword("");
     setConfirmPassword("");
+    setOtp("");
   };
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCooldown((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCooldown]);
 
   const handlePickProfilePhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -157,12 +170,18 @@ export default function AuthEntryScreen() {
       return;
     }
 
+    if (!otp.trim()) {
+      Alert.alert("OTP required", "Enter the OTP sent to your email.");
+      return;
+    }
+
     setLoading(true);
     try {
       await registerUser({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         password,
+        otp: otp.trim(),
         profilePhotoUri,
       });
       if (afterAuthRoute !== "/") {
@@ -174,6 +193,24 @@ export default function AuthEntryScreen() {
       Alert.alert("Registration failed", getApiErrorMessage(error));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (!email.trim()) {
+      Alert.alert("Missing email", "Enter your email to receive OTP.");
+      return;
+    }
+
+    setOtpSending(true);
+    try {
+      await requestRegisterOtp(email.trim().toLowerCase());
+      setOtpCooldown(OTP_RESEND_SECONDS);
+      Alert.alert("OTP sent", "Check your email for the verification code.");
+    } catch (error) {
+      Alert.alert("OTP failed", getApiErrorMessage(error));
+    } finally {
+      setOtpSending(false);
     }
   };
 
@@ -333,6 +370,44 @@ export default function AuthEntryScreen() {
                       onChangeText={setConfirmPassword}
                     />
                   </View>
+                </View>
+              ) : null}
+
+              {mode === "signup" ? (
+                <View style={styles.otpGroup}>
+                  <View style={styles.otpRow}>
+                    <View style={styles.otpInput}>
+                      <Text style={[styles.label, { color: theme.colors.subText }]}>Email OTP</Text>
+                      <View style={[styles.inputWrap, { borderColor: isDark ? "rgba(148,163,184,0.25)" : "#E2E8F0" }]}>
+                        <Ionicons name="mail-outline" size={18} color="#64748B" />
+                        <TextInput
+                          style={[styles.input, { color: theme.colors.text }]}
+                          placeholder="6-digit code"
+                          placeholderTextColor="#94A3B8"
+                          keyboardType="number-pad"
+                          value={otp}
+                          onChangeText={setOtp}
+                          maxLength={6}
+                        />
+                      </View>
+                    </View>
+                    <Pressable
+                      onPress={handleSendOtp}
+                      disabled={otpSending || otpCooldown > 0}
+                      style={[styles.otpButton, otpCooldown > 0 && styles.otpButtonDisabled]}
+                    >
+                      {otpSending ? (
+                        <ActivityIndicator color="#4F46E5" />
+                      ) : (
+                        <Text style={styles.otpButtonText}>
+                          {otpCooldown > 0 ? `Resend ${otpCooldown}s` : "Send OTP"}
+                        </Text>
+                      )}
+                    </Pressable>
+                  </View>
+                  <Text style={[styles.otpHint, { color: theme.colors.subText }]}>
+                    We will send the OTP to your Gmail address to verify your account.
+                  </Text>
                 </View>
               ) : null}
 
@@ -510,6 +585,39 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 14,
+  },
+  otpGroup: {
+    gap: 6,
+  },
+  otpRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+  },
+  otpInput: {
+    flex: 1,
+  },
+  otpButton: {
+    height: 48,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "rgba(79,70,229,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(79,70,229,0.08)",
+  },
+  otpButtonDisabled: {
+    opacity: 0.7,
+  },
+  otpButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4F46E5",
+  },
+  otpHint: {
+    fontSize: 11,
+    lineHeight: 16,
   },
   buttonWrap: {
     marginTop: 4,

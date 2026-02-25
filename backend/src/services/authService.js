@@ -1,7 +1,10 @@
-﻿const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { StatusCodes } = require('http-status-codes');
 const User = require('../models/User');
+const EmailOtp = require('../models/EmailOtp');
 const ApiError = require('../utils/ApiError');
+const { sendOtpEmail } = require('./emailService');
 const {
   signAccessToken,
   signRefreshToken,
@@ -9,6 +12,13 @@ const {
 } = require('../utils/jwt');
 
 const SALT_ROUNDS = 12;
+const OTP_LENGTH = 6;
+const OTP_EXPIRES_MINUTES = 10;
+const OTP_MAX_ATTEMPTS = 5;
+
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+
+const isValidOtp = (otp) => /^[0-9]{6}$/.test(String(otp || '').trim());
 
 const sanitizeUser = (user) => ({
   id: user._id,
@@ -43,7 +53,9 @@ const register = async ({ name, email, password, profilePhotoUrl }) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password must be at least 8 characters');
   }
 
-  const existingUser = await User.findOne({ email: email.toLowerCase() }).lean();
+  const cleanEmail = normalizeEmail(email);
+
+  const existingUser = await User.findOne({ email: cleanEmail }).lean();
   if (existingUser) {
     throw new ApiError(StatusCodes.CONFLICT, 'Email already registered');
   }
@@ -52,7 +64,7 @@ const register = async ({ name, email, password, profilePhotoUrl }) => {
 
   const createdUser = await User.create({
     name,
-    email,
+    email: cleanEmail,
     passwordHash,
     role: 'citizen',
     profilePhotoUrl: profilePhotoUrl || null
@@ -66,12 +78,87 @@ const register = async ({ name, email, password, profilePhotoUrl }) => {
   };
 };
 
+const requestRegisterOtp = async ({ email }) => {
+  const cleanEmail = normalizeEmail(email);
+
+  if (!cleanEmail) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Email is required');
+  }
+
+  const existingUser = await User.findOne({ email: cleanEmail }).lean();
+  if (existingUser) {
+    throw new ApiError(StatusCodes.CONFLICT, 'Email already registered');
+  }
+
+  const otp = String(crypto.randomInt(10 ** (OTP_LENGTH - 1), 10 ** OTP_LENGTH));
+  const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+  const expiresAt = new Date(Date.now() + OTP_EXPIRES_MINUTES * 60 * 1000);
+
+  await EmailOtp.deleteMany({ email: cleanEmail });
+
+  await EmailOtp.create({
+    email: cleanEmail,
+    otpHash,
+    expiresAt
+  });
+
+  await sendOtpEmail({ email: cleanEmail, otp, expiresInMinutes: OTP_EXPIRES_MINUTES });
+
+  return { delivered: true, expiresInMinutes: OTP_EXPIRES_MINUTES };
+};
+
+const registerWithOtp = async ({ name, email, password, otp, profilePhotoUrl }) => {
+  const cleanEmail = normalizeEmail(email);
+
+  if (!name || !cleanEmail || !password || !otp) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Name, email, password and OTP are required'
+    );
+  }
+
+  if (!isValidOtp(otp)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP must be 6 digits');
+  }
+
+  const otpRecord = await EmailOtp.findOne({ email: cleanEmail })
+    .select('+otpHash')
+    .sort({ createdAt: -1 });
+
+  if (!otpRecord) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP not found or expired');
+  }
+
+  if (otpRecord.expiresAt < new Date()) {
+    await EmailOtp.deleteMany({ email: cleanEmail });
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP not found or expired');
+  }
+
+  if (otpRecord.attempts >= OTP_MAX_ATTEMPTS) {
+    await EmailOtp.deleteMany({ email: cleanEmail });
+    throw new ApiError(StatusCodes.TOO_MANY_REQUESTS, 'OTP attempts exceeded');
+  }
+
+  const isMatch = await bcrypt.compare(String(otp), otpRecord.otpHash);
+  if (!isMatch) {
+    otpRecord.attempts += 1;
+    await otpRecord.save();
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid OTP');
+  }
+
+  await EmailOtp.deleteMany({ email: cleanEmail });
+
+  return register({ name, email: cleanEmail, password, profilePhotoUrl });
+};
+
 const login = async ({ email, password }) => {
   if (!email || !password) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Email and password are required');
   }
 
-  const user = await User.findOne({ email: email.toLowerCase() }).select('+passwordHash +refreshTokenHash');
+  const user = await User.findOne({ email: normalizeEmail(email) }).select(
+    '+passwordHash +refreshTokenHash'
+  );
   if (!user) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid credentials');
   }
@@ -143,6 +230,8 @@ const logout = async ({ refreshToken }) => {
 
 module.exports = {
   register,
+  requestRegisterOtp,
+  registerWithOtp,
   login,
   refreshAuthToken,
   logout
