@@ -11,9 +11,19 @@ export type ComplaintImage = {
   uploadedAt?: string;
 };
 
+export type ComplaintStatus =
+  | "reported"
+  | "unassigned"
+  | "assigned"
+  | "in_progress"
+  | "resolved"
+  | "rejected";
+
+export type ComplaintPriorityLevel = "critical" | "high" | "medium" | "low";
+
 export type ComplaintPriority = {
   score?: number;
-  level?: string;
+  level?: ComplaintPriorityLevel | string;
   reason?: string | null;
   reasonSentence?: string | null;
   aiProcessed?: boolean;
@@ -30,14 +40,25 @@ export type AssignedMunicipalOffice = {
   isActive?: boolean;
 };
 
+export type ComplaintStatusHistoryEntry = {
+  status: ComplaintStatus | string;
+  remark?: string | null;
+  rejectionReason?: string | null;
+  updatedByRole?: string | null;
+  updatedAt?: string;
+};
+
 export type ComplaintRecord = {
   _id: string;
   title: string;
   description: string;
   category: string;
-  status: string;
+  status: ComplaintStatus | string;
   createdAt: string;
   updatedAt: string;
+  resolutionRemark?: string | null;
+  rejectionReason?: string | null;
+  statusHistory?: ComplaintStatusHistoryEntry[];
   location?: {
     type: "Point";
     coordinates: [number, number];

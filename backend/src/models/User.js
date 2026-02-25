@@ -27,6 +27,11 @@ const userSchema = new mongoose.Schema(
       enum: ROLE_VALUES,
       default: 'citizen'
     },
+    municipalOfficeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'MunicipalOffice',
+      default: null
+    },
     language: {
       type: String,
       enum: ['en', 'ta', 'hi'],

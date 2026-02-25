@@ -1,0 +1,370 @@
+import { useEffect, useMemo, useState } from 'react';
+import DashboardLayout from '../../components/Layout/DashboardLayout';
+import StatsCard from '../../components/StatsCard';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import EmptyState from '../../components/EmptyState';
+import ReportCard from '../../components/ReportCard';
+import Modal from '../../components/Modal';
+import { getComplaints, getComplaintById, updateComplaintStatus } from '../../api/complaints';
+import {
+    formatDateTime,
+    getErrorMessage,
+    sortComplaintsByPriorityAndDate
+} from '../../utils/helpers';
+import { isDemoSession } from '../../utils/authStorage';
+import { DEMO_COMPLAINTS } from '../../constants/demoData';
+import '../citizen/CitizenDashboard.css';
+import './OfficerDashboard.css';
+import {
+    HiOutlineDocumentText,
+    HiOutlineCheckCircle,
+    HiOutlineClock,
+    HiOutlineExclamationTriangle
+} from 'react-icons/hi2';
+
+const UPDATABLE_STATUSES = new Set(['reported', 'unassigned', 'assigned', 'in_progress']);
+const DEFAULT_RESOLUTION_REMARK = 'Issue resolved by municipal office.';
+
+const toStatusText = (status) =>
+    (status || 'reported').replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
+
+const toCoordinatesLabel = (complaint) => {
+    const coordinates = complaint?.location?.coordinates;
+    if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+        return 'Location not available';
+    }
+    const [longitude, latitude] = coordinates;
+    return `${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`;
+};
+
+const getPriorityReason = (complaint) =>
+    complaint?.priority?.reasonSentence ||
+    complaint?.priority?.reason ||
+    'Priority reason not available';
+
+export default function OfficerDashboard() {
+    const [complaints, setComplaints] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState('');
+    const [updating, setUpdating] = useState('');
+    const [reviewOpen, setReviewOpen] = useState(false);
+    const [selectedComplaint, setSelectedComplaint] = useState(null);
+    const [loadingDetails, setLoadingDetails] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [reviewError, setReviewError] = useState('');
+
+    useEffect(() => {
+        void loadComplaints();
+    }, [statusFilter]);
+
+    const loadComplaints = async () => {
+        setLoading(true);
+        try {
+            const params = {};
+            if (statusFilter) params.status = statusFilter;
+            const { data } = await getComplaints(params);
+            setComplaints(data.data || []);
+        } catch {
+            if (isDemoSession()) {
+                const filtered = statusFilter
+                    ? DEMO_COMPLAINTS.filter((c) => c.status === statusFilter)
+                    : DEMO_COMPLAINTS;
+                setComplaints(filtered);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadComplaintDetails = async (complaint) => {
+        setLoadingDetails(true);
+        setReviewError('');
+        setRejectionReason('');
+        try {
+            if (isDemoSession()) {
+                setSelectedComplaint(complaint);
+                return;
+            }
+
+            const { data } = await getComplaintById(complaint._id);
+            setSelectedComplaint(data.data);
+        } catch (err) {
+            setReviewError(getErrorMessage(err));
+        } finally {
+            setLoadingDetails(false);
+        }
+    };
+
+    const openReviewModal = async (complaint) => {
+        setReviewOpen(true);
+        await loadComplaintDetails(complaint);
+    };
+
+    const closeReviewModal = () => {
+        if (updating) return;
+        setReviewOpen(false);
+        setSelectedComplaint(null);
+        setRejectionReason('');
+        setReviewError('');
+    };
+
+    const updateComplaintInState = (updatedComplaint) => {
+        setComplaints((prev) => {
+            const next = prev.map((item) => (item._id === updatedComplaint._id ? updatedComplaint : item));
+            if (!statusFilter) return next;
+            return next.filter((item) => item.status === statusFilter);
+        });
+        setSelectedComplaint(updatedComplaint);
+    };
+
+    const saveStatus = async (nextStatus, payload = {}) => {
+        if (!selectedComplaint || updating) return;
+        if (!UPDATABLE_STATUSES.has(selectedComplaint.status) && selectedComplaint.status !== nextStatus) {
+            setReviewError('This complaint is already in a terminal status.');
+            return;
+        }
+
+        setUpdating(nextStatus);
+        setReviewError('');
+        try {
+            if (isDemoSession()) {
+                const demoUpdated = {
+                    ...selectedComplaint,
+                    status: nextStatus,
+                    resolutionRemark: nextStatus === 'resolved' ? payload.remark : null,
+                    rejectionReason: nextStatus === 'rejected' ? payload.rejectionReason : null,
+                    updatedAt: new Date().toISOString()
+                };
+                updateComplaintInState(demoUpdated);
+                return;
+            }
+
+            const { data } = await updateComplaintStatus(selectedComplaint._id, {
+                status: nextStatus,
+                remark: payload.remark || '',
+                rejectionReason: payload.rejectionReason || ''
+            });
+            updateComplaintInState(data.data);
+        } catch (err) {
+            setReviewError(getErrorMessage(err));
+        } finally {
+            setUpdating('');
+        }
+    };
+
+    const handleMarkInProgress = async () => {
+        if (!selectedComplaint) return;
+        const confirmed = window.confirm('Move this complaint to In Progress?');
+        if (!confirmed) return;
+        await saveStatus('in_progress');
+    };
+
+    const handleResolve = async () => {
+        if (!selectedComplaint) return;
+        const confirmed = window.confirm('Mark this complaint as resolved?');
+        if (!confirmed) return;
+        const remark = selectedComplaint.resolutionRemark || DEFAULT_RESOLUTION_REMARK;
+        await saveStatus('resolved', { remark });
+    };
+
+    const handleReject = async () => {
+        const reason = rejectionReason.trim();
+        if (!reason) {
+            setReviewError('Rejection reason is required.');
+            return;
+        }
+        await saveStatus('rejected', { rejectionReason: reason });
+    };
+
+    const total = complaints.length;
+    const assigned = complaints.filter((c) => c.status === 'assigned').length;
+    const inProgress = complaints.filter((c) => c.status === 'in_progress').length;
+    const resolved = complaints.filter((c) => c.status === 'resolved').length;
+    const sortedComplaints = useMemo(
+        () => sortComplaintsByPriorityAndDate(complaints),
+        [complaints]
+    );
+    const statusLocked = selectedComplaint && !UPDATABLE_STATUSES.has(selectedComplaint.status);
+
+    return (
+        <DashboardLayout>
+            <div className="page-header">
+                <div>
+                    <h1>Officer Dashboard</h1>
+                    <p>Manage and resolve complaints assigned to your department</p>
+                </div>
+            </div>
+
+            <div className="stats-grid">
+                <StatsCard icon={<HiOutlineDocumentText />} label="Total" value={total} color="primary" />
+                <StatsCard icon={<HiOutlineClock />} label="Assigned" value={assigned} color="warning" />
+                <StatsCard icon={<HiOutlineExclamationTriangle />} label="In Progress" value={inProgress} color="info" />
+                <StatsCard icon={<HiOutlineCheckCircle />} label="Resolved" value={resolved} color="success" />
+            </div>
+
+            <div className="filters-bar">
+                <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                    <option value="">All Statuses</option>
+                    <option value="reported">Reported</option>
+                    <option value="assigned">Assigned</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="unassigned">Unassigned</option>
+                </select>
+            </div>
+
+            {loading ? (
+                <LoadingSpinner />
+            ) : complaints.length === 0 ? (
+                <EmptyState title="No complaints" message="No complaints match your current filter" />
+            ) : (
+                <div className="reports-grid">
+                    {sortedComplaints.map((c) => (
+                        <ReportCard
+                            key={c._id}
+                            complaint={c}
+                            detailPath={`/officer/complaint/${c._id}`}
+                            showReporter
+                            showReviewButton
+                            onReview={openReviewModal}
+                            isUpdating={Boolean(updating && selectedComplaint?._id === c._id)}
+                        />
+                    ))}
+                </div>
+            )}
+
+            <Modal isOpen={reviewOpen} onClose={closeReviewModal} title="Sub Office Review" size="lg">
+                {loadingDetails ? (
+                    <LoadingSpinner />
+                ) : selectedComplaint ? (
+                    <div className="officer-review">
+                        {reviewError && <div className="auth-error">{reviewError}</div>}
+
+                        <div className="officer-review__grid">
+                            <div className="officer-review__section card">
+                                <h3>{selectedComplaint.title}</h3>
+                                <p className="officer-review__description">{selectedComplaint.description}</p>
+
+                                <div className="officer-review__meta">
+                                    <div><span>Status:</span> {toStatusText(selectedComplaint.status)}</div>
+                                    <div><span>Category:</span> {selectedComplaint.category}</div>
+                                    <div><span>Priority:</span> {toStatusText(selectedComplaint.priority?.level || 'low')}</div>
+                                    <div><span>Created:</span> {formatDateTime(selectedComplaint.createdAt)}</div>
+                                    <div><span>Updated:</span> {formatDateTime(selectedComplaint.updatedAt)}</div>
+                                </div>
+                            </div>
+
+                            <div className="officer-review__section card">
+                                <h4>Report Details</h4>
+                                <div className="officer-review__meta">
+                                    <div><span>Reported By:</span> {selectedComplaint.reportedBy?.name || '-'}</div>
+                                    <div><span>Email:</span> {selectedComplaint.reportedBy?.email || '-'}</div>
+                                    <div><span>Location:</span> {toCoordinatesLabel(selectedComplaint)}</div>
+                                    <div><span>Priority Reason:</span> {getPriorityReason(selectedComplaint)}</div>
+                                    <div><span>Assigned Office:</span> {selectedComplaint.assignedMunicipalOffice?.name || 'Pending assignment'}</div>
+                                </div>
+
+                                {selectedComplaint.images?.[0]?.url && (
+                                    <a
+                                        className="officer-review__image-link"
+                                        href={selectedComplaint.images[0].url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        Open S3 Image
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+
+                        {(selectedComplaint.resolutionRemark || selectedComplaint.rejectionReason) && (
+                            <div className="officer-review__section card">
+                                <h4>Latest Decision Note</h4>
+                                {selectedComplaint.resolutionRemark && (
+                                    <p className="officer-review__note officer-review__note--ok">
+                                        Resolution Remark: {selectedComplaint.resolutionRemark}
+                                    </p>
+                                )}
+                                {selectedComplaint.rejectionReason && (
+                                    <p className="officer-review__note officer-review__note--warn">
+                                        Rejection Reason: {selectedComplaint.rejectionReason}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {Array.isArray(selectedComplaint.statusHistory) && selectedComplaint.statusHistory.length > 0 && (
+                            <div className="officer-review__section card">
+                                <h4>Status Timeline</h4>
+                                <div className="officer-review__timeline">
+                                    {selectedComplaint.statusHistory.map((entry, index) => (
+                                        <div className="officer-review__timeline-item" key={`${entry.updatedAt}-${entry.status}-${index}`}>
+                                            <strong>{toStatusText(entry.status)}</strong>
+                                            <span>{formatDateTime(entry.updatedAt)}</span>
+                                            {entry.remark && <p>Remark: {entry.remark}</p>}
+                                            {entry.rejectionReason && <p>Rejection: {entry.rejectionReason}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="officer-review__actions card">
+                            <h4>Update Status</h4>
+                            {statusLocked ? (
+                                <p className="officer-review__locked">
+                                    This complaint is already terminal ({toStatusText(selectedComplaint.status)}).
+                                </p>
+                            ) : (
+                                <>
+                                    <div className="officer-review__action-row">
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            disabled={Boolean(updating)}
+                                            onClick={() => void handleMarkInProgress()}
+                                        >
+                                            {updating === 'in_progress' ? 'Saving...' : 'Mark In Progress'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-success"
+                                            disabled={Boolean(updating)}
+                                            onClick={() => void handleResolve()}
+                                        >
+                                            {updating === 'resolved' ? 'Saving...' : 'Resolve (Confirm)'}
+                                        </button>
+                                    </div>
+
+                                    <div className="officer-review__reject">
+                                        <label htmlFor="officer-reject-reason">Reject Complaint (Reason Required)</label>
+                                        <textarea
+                                            id="officer-reject-reason"
+                                            className="input"
+                                            rows={4}
+                                            value={rejectionReason}
+                                            onChange={(e) => setRejectionReason(e.target.value)}
+                                            placeholder="Enter rejection reason..."
+                                            disabled={Boolean(updating)}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-danger"
+                                            disabled={Boolean(updating)}
+                                            onClick={() => void handleReject()}
+                                        >
+                                            {updating === 'rejected' ? 'Saving...' : 'Reject Complaint'}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <EmptyState title="No complaint selected" message="Choose a complaint to review." />
+                )}
+            </Modal>
+        </DashboardLayout>
+    );
+}

@@ -14,7 +14,7 @@ const createComplaint = asyncHandler(async (req, res) => {
 });
 
 const getComplaints = asyncHandler(async (req, res) => {
-  const complaints = await complaintService.getComplaints(req.query);
+  const complaints = await complaintService.getComplaints(req.query, req.user);
   res.status(StatusCodes.OK).json({ success: true, data: complaints });
 });
 
@@ -26,7 +26,11 @@ const getComplaintById = asyncHandler(async (req, res) => {
 const updateComplaintStatus = asyncHandler(async (req, res) => {
   const complaint = await complaintService.updateComplaintStatus({
     complaintId: req.params.id,
-    status: req.body.status
+    status: req.body.status,
+    remark: req.body.remark,
+    rejectionReason: req.body.rejectionReason,
+    updatedBy: req.user.id,
+    updatedByRole: req.user.role
   });
 
   res.status(StatusCodes.OK).json({ success: true, data: complaint });

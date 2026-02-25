@@ -1,0 +1,410 @@
+.home-hero {
+    position: relative;
+    overflow: hidden;
+    min-height: calc(100vh - 78px);
+    display: flex;
+    align-items: center;
+    padding: var(--space-20) 0 var(--space-16);
+}
+
+.home-hero__bg {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+}
+
+.home-hero__orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(110px);
+}
+
+.home-hero__orb--a {
+    width: 520px;
+    height: 520px;
+    background: var(--bg-body-gradient-a);
+    top: -220px;
+    right: -120px;
+    animation: float 12s ease-in-out infinite;
+}
+
+.home-hero__orb--b {
+    width: 420px;
+    height: 420px;
+    background: var(--bg-body-gradient-b);
+    left: -130px;
+    bottom: -220px;
+    animation: float 15s ease-in-out infinite reverse;
+}
+
+.home-hero__grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(var(--bg-grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--bg-grid-line) 1px, transparent 1px);
+    background-size: 62px 62px;
+    mask-image: linear-gradient(180deg, transparent 0%, black 14%, black 80%, transparent 100%);
+}
+
+.home-hero__city {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 220px;
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, var(--city-shadow) 65%),
+        repeating-linear-gradient(
+            90deg,
+            var(--bg-line-highlight) 0,
+            var(--bg-line-highlight) 2px,
+            transparent 2px,
+            transparent 68px
+        );
+    opacity: 0.42;
+}
+
+.home-hero__content {
+    max-width: 860px;
+    animation: fadeIn 0.7s ease;
+}
+
+.home-hero__identity {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.home-hero__logo {
+    flex-shrink: 0;
+    filter: drop-shadow(0 14px 30px rgba(99, 102, 241, 0.42));
+}
+
+.home-hero h1 {
+    margin-top: var(--space-4);
+    font-size: clamp(2.1rem, 5.5vw, 4.3rem);
+    line-height: 1.06;
+    letter-spacing: 0.02em;
+}
+
+.home-hero h1 span {
+    display: block;
+    color: var(--primary-light);
+    text-shadow: 0 0 22px rgba(99, 102, 241, 0.45);
+}
+
+.home-hero p {
+    margin-top: var(--space-6);
+    color: var(--text-secondary);
+    max-width: 720px;
+    font-size: var(--font-lg);
+}
+
+.home-hero__motive {
+    margin-top: var(--space-3) !important;
+    font-size: var(--font-sm) !important;
+}
+
+.home-hero__motive strong {
+    color: var(--primary-light);
+}
+
+.home-hero__actions {
+    margin-top: var(--space-8);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.home-hero__stats {
+    margin-top: var(--space-12);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-5);
+    max-width: 620px;
+}
+
+.home-hero__stats div {
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    background: var(--bg-soft);
+}
+
+.home-hero__stats strong {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.7rem;
+    color: var(--accent-light);
+}
+
+.home-hero__stats span {
+    font-size: var(--font-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+
+.role-section,
+.feature-section,
+.app-promo-section {
+    padding: var(--space-16) 0;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: var(--space-10);
+}
+
+.section-header h2 {
+    margin-top: var(--space-4);
+    font-size: clamp(1.7rem, 4.3vw, 2.8rem);
+}
+
+.role-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6);
+}
+
+.role-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.role-card::after {
+    content: '';
+    position: absolute;
+    right: -52px;
+    top: -52px;
+    width: 130px;
+    height: 130px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.26), transparent 72%);
+}
+
+.role-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin-bottom: var(--space-4);
+    color: var(--primary-light);
+    background: rgba(99, 102, 241, 0.18);
+}
+
+.role-card h3 {
+    font-size: 1.25rem;
+    margin-bottom: var(--space-3);
+}
+
+.role-card ul {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.role-card li {
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+    padding-left: 16px;
+    position: relative;
+}
+
+.role-card li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-light);
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.7);
+}
+
+.feature-section {
+    background: var(--feature-section-bg);
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6);
+}
+
+.feature-card {
+    animation: fadeIn 0.5s ease both;
+}
+
+.feature-card__icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    margin-bottom: var(--space-4);
+    color: var(--accent-light);
+    background: rgba(34, 211, 238, 0.14);
+}
+
+.feature-card h3 {
+    margin-bottom: var(--space-3);
+    font-size: 1.15rem;
+}
+
+.feature-card p {
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+}
+
+.app-promo {
+    display: grid;
+    grid-template-columns: 1.25fr 0.75fr;
+    gap: var(--space-8);
+    align-items: center;
+    padding: var(--space-10);
+    border-radius: var(--radius-2xl);
+    border: 1px solid var(--border-light);
+    background: linear-gradient(130deg, var(--bg-body-gradient-a), var(--bg-body-gradient-b));
+}
+
+.app-promo h2 {
+    margin-top: var(--space-4);
+    font-size: clamp(1.6rem, 3.7vw, 2.6rem);
+}
+
+.app-promo p {
+    margin-top: var(--space-4);
+    color: var(--text-secondary);
+    max-width: 620px;
+}
+
+.app-promo__actions {
+    margin-top: var(--space-7);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.app-promo__actions .btn[disabled] {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.app-promo__ios-note {
+    margin-top: var(--space-3);
+    color: var(--text-muted);
+    font-size: var(--font-xs);
+    max-width: 560px;
+}
+
+.app-mockup {
+    justify-self: center;
+    width: 280px;
+    border-radius: 30px;
+    padding: 10px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-soft-strong);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.app-mockup__screen {
+    position: relative;
+    height: 460px;
+    border-radius: 24px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 30% 8%, rgba(99, 102, 241, 0.34), transparent 36%),
+        radial-gradient(circle at 80% 80%, rgba(34, 211, 238, 0.25), transparent 42%),
+        var(--bg-secondary);
+    padding: 20px;
+}
+
+.app-mockup__bar {
+    height: 16px;
+    width: 120px;
+    border-radius: 30px;
+    margin: 0 auto 24px;
+    background: rgba(167, 139, 250, 0.38);
+}
+
+.app-mockup__card {
+    height: 145px;
+    border-radius: 18px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-soft-strong);
+    margin-bottom: 14px;
+}
+
+.app-mockup__card--small {
+    height: 110px;
+}
+
+.app-mockup__pulse {
+    position: absolute;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 26px;
+    border: 1px solid rgba(34, 211, 238, 0.5);
+    box-shadow: 0 0 24px rgba(34, 211, 238, 0.4);
+    animation: pulse 2.6s ease-in-out infinite;
+}
+
+@media (max-width: 1024px) {
+    .role-grid,
+    .feature-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .app-promo {
+        grid-template-columns: 1fr;
+        text-align: left;
+    }
+}
+
+@media (max-width: 768px) {
+    .home-hero {
+        min-height: auto;
+        padding-top: var(--space-16);
+    }
+
+    .home-hero__identity {
+        align-items: flex-start;
+    }
+
+    .home-hero__logo {
+        width: 60px;
+        height: 60px;
+    }
+
+    .home-hero p {
+        font-size: var(--font-md);
+    }
+
+    .home-hero__stats {
+        grid-template-columns: 1fr;
+        max-width: 100%;
+    }
+
+    .role-grid,
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .app-promo {
+        padding: var(--space-6);
+    }
+
+    .app-mockup {
+        width: min(100%, 280px);
+    }
+}

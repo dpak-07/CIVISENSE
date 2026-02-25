@@ -1,0 +1,128 @@
+.reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-5);
+}
+
+.report-card {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.report-card__media-wrap {
+    position: relative;
+    height: 176px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.report-card__media {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.report-card__media--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-elevated));
+    font-size: var(--font-sm);
+}
+
+.report-card__priority {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    z-index: 2;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+.report-card__body {
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.report-card__head {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    align-items: flex-start;
+}
+
+.report-card__head .complaint-link {
+    font-size: var(--font-md);
+    line-height: 1.35;
+    flex: 1;
+    min-width: 0;
+}
+
+.report-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.report-card__note {
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    font-size: var(--font-xs);
+    line-height: 1.5;
+}
+
+.report-card__note--ok {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--success-light);
+    border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.report-card__note--warn {
+    background: rgba(244, 63, 94, 0.1);
+    color: var(--danger-light);
+    border: 1px solid rgba(244, 63, 94, 0.28);
+}
+
+.report-card__path {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.report-card__path-link {
+    color: var(--accent-light);
+    font-size: var(--font-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.report-card__actions {
+    margin-top: var(--space-2);
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.report-card__actions .status-select {
+    flex: 1;
+    min-width: 150px;
+}
+
+.report-card__review-btn {
+    flex: 1;
+    min-width: 150px;
+}
+
+@media (max-width: 768px) {
+    .reports-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -17,8 +17,14 @@ const updateMunicipalOffice = asyncHandler(async (req, res) => {
   res.status(StatusCodes.OK).json({ success: true, data: office });
 });
 
+const deleteMunicipalOffice = asyncHandler(async (req, res) => {
+  const result = await municipalOfficeService.deleteMunicipalOffice(req.params.id);
+  res.status(StatusCodes.OK).json({ success: true, data: result });
+});
+
 module.exports = {
   createMunicipalOffice,
   getMunicipalOffices,
-  updateMunicipalOffice
+  updateMunicipalOffice,
+  deleteMunicipalOffice
 };

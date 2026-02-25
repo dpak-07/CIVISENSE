@@ -20,7 +20,7 @@ import {
   probeBackendHealth,
 } from "@/lib/services/backendHealth";
 
-const NOTIFICATION_POLL_INTERVAL_MS = 30000;
+const NOTIFICATION_POLL_INTERVAL_MS = 12000;
 const BACKEND_HEALTH_POLL_INTERVAL_MS = 20000;
 const MIN_LOADER_DURATION_MS = 2200;
 

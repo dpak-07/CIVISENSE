@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Complaint = require('../models/Complaint');
 const MunicipalOffice = require('../models/MunicipalOffice');
 const Notification = require('../models/Notification');
+const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
 const { ROLES } = require('../constants/roles');
 const { detectDuplicate } = require('./duplicateDetectionService');
@@ -20,7 +21,12 @@ const {
 const complaintPopulate = [
   { path: 'reportedBy', select: 'name email role isActive' },
   { path: 'assignedMunicipalOffice', select: 'name type zone workload maxCapacity isActive' },
-  { path: 'duplicateInfo.masterComplaintId', select: 'title status category' }
+  { path: 'duplicateInfo.masterComplaintId', select: 'title status category' },
+  {
+    path: 'statusHistory.updatedBy',
+    select: 'name email role municipalOfficeId',
+    populate: { path: 'municipalOfficeId', select: 'name type zone' }
+  }
 ];
 
 const resolveAssignedOfficeName = async (assignedMunicipalOffice) => {
@@ -170,7 +176,16 @@ const createComplaint = async (payload, reportedBy, options = {}) => {
       assignedOfficeType: masterComplaint.assignedOfficeType || null,
       routingDistanceMeters: masterComplaint.routingDistanceMeters || null,
       routingReason: `Duplicate linked to master complaint ${masterComplaint._id.toString()}`,
-      reportedBy
+      reportedBy,
+      statusHistory: [
+        {
+          status: masterComplaint.assignedMunicipalOffice
+            ? COMPLAINT_STATUS.ASSIGNED
+            : COMPLAINT_STATUS.UNASSIGNED,
+          updatedBy: reportedBy,
+          updatedByRole: ROLES.CITIZEN
+        }
+      ]
     });
 
     await Complaint.findByIdAndUpdate(masterComplaint._id, {
@@ -224,7 +239,14 @@ const createComplaint = async (payload, reportedBy, options = {}) => {
     assignedOfficeType: routing.officeType,
     routingDistanceMeters: routing.distanceMeters,
     routingReason: routing.reason,
-    reportedBy
+    reportedBy,
+    statusHistory: [
+      {
+        status: routing.isAssigned ? COMPLAINT_STATUS.ASSIGNED : COMPLAINT_STATUS.UNASSIGNED,
+        updatedBy: reportedBy,
+        updatedByRole: ROLES.CITIZEN
+      }
+    ]
   });
 
   if (routing.isAssigned && routing.officeId) {
@@ -250,7 +272,7 @@ const createComplaint = async (payload, reportedBy, options = {}) => {
   };
 };
 
-const getComplaints = async (filters) => {
+const getComplaints = async (filters, requester = null) => {
   const query = {};
 
   if (filters.status) {
@@ -267,6 +289,18 @@ const getComplaints = async (filters) => {
 
   if (typeof filters.isDuplicate !== 'undefined') {
     query['duplicateInfo.isDuplicate'] = filters.isDuplicate === 'true';
+  }
+
+  if (requester?.role === ROLES.CITIZEN && !query.reportedBy) {
+    query.reportedBy = requester.id;
+  }
+
+  if (requester?.role === ROLES.OFFICER) {
+    const officer = await User.findById(requester.id).select('municipalOfficeId').lean();
+    if (!officer?.municipalOfficeId) {
+      return [];
+    }
+    query.assignedMunicipalOffice = officer.municipalOfficeId;
   }
 
   return Complaint.find(query)
@@ -288,15 +322,71 @@ const getComplaintById = async (id) => {
   return complaint;
 };
 
-const updateComplaintStatus = async ({ complaintId, status }) => {
+const toOptionalTrimmedText = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const buildStatusUpdateNotificationMessage = ({ status, remark, rejectionReason }) => {
+  if (status === COMPLAINT_STATUS.RESOLVED) {
+    return remark
+      ? `Your complaint has been resolved. Remark: ${remark}`
+      : 'Your complaint has been marked as resolved.';
+  }
+
+  if (status === COMPLAINT_STATUS.REJECTED) {
+    return rejectionReason
+      ? `Your complaint was rejected. Reason: ${rejectionReason}`
+      : 'Your complaint has been rejected.';
+  }
+
+  if (remark) {
+    return `Complaint status updated to ${status.replace(/_/g, ' ')}. Note: ${remark}`;
+  }
+
+  return `Complaint status updated to ${status.replace(/_/g, ' ')}.`;
+};
+
+const updateComplaintStatus = async ({
+  complaintId,
+  status,
+  remark,
+  rejectionReason,
+  updatedBy,
+  updatedByRole
+}) => {
   if (!COMPLAINT_STATUS_VALUES.includes(status)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid complaint status');
   }
 
   const complaint = await getComplaintOrThrow(complaintId);
   const previousStatus = complaint.status;
+  const remarkText = toOptionalTrimmedText(remark);
+  const rejectionReasonText = toOptionalTrimmedText(rejectionReason);
+
+  if (status === COMPLAINT_STATUS.RESOLVED && !remarkText) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Resolution remark is required when resolving a complaint');
+  }
+
+  if (status === COMPLAINT_STATUS.REJECTED && !rejectionReasonText) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Rejection reason is required when rejecting a complaint');
+  }
 
   complaint.status = status;
+  complaint.resolutionRemark = status === COMPLAINT_STATUS.RESOLVED ? remarkText : null;
+  complaint.rejectionReason = status === COMPLAINT_STATUS.REJECTED ? rejectionReasonText : null;
+  complaint.statusHistory.push({
+    status,
+    remark: remarkText,
+    rejectionReason: rejectionReasonText,
+    updatedBy: updatedBy || null,
+    updatedByRole: updatedByRole || null,
+    updatedAt: new Date()
+  });
   await complaint.save();
 
   const transitionedToTerminal =
@@ -324,7 +414,37 @@ const updateComplaintStatus = async ({ complaintId, status }) => {
     await sendNotification(
       complaint.reportedBy,
       'Complaint resolved',
-      'Your complaint has been marked as resolved.',
+      buildStatusUpdateNotificationMessage({
+        status,
+        remark: remarkText,
+        rejectionReason: rejectionReasonText
+      }),
+      complaint._id
+    );
+  }
+
+  if (status === COMPLAINT_STATUS.REJECTED) {
+    await sendNotification(
+      complaint.reportedBy,
+      'Complaint rejected',
+      buildStatusUpdateNotificationMessage({
+        status,
+        remark: remarkText,
+        rejectionReason: rejectionReasonText
+      }),
+      complaint._id
+    );
+  }
+
+  if (![COMPLAINT_STATUS.ASSIGNED, COMPLAINT_STATUS.RESOLVED, COMPLAINT_STATUS.REJECTED].includes(status)) {
+    await sendNotification(
+      complaint.reportedBy,
+      'Complaint status updated',
+      buildStatusUpdateNotificationMessage({
+        status,
+        remark: remarkText,
+        rejectionReason: rejectionReasonText
+      }),
       complaint._id
     );
   }
@@ -335,7 +455,7 @@ const updateComplaintStatus = async ({ complaintId, status }) => {
 const deleteComplaint = async ({ complaintId, requesterId, requesterRole }) => {
   const complaint = await getComplaintOrThrow(complaintId);
 
-  const isAdmin = requesterRole === ROLES.ADMIN;
+  const isAdmin = requesterRole === ROLES.ADMIN || requesterRole === ROLES.SUPER_ADMIN;
   if (!isAdmin && complaint.reportedBy.toString() !== requesterId) {
     throw new ApiError(StatusCodes.FORBIDDEN, 'You can only delete your own complaint');
   }

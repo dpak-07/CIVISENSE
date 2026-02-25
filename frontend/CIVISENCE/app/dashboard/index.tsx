@@ -19,6 +19,8 @@ import { sessionStore } from "@/lib/session";
 import { ComplaintRecord, getMyComplaints } from "@/lib/services/complaints";
 import { AppNotification, getNotifications } from "@/lib/services/notifications";
 
+const DASHBOARD_LIVE_POLL_INTERVAL_MS = 15000;
+
 type StatCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
@@ -115,13 +117,15 @@ export default function Dashboard() {
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!sessionStore.getAccessToken()) {
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const [complaintsData, notificationsData] = await Promise.all([
         getMyComplaints(),
@@ -133,13 +137,20 @@ export default function Dashboard() {
     } catch (error) {
       Alert.alert("Dashboard error", getApiErrorMessage(error));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       void loadData();
+      const timer = setInterval(() => {
+        void loadData({ silent: true });
+      }, DASHBOARD_LIVE_POLL_INTERVAL_MS);
+
+      return () => clearInterval(timer);
     }, [loadData])
   );
 

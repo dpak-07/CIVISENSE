@@ -1,166 +1,91 @@
-import { AnimatePresence } from "framer-motion";
-import { Building2, Home, LayoutDashboard, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
-import PublicOnlyRoute from "./components/auth/PublicOnlyRoute";
-import BootLoader from "./components/common/BootLoader";
-import PageTransition from "./components/common/PageTransition";
-import DashboardLayout from "./layouts/DashboardLayout";
-import LoginPage from "./pages/LoginPage";
-import LandingPage from "./pages/LandingPage";
-import NotFoundPage from "./pages/NotFoundPage";
-import UnauthorizedPage from "./pages/UnauthorizedPage";
-import MainAdminDashboard from "./pages/admin/MainAdminDashboard";
-import CitizenDashboard from "./pages/citizen/CitizenDashboard";
-import CitizenProfilePage from "./pages/citizen/CitizenProfilePage";
-import MunicipalDashboard from "./pages/municipal/MunicipalDashboard";
-import { USER_ROLES } from "./services/roleConfig";
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import SplashScreen from './components/SplashScreen';
 
-const adminNav = [{ label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard }];
+// Public pages
+import Home from './pages/public/Home';
+import About from './pages/public/About';
+import Developers from './pages/public/Developers';
+import Contact from './pages/public/Contact';
 
-const municipalNav = [{ label: "Assigned Issues", to: "/municipal/dashboard", icon: Building2 }];
+// Auth pages
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
 
-const citizenNav = [
-  { label: "My Dashboard", to: "/citizen/dashboard", icon: Home },
-  { label: "Profile", to: "/citizen/profile", icon: UserRound },
-];
+// Citizen pages
+import CitizenDashboard from './pages/citizen/CitizenDashboard';
+import CitizenComplaints from './pages/citizen/CitizenComplaints';
+import ComplaintDetail from './pages/citizen/ComplaintDetail';
 
-function AdminPage() {
-  return (
-    <DashboardLayout
-      title="Main Admin Dashboard"
-      subtitle="City-wide command center with analytics, map intelligence, and office controls."
-      navItems={adminNav}
-    >
-      <PageTransition>
-        <MainAdminDashboard />
-      </PageTransition>
-    </DashboardLayout>
-  );
+// Officer pages
+import OfficerDashboard from './pages/officer/OfficerDashboard';
+import OfficerComplaintManage from './pages/officer/OfficerComplaintManage';
+
+// Admin pages
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminComplaints from './pages/admin/AdminComplaints';
+import AdminOffices from './pages/admin/AdminOffices';
+import AdminZones from './pages/admin/AdminZones';
+import AdminAnalytics from './pages/admin/AdminAnalytics';
+import DevTools from './pages/admin/DevTools';
+
+export default function App() {
+    const [showSplash, setShowSplash] = useState(true);
+
+    useEffect(() => {
+        const timerId = window.setTimeout(() => {
+            setShowSplash(false);
+        }, 1850);
+
+        return () => window.clearTimeout(timerId);
+    }, []);
+
+    return (
+        <ThemeProvider>
+            {showSplash ? (
+                <SplashScreen />
+            ) : (
+                <BrowserRouter>
+                    <AuthProvider>
+                        <Routes>
+                        {/* Public */}
+                        <Route path="/" element={<Home />} />
+                        <Route path="/about" element={<About />} />
+                        <Route path="/developers" element={<Developers />} />
+                        <Route path="/contact" element={<Contact />} />
+
+                        {/* Auth */}
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/register" element={<Register />} />
+
+                        {/* Citizen */}
+                        <Route path="/citizen" element={<ProtectedRoute allowedRoles={['citizen']}><CitizenDashboard /></ProtectedRoute>} />
+                        <Route path="/citizen/complaints" element={<ProtectedRoute allowedRoles={['citizen']}><CitizenComplaints /></ProtectedRoute>} />
+                        <Route path="/citizen/complaint/:id" element={<ProtectedRoute allowedRoles={['citizen', 'admin', 'super_admin']}><ComplaintDetail /></ProtectedRoute>} />
+
+                        {/* Officer */}
+                        <Route path="/officer" element={<ProtectedRoute allowedRoles={['officer']}><OfficerDashboard /></ProtectedRoute>} />
+                        <Route path="/officer/complaints" element={<ProtectedRoute allowedRoles={['officer']}><OfficerDashboard /></ProtectedRoute>} />
+                        <Route path="/officer/complaint/:id" element={<ProtectedRoute allowedRoles={['officer', 'admin', 'super_admin']}><OfficerComplaintManage /></ProtectedRoute>} />
+
+                        {/* Admin */}
+                        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminDashboard /></ProtectedRoute>} />
+                        <Route path="/admin/complaints" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminComplaints /></ProtectedRoute>} />
+                        <Route path="/admin/complaint/:id" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><ComplaintDetail /></ProtectedRoute>} />
+                        <Route path="/admin/offices" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminOffices /></ProtectedRoute>} />
+                        <Route path="/admin/zones" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminZones /></ProtectedRoute>} />
+                        <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminAnalytics /></ProtectedRoute>} />
+                        <Route path="/devs" element={<ProtectedRoute allowedRoles={['super_admin']}><DevTools /></ProtectedRoute>} />
+
+                        {/* Catch-all */}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                        </Routes>
+                    </AuthProvider>
+                </BrowserRouter>
+            )}
+        </ThemeProvider>
+    );
 }
-
-function MunicipalPage() {
-  return (
-    <DashboardLayout
-      title="Municipal Office Dashboard"
-      subtitle="Manage assigned complaints, resolution timelines, and area-level performance."
-      navItems={municipalNav}
-    >
-      <PageTransition>
-        <MunicipalDashboard />
-      </PageTransition>
-    </DashboardLayout>
-  );
-}
-
-function CitizenDashboardPage() {
-  return (
-    <DashboardLayout
-      title="Citizen Dashboard"
-      subtitle="Track complaints, manage pending reports, and monitor live progress timelines."
-      navItems={citizenNav}
-    >
-      <PageTransition>
-        <CitizenDashboard />
-      </PageTransition>
-    </DashboardLayout>
-  );
-}
-
-function CitizenProfileRoutePage() {
-  return (
-    <DashboardLayout
-      title="Citizen Profile"
-      subtitle="Manage personal details and profile photo for your civic identity."
-      navItems={citizenNav}
-    >
-      <PageTransition>
-        <CitizenProfilePage />
-      </PageTransition>
-    </DashboardLayout>
-  );
-}
-
-function AppRoutes() {
-  const location = useLocation();
-
-  return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<LandingPage />} />
-
-        <Route
-          path="/login"
-          element={
-            <PublicOnlyRoute>
-              <LoginPage />
-            </PublicOnlyRoute>
-          }
-        />
-
-        <Route path="/unauthorized" element={<UnauthorizedPage />} />
-
-        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-        <Route
-          path="/admin/dashboard"
-          element={
-            <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
-              <AdminPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route path="/municipal" element={<Navigate to="/municipal/dashboard" replace />} />
-        <Route
-          path="/municipal/dashboard"
-          element={
-            <ProtectedRoute allowedRoles={[USER_ROLES.MUNICIPAL]}>
-              <MunicipalPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route path="/citizen" element={<Navigate to="/citizen/dashboard" replace />} />
-        <Route
-          path="/citizen/dashboard"
-          element={
-            <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
-              <CitizenDashboardPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/citizen/profile"
-          element={
-            <ProtectedRoute allowedRoles={[USER_ROLES.CITIZEN]}>
-              <CitizenProfileRoutePage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </AnimatePresence>
-  );
-}
-
-function App() {
-  const [isBooting, setIsBooting] = useState(true);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setIsBooting(false);
-    }, 2200);
-
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  if (isBooting) {
-    return <BootLoader text="Syncing civic intelligence..." />;
-  }
-
-  return <AppRoutes />;
-}
-
-export default App;

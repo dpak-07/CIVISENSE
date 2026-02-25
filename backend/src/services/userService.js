@@ -10,6 +10,7 @@ const sanitizeUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  municipalOfficeId: user.municipalOfficeId || null,
   language: user.language || 'en',
   isActive: user.isActive,
   profilePhotoUrl: user.profilePhotoUrl || null,

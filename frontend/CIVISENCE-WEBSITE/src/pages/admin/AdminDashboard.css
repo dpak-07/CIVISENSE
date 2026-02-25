@@ -1,0 +1,100 @@
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-6);
+    margin-bottom: var(--space-8);
+}
+
+.chart-card {
+    padding: var(--space-6);
+}
+
+.chart-card h3 {
+    font-size: var(--font-sm);
+    font-weight: 700;
+    margin-bottom: var(--space-4);
+    color: var(--text-secondary);
+}
+
+.office-capacity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--space-4);
+}
+
+.office-capacity-card {
+    padding: var(--space-4);
+    display: grid;
+    gap: var(--space-3);
+}
+
+.office-capacity-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.office-capacity-card__head h4 {
+    font-size: var(--font-sm);
+}
+
+.office-capacity-card__status {
+    border-radius: var(--radius-full);
+    padding: 3px 9px;
+    font-size: var(--font-xs);
+    font-weight: 700;
+}
+
+.office-capacity-card__status.active {
+    background: rgba(16, 185, 129, 0.14);
+    color: var(--success-light);
+}
+
+.office-capacity-card__status.inactive {
+    background: rgba(244, 63, 94, 0.14);
+    color: var(--danger-light);
+}
+
+.office-capacity-card__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+}
+
+.office-capacity-card__meta strong {
+    color: var(--text-primary);
+}
+
+.office-capacity-card__progress {
+    height: 8px;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    background: var(--bg-soft);
+    border: 1px solid var(--border-color);
+}
+
+.office-capacity-card__progress-fill {
+    height: 100%;
+    border-radius: inherit;
+}
+
+.office-capacity-card__progress-fill.normal {
+    background: linear-gradient(90deg, #0f62fe, #16d5d5);
+}
+
+.office-capacity-card__progress-fill.warn {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.office-capacity-card__progress-fill.critical {
+    background: linear-gradient(90deg, #ef4444, #f43f5e);
+}
+
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}

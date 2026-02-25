@@ -24,6 +24,8 @@ import { useAppPreferences } from "@/lib/appPreferencesContext";
 import { sessionStore } from "@/lib/session";
 import CiviSenseLogo from "@/components/branding/CiviSenseLogo";
 
+const HOME_LIVE_POLL_INTERVAL_MS = 15000;
+
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 
 type BadgeKind = "new" | "neutral" | "live";
@@ -84,6 +86,19 @@ export default function Home() {
     setAvatarLoadFailed(false);
   }, [user?.profilePhotoUrl]);
 
+  const loadHomeStats = useCallback(async () => {
+    try {
+      const [myComplaints, notifications] = await Promise.all([
+        getMyComplaints(),
+        getNotifications(),
+      ]);
+      setComplaints(myComplaints);
+      setUnreadNotifications(notifications.filter((item) => !item.read).length);
+    } catch {
+      // Keep home screen usable even if stats fail.
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       const token = sessionStore.getAccessToken();
@@ -92,21 +107,13 @@ export default function Home() {
         return;
       }
 
-      const load = async () => {
-        try {
-          const [myComplaints, notifications] = await Promise.all([
-            getMyComplaints(),
-            getNotifications(),
-          ]);
-          setComplaints(myComplaints);
-          setUnreadNotifications(notifications.filter((item) => !item.read).length);
-        } catch {
-          // Keep home screen usable even if stats fail.
-        }
-      };
+      void loadHomeStats();
+      const timer = setInterval(() => {
+        void loadHomeStats();
+      }, HOME_LIVE_POLL_INTERVAL_MS);
 
-      void load();
-    }, [])
+      return () => clearInterval(timer);
+    }, [loadHomeStats])
   );
 
   const stats = useMemo(() => {

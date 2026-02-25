@@ -60,6 +60,52 @@ const complaintSchema = new mongoose.Schema(
       enum: COMPLAINT_STATUS_VALUES,
       default: COMPLAINT_STATUS.REPORTED
     },
+    resolutionRemark: {
+      type: String,
+      trim: true,
+      maxlength: 1200,
+      default: null
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+      maxlength: 1200,
+      default: null
+    },
+    statusHistory: [
+      {
+        status: {
+          type: String,
+          enum: COMPLAINT_STATUS_VALUES,
+          required: true
+        },
+        remark: {
+          type: String,
+          trim: true,
+          maxlength: 1200,
+          default: null
+        },
+        rejectionReason: {
+          type: String,
+          trim: true,
+          maxlength: 1200,
+          default: null
+        },
+        updatedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          default: null
+        },
+        updatedByRole: {
+          type: String,
+          default: null
+        },
+        updatedAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
+    ],
     severityScore: {
       type: Number,
       default: 0

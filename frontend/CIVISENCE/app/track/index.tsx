@@ -25,13 +25,28 @@ import { useAppPreferences } from "@/lib/appPreferencesContext";
 import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
 import { getQueuedComplaints, type QueuedComplaint } from "@/lib/services/complaintQueue";
-import { ComplaintRecord, deleteComplaint, getMyComplaints } from "@/lib/services/complaints";
+import {
+  ComplaintRecord,
+  ComplaintStatusHistoryEntry,
+  deleteComplaint,
+  getMyComplaints,
+} from "@/lib/services/complaints";
+
+const TRACK_LIVE_POLL_INTERVAL_MS = 12000;
+const PRIORITY_RANK: Record<string, number> = {
+  critical: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+};
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
 type TimelineItem = {
   date: string;
   message: string;
+  note?: string;
+  color: string;
 };
 
 type ComplaintCardModel = {
@@ -45,6 +60,8 @@ type ComplaintCardModel = {
   priorityReason: string;
   assignedOfficeLabel: string;
   routingReason: string;
+  latestUpdateLabel: string;
+  latestUpdateText: string;
   dateLabel: string;
   locationLabel: string;
   progress: number;
@@ -84,6 +101,8 @@ const toStatusLabel = (status: string): string => {
 
 const toPriorityLabel = (priorityLevel?: string): string => {
   switch (priorityLevel) {
+    case "critical":
+      return "Critical";
     case "high":
       return "High";
     case "medium":
@@ -94,6 +113,9 @@ const toPriorityLabel = (priorityLevel?: string): string => {
       return "Low";
   }
 };
+
+const toPriorityRank = (priorityLevel?: string): number =>
+  PRIORITY_RANK[(priorityLevel || "low").toLowerCase()] ?? 0;
 
 const toProgress = (status: string): number => {
   switch (status) {
@@ -170,13 +192,198 @@ const toDetailedPriorityReason = (complaint: ComplaintRecord): string => {
   return "No priority explanation yet";
 };
 
+const hasText = (value?: string | null): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+const toDisplayText = (value?: string | null): string | null =>
+  hasText(value) ? value.trim() : null;
+
+const toReadableStatus = (status?: string): string =>
+  (status || "reported")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const toReadableRole = (role?: string | null): string | null => {
+  if (!hasText(role)) {
+    return null;
+  }
+  return role
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const toTimestamp = (value?: string): number => {
+  if (!value) {
+    return 0;
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getLatestStatusEntry = (
+  complaint: ComplaintRecord,
+  status?: string
+): ComplaintStatusHistoryEntry | null => {
+  const history = complaint.statusHistory || [];
+  const filtered = status
+    ? history.filter((item) => item.status === status)
+    : history;
+
+  if (filtered.length === 0) {
+    return null;
+  }
+
+  return [...filtered].sort(
+    (left, right) => toTimestamp(right.updatedAt) - toTimestamp(left.updatedAt)
+  )[0];
+};
+
+const getResolutionRemark = (complaint: ComplaintRecord): string | null => {
+  const topLevel = toDisplayText(complaint.resolutionRemark);
+  if (topLevel) {
+    return topLevel;
+  }
+  return toDisplayText(getLatestStatusEntry(complaint, "resolved")?.remark);
+};
+
+const getRejectionReason = (complaint: ComplaintRecord): string | null => {
+  const topLevel = toDisplayText(complaint.rejectionReason);
+  if (topLevel) {
+    return topLevel;
+  }
+
+  const latestRejected = getLatestStatusEntry(complaint, "rejected");
+  return (
+    toDisplayText(latestRejected?.rejectionReason) ||
+    toDisplayText(latestRejected?.remark)
+  );
+};
+
+const toStatusUpdateDetails = (
+  complaint: ComplaintRecord,
+  entry: ComplaintStatusHistoryEntry
+): { message: string; note?: string; color: string } => {
+  const status = entry.status || complaint.status;
+  const remark = toDisplayText(entry.remark);
+  const rejectionReason =
+    toDisplayText(entry.rejectionReason) ||
+    (status === "rejected" ? getRejectionReason(complaint) : null);
+
+  if (status === "resolved") {
+    return {
+      message: "Issue resolved",
+      note: remark || getResolutionRemark(complaint) || undefined,
+      color: "#10b981",
+    };
+  }
+
+  if (status === "rejected") {
+    return {
+      message: "Issue rejected",
+      note: rejectionReason || "Marked invalid by municipality",
+      color: "#ef4444",
+    };
+  }
+
+  if (status === "assigned") {
+    return {
+      message: "Assigned to office",
+      note:
+        complaint.assignedMunicipalOffice?.name ||
+        complaint.assignedOfficeType?.replace(/_/g, " ") ||
+        "Municipal office assignment completed",
+      color: "#3b82f6",
+    };
+  }
+
+  if (status === "in_progress") {
+    return {
+      message: "Work in progress",
+      note:
+        remark ||
+        (complaint.assignedMunicipalOffice?.name
+          ? `Handled by ${complaint.assignedMunicipalOffice.name}`
+          : "Team is working on this issue"),
+      color: "#f59e0b",
+    };
+  }
+
+  return {
+    message: `Status updated: ${toReadableStatus(status)}`,
+    note: remark || undefined,
+    color: getStatusColor(status),
+  };
+};
+
+const toLatestUpdate = (
+  complaint: ComplaintRecord
+): { label: string; text: string } => {
+  const resolutionRemark = getResolutionRemark(complaint);
+  if (resolutionRemark) {
+    return { label: "Resolution Remark", text: resolutionRemark };
+  }
+
+  const rejectionReason = getRejectionReason(complaint);
+  if (rejectionReason) {
+    return { label: "Rejection Reason", text: rejectionReason };
+  }
+
+  const latestStatus = getLatestStatusEntry(complaint);
+  const role = toReadableRole(latestStatus?.updatedByRole);
+  const remark = toDisplayText(latestStatus?.remark);
+  if (remark) {
+    const labelBase = latestStatus?.status
+      ? `${toReadableStatus(latestStatus.status)} Note`
+      : "Latest Update";
+    return { label: labelBase, text: remark };
+  }
+
+  if (role) {
+    return { label: "Latest Update", text: `Updated by ${role}` };
+  }
+
+  return {
+    label: "Routing",
+    text: complaint.routingReason || "Routing details unavailable",
+  };
+};
+
 const toTimeline = (complaint: ComplaintRecord, assignedOfficeLabel: string): TimelineItem[] => {
   const timeline: TimelineItem[] = [
     {
       date: formatDate(complaint.createdAt),
       message: "Report submitted",
+      color: "#2563eb",
     },
   ];
+
+  if (complaint.priority?.level) {
+    timeline.push({
+      date: formatDate(complaint.updatedAt || complaint.createdAt),
+      message: `Priority set: ${toPriorityLabel(complaint.priority.level)}`,
+      note: toDetailedPriorityReason(complaint),
+      color: "#f59e0b",
+    });
+  }
+
+  const statusHistory = complaint.statusHistory || [];
+  if (statusHistory.length > 0) {
+    const statusEvents = [...statusHistory]
+      .sort(
+        (left, right) => toTimestamp(left.updatedAt) - toTimestamp(right.updatedAt)
+      )
+      .map((entry) => {
+        const details = toStatusUpdateDetails(complaint, entry);
+        return {
+          date: formatDate(entry.updatedAt || complaint.updatedAt || complaint.createdAt),
+          message: details.message,
+          note: details.note,
+          color: details.color,
+        };
+      });
+
+    return [...timeline, ...statusEvents];
+  }
 
   if (complaint.status === "assigned") {
     timeline.push({
@@ -185,6 +392,7 @@ const toTimeline = (complaint: ComplaintRecord, assignedOfficeLabel: string): Ti
         assignedOfficeLabel !== "Not assigned yet"
           ? `Assigned to ${assignedOfficeLabel}`
           : "Assigned to municipal office",
+      color: "#3b82f6",
     });
   }
 
@@ -195,6 +403,7 @@ const toTimeline = (complaint: ComplaintRecord, assignedOfficeLabel: string): Ti
         assignedOfficeLabel !== "Not assigned yet"
           ? `Work in progress by ${assignedOfficeLabel}`
           : "Work in progress",
+      color: "#f59e0b",
     });
   }
 
@@ -205,6 +414,8 @@ const toTimeline = (complaint: ComplaintRecord, assignedOfficeLabel: string): Ti
         assignedOfficeLabel !== "Not assigned yet"
           ? `Issue resolved by ${assignedOfficeLabel}`
           : "Issue resolved",
+      note: getResolutionRemark(complaint) || undefined,
+      color: "#10b981",
     });
   }
 
@@ -212,6 +423,8 @@ const toTimeline = (complaint: ComplaintRecord, assignedOfficeLabel: string): Ti
     timeline.push({
       date: formatDate(complaint.updatedAt),
       message: "Issue rejected",
+      note: getRejectionReason(complaint) || undefined,
+      color: "#ef4444",
     });
   }
 
@@ -220,6 +433,7 @@ const toTimeline = (complaint: ComplaintRecord, assignedOfficeLabel: string): Ti
 
 const toViewModel = (complaint: ComplaintRecord): ComplaintCardModel => {
   const assignedOfficeLabel = toAssignedOfficeLabel(complaint);
+  const latestUpdate = toLatestUpdate(complaint);
 
   return {
     id: complaint._id,
@@ -232,6 +446,8 @@ const toViewModel = (complaint: ComplaintRecord): ComplaintCardModel => {
     priorityReason: toDetailedPriorityReason(complaint),
     assignedOfficeLabel,
     routingReason: complaint.routingReason || "Routing details unavailable",
+    latestUpdateLabel: latestUpdate.label,
+    latestUpdateText: latestUpdate.text,
     dateLabel: formatDate(complaint.createdAt),
     locationLabel: toLocationLabel(complaint),
     progress: toProgress(complaint.status),
@@ -240,6 +456,24 @@ const toViewModel = (complaint: ComplaintRecord): ComplaintCardModel => {
     timeline: toTimeline(complaint, assignedOfficeLabel),
   };
 };
+
+const toSortedUnresolvedComplaints = (
+  records: ComplaintRecord[]
+): ComplaintRecord[] =>
+  records
+    .filter((item) => isUnresolvedStatus(item.status))
+    .sort((left, right) => {
+      const priorityDiff =
+        toPriorityRank(right.priority?.level) - toPriorityRank(left.priority?.level);
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+
+      return (
+        toTimestamp(right.updatedAt || right.createdAt) -
+        toTimestamp(left.updatedAt || left.createdAt)
+      );
+    });
 
 const getStatusGradient = (status: string): [string, string] => {
   switch (status) {
@@ -258,6 +492,8 @@ const getStatusGradient = (status: string): [string, string] => {
 
 const getPriorityColor = (priority: string): string => {
   switch (priority) {
+    case "Critical":
+      return "#b91c1c";
     case "High":
       return "#ef4444";
     case "Medium":
@@ -429,7 +665,11 @@ export default function TrackComplaints() {
     [animateSheetTo, sheetTranslateY]
   );
 
-  const loadComplaints = useCallback(async (isRefresh = false) => {
+  const loadComplaints = useCallback(
+    async ({
+      isRefresh = false,
+      silent = false,
+    }: { isRefresh?: boolean; silent?: boolean } = {}) => {
     const user = sessionStore.getUser();
     if (!sessionStore.getAccessToken() || !user?.id) {
       setAuthMissing(true);
@@ -445,7 +685,7 @@ export default function TrackComplaints() {
 
     if (isRefresh) {
       setRefreshing(true);
-    } else {
+    } else if (!silent) {
       setLoading(true);
     }
 
@@ -460,8 +700,8 @@ export default function TrackComplaints() {
 
     try {
       const records = await getMyComplaints();
-      const unresolved = records.filter((item) => isUnresolvedStatus(item.status));
-      setComplaints(unresolved.map(toViewModel));
+      const unresolvedSorted = toSortedUnresolvedComplaints(records);
+      setComplaints(unresolvedSorted.map(toViewModel));
       setSyncInfoMessage(null);
     } catch (error) {
       const message = getApiErrorMessage(error);
@@ -479,10 +719,14 @@ export default function TrackComplaints() {
         Alert.alert("Could not load complaints", message);
       }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
       setRefreshing(false);
     }
-  }, []);
+    },
+    []
+  );
 
   const handleDeleteComplaintFromList = useCallback(
     async (complaintId: string) => {
@@ -497,9 +741,33 @@ export default function TrackComplaints() {
     []
   );
 
+  useEffect(() => {
+    if (!selectedComplaint) {
+      return;
+    }
+    const latest = complaints.find((item) => item.id === selectedComplaint.id);
+    if (!latest) {
+      setSelectedComplaint(null);
+      return;
+    }
+    if (
+      latest.statusRaw !== selectedComplaint.statusRaw ||
+      latest.priorityLabel !== selectedComplaint.priorityLabel ||
+      latest.latestUpdateText !== selectedComplaint.latestUpdateText ||
+      latest.timeline.length !== selectedComplaint.timeline.length
+    ) {
+      setSelectedComplaint(latest);
+    }
+  }, [complaints, selectedComplaint]);
+
   useFocusEffect(
     useCallback(() => {
       void loadComplaints();
+      const timer = setInterval(() => {
+        void loadComplaints({ silent: true });
+      }, TRACK_LIVE_POLL_INTERVAL_MS);
+
+      return () => clearInterval(timer);
     }, [loadComplaints])
   );
 
@@ -581,7 +849,10 @@ export default function TrackComplaints() {
           <Text style={[styles.headerTitle, { color: palette.text }]}>Unresolved Issues</Text>
           <Text style={[styles.headerSubtitle, { color: palette.subtext }]}>Live complaint pipeline</Text>
         </View>
-        <Pressable onPress={() => void loadComplaints(true)} style={[styles.refreshButton, { backgroundColor: palette.buttonBg }]}>
+        <Pressable
+          onPress={() => void loadComplaints({ isRefresh: true })}
+          style={[styles.refreshButton, { backgroundColor: palette.buttonBg }]}
+        >
           <Ionicons name="refresh" size={22} color={palette.buttonIcon} />
         </Pressable>
       </View>
@@ -637,7 +908,12 @@ export default function TrackComplaints() {
         data={complaints}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadComplaints(true)} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void loadComplaints({ isRefresh: true })}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="document-text-outline" size={52} color={palette.emptyIcon} />
@@ -667,6 +943,12 @@ export default function TrackComplaints() {
                     <Text style={[styles.cardMeta, { color: palette.subtext }]}>{item.locationLabel} | {item.dateLabel}</Text>
                     <Text style={[styles.cardOffice, { color: palette.accent }]} numberOfLines={1}>
                       Office: {item.assignedOfficeLabel}
+                    </Text>
+                    <Text style={[styles.cardUpdateLabel, { color: palette.subtext }]}>
+                      {item.latestUpdateLabel}
+                    </Text>
+                    <Text style={[styles.cardUpdateText, { color: palette.subtext }]} numberOfLines={2}>
+                      {item.latestUpdateText}
                     </Text>
                   </View>
                 </View>
@@ -829,14 +1111,20 @@ export default function TrackComplaints() {
                   <Text style={styles.modalLabel}>Routing</Text>
                   <Text style={styles.modalValue}>{selectedComplaint?.routingReason || "-"}</Text>
 
+                  <Text style={styles.modalLabel}>{selectedComplaint?.latestUpdateLabel || "Latest Update"}</Text>
+                  <Text style={styles.modalValue}>{selectedComplaint?.latestUpdateText || "-"}</Text>
+
                   <Text style={styles.modalSectionTitle}>Timeline</Text>
                   <View style={styles.timelineList}>
                     <View style={styles.timelineMainLine} />
                     {selectedComplaint?.timeline.map((item, index) => (
                       <View key={`${item.date}-${item.message}-${index}`} style={styles.timelineItem}>
-                        <View style={styles.timelineDot} />
+                        <View style={[styles.timelineDot, { backgroundColor: item.color }]} />
                         <View style={styles.timelineContent}>
                           <Text style={styles.timelineMessage}>{item.message}</Text>
+                          {item.note ? (
+                            <Text style={styles.timelineNote}>{item.note}</Text>
+                          ) : null}
                           <Text style={styles.timelineDate}>{item.date}</Text>
                         </View>
                       </View>
@@ -1151,6 +1439,20 @@ const styles = StyleSheet.create({
     color: "#1d4ed8",
     fontWeight: "600",
   },
+  cardUpdateLabel: {
+    marginTop: 5,
+    fontSize: 10.5,
+    textTransform: "uppercase",
+    fontWeight: "700",
+    color: "#64748b",
+  },
+  cardUpdateText: {
+    marginTop: 1,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: "#475569",
+    fontWeight: "600",
+  },
   progressBlock: {
     marginBottom: 12,
   },
@@ -1432,6 +1734,13 @@ const styles = StyleSheet.create({
     color: "#0f172a",
     fontSize: 13,
     fontWeight: "700",
+  },
+  timelineNote: {
+    marginTop: 1,
+    color: "#475569",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "500",
   },
   timelineDate: {
     color: "#64748b",

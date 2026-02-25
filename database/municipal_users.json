@@ -1,0 +1,416 @@
+[
+  {
+    "name": "Ambattur Zonal Office Officer",
+    "email": "ambattur zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Ambattur Zonal Office"
+  },
+  {
+    "name": "Anna Nagar Zonal Office Officer",
+    "email": "anna nagar zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Anna Nagar Zonal Office"
+  },
+  {
+    "name": "Teynampet Zonal Office Officer",
+    "email": "teynampet zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Teynampet Zonal Office"
+  },
+  {
+    "name": "Royapuram Zonal Office Officer",
+    "email": "royapuram zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Royapuram Zonal Office"
+  },
+  {
+    "name": "Perungudi Zonal Office Officer",
+    "email": "perungudi zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Perungudi Zonal Office"
+  },
+  {
+    "name": "Alandur Zonal Office Officer",
+    "email": "alandur zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Alandur Zonal Office"
+  },
+  {
+    "name": "Madhavaram Zonal Office Officer",
+    "email": "madhavaram zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Madhavaram Zonal Office"
+  },
+  {
+    "name": "Sholinganallur Zonal Office Officer",
+    "email": "sholinganallur zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Sholinganallur Zonal Office"
+  },
+  {
+    "name": "Valasaravakkam Zonal Office Officer",
+    "email": "valasaravakkam zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Valasaravakkam Zonal Office"
+  },
+  {
+    "name": "Kodambakkam Zonal Office Officer",
+    "email": "kodambakkam zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Kodambakkam Zonal Office"
+  },
+  {
+    "name": "Adyar Zonal Office Officer",
+    "email": "adyar zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Adyar Zonal Office"
+  },
+  {
+    "name": "Guindy Zonal Office Officer",
+    "email": "guindy zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Guindy Zonal Office"
+  },
+  {
+    "name": "Red Hills Zonal Office Officer",
+    "email": "red hills zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Red Hills Zonal Office"
+  },
+  {
+    "name": "Manali Zonal Office Officer",
+    "email": "manali zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Manali Zonal Office"
+  },
+  {
+    "name": "Thiru Vi Ka Nagar Zonal Office Officer",
+    "email": "thiru vi ka nagar zonal office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Thiru Vi Ka Nagar Zonal Office"
+  },
+  {
+    "name": "Mogappair Sub Office Officer",
+    "email": "mogappair sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Mogappair Sub Office"
+  },
+  {
+    "name": "Korattur Sub Office Officer",
+    "email": "korattur sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Korattur Sub Office"
+  },
+  {
+    "name": "Aminjikarai Sub Office Officer",
+    "email": "aminjikarai sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Aminjikarai Sub Office"
+  },
+  {
+    "name": "Shenoy Nagar Sub Office Officer",
+    "email": "shenoy nagar sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Shenoy Nagar Sub Office"
+  },
+  {
+    "name": "Alwarpet Sub Office Officer",
+    "email": "alwarpet sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Alwarpet Sub Office"
+  },
+  {
+    "name": "Nandanam Sub Office Officer",
+    "email": "nandanam sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Nandanam Sub Office"
+  },
+  {
+    "name": "Washermanpet Sub Office Officer",
+    "email": "washermanpet sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Washermanpet Sub Office"
+  },
+  {
+    "name": "Tondiarpet Sub Office Officer",
+    "email": "tondiarpet sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Tondiarpet Sub Office"
+  },
+  {
+    "name": "Thoraipakkam Sub Office Officer",
+    "email": "thoraipakkam sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Thoraipakkam Sub Office"
+  },
+  {
+    "name": "Kandanchavadi Sub Office Officer",
+    "email": "kandanchavadi sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Kandanchavadi Sub Office"
+  },
+  {
+    "name": "Nanganallur Sub Office Officer",
+    "email": "nanganallur sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Nanganallur Sub Office"
+  },
+  {
+    "name": "St Thomas Mount Sub Office Officer",
+    "email": "st thomas mount sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "St Thomas Mount Sub Office"
+  },
+  {
+    "name": "Perambur Sub Office Officer",
+    "email": "perambur sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Perambur Sub Office"
+  },
+  {
+    "name": "Puzhal Sub Office Officer",
+    "email": "puzhal sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Puzhal Sub Office"
+  },
+  {
+    "name": "Karapakkam Sub Office Officer",
+    "email": "karapakkam sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Karapakkam Sub Office"
+  },
+  {
+    "name": "Semmenchery Sub Office Officer",
+    "email": "semmenchery sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Semmenchery Sub Office"
+  },
+  {
+    "name": "Porur Sub Office Officer",
+    "email": "porur sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Porur Sub Office"
+  },
+  {
+    "name": "Ramapuram Sub Office Officer",
+    "email": "ramapuram sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Ramapuram Sub Office"
+  },
+  {
+    "name": "Vadapalani Sub Office Officer",
+    "email": "vadapalani sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Vadapalani Sub Office"
+  },
+  {
+    "name": "Saligramam Sub Office Officer",
+    "email": "saligramam sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Saligramam Sub Office"
+  },
+  {
+    "name": "Thiruvanmiyur Sub Office Officer",
+    "email": "thiruvanmiyur sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Thiruvanmiyur Sub Office"
+  },
+  {
+    "name": "Besant Nagar Sub Office Officer",
+    "email": "besant nagar sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Besant Nagar Sub Office"
+  },
+  {
+    "name": "Saidapet Sub Office Officer",
+    "email": "saidapet sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Saidapet Sub Office"
+  },
+  {
+    "name": "Velachery Sub Office Officer",
+    "email": "velachery sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Velachery Sub Office"
+  },
+  {
+    "name": "Puzhal Camp Sub Office Officer",
+    "email": "puzhal camp sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Puzhal Camp Sub Office"
+  },
+  {
+    "name": "Moolakadai Sub Office Officer",
+    "email": "moolakadai sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Moolakadai Sub Office"
+  },
+  {
+    "name": "Tiruvottiyur Sub Office Officer",
+    "email": "tiruvottiyur sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Tiruvottiyur Sub Office"
+  },
+  {
+    "name": "Sathangadu Sub Office Officer",
+    "email": "sathangadu sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Sathangadu Sub Office"
+  },
+  {
+    "name": "Periyar Nagar Sub Office Officer",
+    "email": "periyar nagar sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Periyar Nagar Sub Office"
+  },
+  {
+    "name": "Kolathur Sub Office Officer",
+    "email": "kolathur sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Kolathur Sub Office"
+  },
+  {
+    "name": "Puhal Sub Office Officer",
+    "email": "puhal sub office",
+    "password": "1234",
+    "role": "officer",
+    "language": "en",
+    "isActive": true,
+    "municipalOfficeName": "Puzhal Sub Office"
+  }
+]

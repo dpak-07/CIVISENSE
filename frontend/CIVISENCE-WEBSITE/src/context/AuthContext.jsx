@@ -1,82 +1,87 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { authService } from "../services/authService";
-import { isRole } from "../services/roleConfig";
-import { tokenStorage } from "../services/tokenStorage";
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { login as apiLogin, register as apiRegister, logout as apiLogout } from '../api/auth';
+import { clearAuthSession, isDemoSession, setAuthSession } from '../utils/authStorage';
 
 const AuthContext = createContext(null);
-
-const getInitialAuthState = () => {
-  const token = tokenStorage.getToken();
-  const user = tokenStorage.getUser();
-
-  if (!token || !user || !isRole(user.role)) {
-    tokenStorage.clear();
-    return {
-      token: null,
-      user: null,
-      isAuthenticated: false,
-    };
-  }
-
-  return {
-    token,
-    user,
-    isAuthenticated: true,
-  };
-};
+const DEMO_LOGIN_ID = 'abc';
+const DEMO_LOGIN_PASSWORD = '1234';
 
 export function AuthProvider({ children }) {
-  const [authState, setAuthState] = useState(getInitialAuthState);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-  const login = useCallback(async (payload) => {
-    const response = await authService.login(payload);
-    tokenStorage.persistAuth(response.token, response.user);
-    setAuthState({
-      token: response.token,
-      user: response.user,
-      isAuthenticated: true,
-    });
-    return response;
-  }, []);
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        const accessToken = localStorage.getItem('accessToken');
+        if (storedUser && accessToken) {
+            try {
+                setUser(JSON.parse(storedUser));
+            } catch {
+                clearAuthSession();
+            }
+        }
+        setLoading(false);
+    }, []);
 
-  const signupCitizen = useCallback(async (payload) => {
-    const response = await authService.signupCitizen(payload);
-    tokenStorage.persistAuth(response.token, response.user);
-    setAuthState({
-      token: response.token,
-      user: response.user,
-      isAuthenticated: true,
-    });
-    return response;
-  }, []);
+    const login = useCallback(async (email, password, preferredRole = 'citizen') => {
+        const normalizedLogin = email.trim().toLowerCase();
+        const isDemoCreds = normalizedLogin === DEMO_LOGIN_ID && password === DEMO_LOGIN_PASSWORD;
+        const isAllowedDemoRole = preferredRole === 'admin' || preferredRole === 'officer';
 
-  const logout = useCallback(() => {
-    tokenStorage.clear();
-    setAuthState({
-      token: null,
-      user: null,
-      isAuthenticated: false,
-    });
-  }, []);
+        if (isDemoCreds && isAllowedDemoRole) {
+            const demoUser = {
+                id: `demo-${preferredRole}`,
+                name: preferredRole === 'admin' ? 'Demo Admin' : 'Demo Officer',
+                email: `${preferredRole}@demo.local`,
+                role: preferredRole,
+                isDemo: true
+            };
 
-  const value = useMemo(
-    () => ({
-      ...authState,
-      login,
-      signupCitizen,
-      logout,
-    }),
-    [authState, login, signupCitizen, logout]
-  );
+            setAuthSession({
+                user: demoUser,
+                accessToken: `demo-access-${preferredRole}`,
+                refreshToken: `demo-refresh-${preferredRole}`,
+                isDemo: true
+            });
+            setUser(demoUser);
+            return demoUser;
+        }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+        const { data } = await apiLogin({ email, password });
+        const { user: userData, accessToken, refreshToken } = data.data;
+        setAuthSession({ user: userData, accessToken, refreshToken, isDemo: false });
+        setUser(userData);
+        return userData;
+    }, []);
+
+    const register = useCallback(async (formData) => {
+        const { data } = await apiRegister(formData);
+        const { user: userData, accessToken, refreshToken } = data.data;
+        setAuthSession({ user: userData, accessToken, refreshToken, isDemo: false });
+        setUser(userData);
+        return userData;
+    }, []);
+
+    const logout = useCallback(async () => {
+        try {
+            const demoSession = isDemoSession();
+            const refreshToken = localStorage.getItem('refreshToken');
+            if (!demoSession && refreshToken) await apiLogout(refreshToken);
+        } catch {
+            /* ignore */
+        } finally {
+            clearAuthSession();
+            setUser(null);
+        }
+    }, []);
+
+    const value = { user, loading, login, register, logout, isAuthenticated: !!user };
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used inside AuthProvider.");
-  }
-  return context;
-};
+export function useAuth() {
+    const context = useContext(AuthContext);
+    if (!context) throw new Error('useAuth must be used within AuthProvider');
+    return context;
+}

@@ -29,6 +29,8 @@ import { getNotifications, AppNotification } from "@/lib/services/notifications"
 import { getMunicipalOffices, MunicipalOffice } from "@/lib/services/municipalOffices";
 import { removeProfilePhoto, uploadProfilePhoto } from "@/lib/services/users";
 
+const PROFILE_LIVE_POLL_INTERVAL_MS = 20000;
+
 type TabKey = "statistics" | "reports" | "zones";
 type ZoneRow = {
   id: string;
@@ -136,6 +138,11 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadData();
+      const timer = setInterval(() => {
+        void loadData();
+      }, PROFILE_LIVE_POLL_INTERVAL_MS);
+
+      return () => clearInterval(timer);
     }, [loadData])
   );
 

@@ -15,7 +15,7 @@ router.get('/:id', complaintController.getComplaintById);
 router.delete('/:id', complaintController.deleteComplaint);
 router.patch(
   '/:id/status',
-  allowRoles(ROLES.OFFICER, ROLES.ADMIN),
+  allowRoles(ROLES.OFFICER, ROLES.ADMIN, ROLES.SUPER_ADMIN),
   complaintController.updateComplaintStatus
 );
 

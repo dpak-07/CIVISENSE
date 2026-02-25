@@ -35,6 +35,11 @@ const municipalOfficeSchema = new mongoose.Schema(
         }
       }
     },
+    mapLink: {
+      type: String,
+      trim: true,
+      default: null
+    },
     workload: {
       type: Number,
       default: 0,

@@ -1,0 +1,70 @@
+.new-complaint-card {
+    max-width: 720px;
+}
+
+.new-complaint-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.file-upload input[type="file"] {
+    display: none;
+}
+
+.file-upload__label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    border: 2px dashed var(--border-light);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--text-muted);
+    font-size: var(--font-sm);
+    overflow: hidden;
+}
+
+.file-upload__label:hover {
+    border-color: var(--primary);
+    color: var(--text-secondary);
+}
+
+.file-upload__preview {
+    max-height: 200px;
+    border-radius: var(--radius-md);
+    object-fit: cover;
+}
+
+.location-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.location-section>label {
+    font-size: var(--font-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.location-inputs {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.location-inputs .input {
+    flex: 1;
+    min-width: 120px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-color);
+}
