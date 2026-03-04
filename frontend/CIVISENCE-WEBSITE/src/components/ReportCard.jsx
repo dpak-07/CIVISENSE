@@ -48,7 +48,9 @@ export default function ReportCard({
 
             <div className="report-card__body">
                 <div className="report-card__head">
-                    <Link to={detailPath} className="complaint-link">{complaint.title}</Link>
+                    <Link to={detailPath} className="complaint-link report-card__title" title={complaint.title}>
+                        {complaint.title}
+                    </Link>
                     <StatusBadge status={complaint.status} />
                 </div>
 
@@ -69,16 +71,14 @@ export default function ReportCard({
                     </p>
                 )}
 
-                <div className="report-card__path">
-                    <span className="text-muted">Image Path:</span>
-                    {imageUrl ? (
-                        <a href={imageUrl} target="_blank" rel="noreferrer" className="report-card__path-link">
-                            {compactPath(imageUrl)}
+                {imageUrl && (
+                    <div className="report-card__path">
+                        <span className="text-muted">Evidence:</span>
+                        <a href={imageUrl} target="_blank" rel="noreferrer" className="report-card__path-link" title={compactPath(imageUrl)}>
+                            Open uploaded image
                         </a>
-                    ) : (
-                        <span className="text-muted">{compactPath(imageUrl)}</span>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {(showStatusControl || showReviewButton || onDelete) && (
                     <div className="report-card__actions">

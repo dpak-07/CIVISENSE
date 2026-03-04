@@ -141,8 +141,29 @@ const sendNotification = async (userId, title, message, complaintId = null) => {
   };
 };
 
-const getUserNotifications = async (userId) =>
-  Notification.find({ userId }).sort({ createdAt: -1 }).lean();
+const getUserNotifications = async (userId, options = {}) => {
+  const pageRaw = Number(options.page);
+  const pageSizeRaw = Number(options.pageSize);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const pageSizeCandidate = Number.isFinite(pageSizeRaw) && pageSizeRaw > 0 ? Math.floor(pageSizeRaw) : 20;
+  const pageSize = Math.min(pageSizeCandidate, 100);
+  const skip = (page - 1) * pageSize;
+
+  const [items, total] = await Promise.all([
+    Notification.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(pageSize).lean(),
+    Notification.countDocuments({ userId })
+  ]);
+
+  return {
+    items,
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize)
+    }
+  };
+};
 
 const markNotificationRead = async ({ notificationId, userId }) =>
   Notification.findOneAndUpdate(

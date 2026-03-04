@@ -1,7 +1,8 @@
 .reports-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 420px));
     gap: var(--space-5);
+    justify-content: center;
 }
 
 .report-card {
@@ -63,6 +64,14 @@
     min-width: 0;
 }
 
+.report-card__title {
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
 .report-card__meta {
     display: flex;
     flex-wrap: wrap;
@@ -99,6 +108,7 @@
 .report-card__path-link {
     color: var(--accent-light);
     font-size: var(--font-xs);
+    font-weight: 700;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

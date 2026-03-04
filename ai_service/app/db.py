@@ -2,7 +2,7 @@ import logging
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection, AsyncIOMotorDatabase
-from pymongo.errors import ServerSelectionTimeoutError
+from pymongo.errors import OperationFailure, ServerSelectionTimeoutError
 
 from app.config import Settings
 
@@ -56,7 +56,17 @@ class MongoDB:
         self.complaints = self.database[self.settings.mongo_complaints_collection]
         self.sensitive_locations = self.database[self.settings.mongo_sensitive_locations_collection]
         self.ai_blacklist = self.database[self.settings.mongo_ai_blacklist_collection]
-        await self.ai_blacklist.create_index("userId", unique=True, name="userId_unique")
+        await self._create_index_safe(
+            self.complaints,
+            [("priority.aiProcessed", 1), ("priority.aiProcessingStatus", 1), ("createdAt", 1)],
+            name="ai_processing_queue_idx",
+        )
+        await self._create_index_safe(
+            self.complaints,
+            [("createdAt", -1)],
+            name="complaints_created_at_idx",
+        )
+        await self._create_index_safe(self.ai_blacklist, "userId", unique=True, name="userId_unique")
 
         logger.info(
             "Connected to MongoDB database=%s replica_set=%s uri=%s",
@@ -80,6 +90,20 @@ class MongoDB:
                 "priority.aiProcessingStatus": "pending",
             }
         )
+
+    async def _create_index_safe(self, collection: AsyncIOMotorCollection, keys, **kwargs) -> None:
+        try:
+            await collection.create_index(keys, **kwargs)
+        except OperationFailure as exc:
+            # Existing deployments may already have equivalent index specs with auto-generated names.
+            # In that case, skip instead of failing service startup.
+            if exc.code == 85 or "already exists with a different name" in str(exc):
+                logger.warning(
+                    "Index already exists with a different name on %s. Reusing existing index.",
+                    collection.name,
+                )
+                return
+            raise
 
     def _build_client(self, uri: str) -> AsyncIOMotorClient:
         return AsyncIOMotorClient(

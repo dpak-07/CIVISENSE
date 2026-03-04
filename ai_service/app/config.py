@@ -1,12 +1,26 @@
+import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_SHARED_ENV = PROJECT_ROOT / "backend" / ".env"
+DEFAULT_LOCAL_ENV = PROJECT_ROOT / "ai_service" / ".env"
+
+env_file_override = os.getenv("CIVISENSE_ENV_FILE")
+if env_file_override:
+    SELECTED_ENV_FILE = env_file_override
+elif DEFAULT_SHARED_ENV.exists():
+    SELECTED_ENV_FILE = str(DEFAULT_SHARED_ENV)
+else:
+    SELECTED_ENV_FILE = str(DEFAULT_LOCAL_ENV)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=SELECTED_ENV_FILE,
         env_file_encoding="utf-8",
         case_sensitive=False,
         populate_by_name=True,
@@ -46,6 +60,7 @@ class Settings(BaseSettings):
     retry_interval_seconds: int = Field(60, alias="RETRY_INTERVAL_SECONDS")
     max_retry_attempts: int = Field(3, alias="MAX_RETRY_ATTEMPTS")
     retry_batch_size: int = Field(25, alias="RETRY_BATCH_SIZE")
+    monitor_api_key: str = Field("", alias="AI_MONITOR_API_KEY")
 
 
 @lru_cache(maxsize=1)

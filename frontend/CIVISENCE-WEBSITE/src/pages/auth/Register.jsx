@@ -117,121 +117,127 @@ export default function Register() {
     };
 
     return (
-        <div className="auth-page auth-page--app">
-            <div className="auth-card auth-card--app glass auth-card--split">
-                <div className="auth-left">
-                    <div className="auth-brand-row">
-                        <div className="auth-logo-pill">
-                            <CiviSenseLogo size={28} />
-                        </div>
-                        <span className="auth-brand-name">CiviSense</span>
-                    </div>
-                    <h1>Create Account</h1>
-                    <p>Join citizens helping make the city better.</p>
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#f4f8ff_0%,#eaf2fb_100%)] px-3 py-4 sm:px-4">
+            <div className="pointer-events-none absolute -left-20 bottom-4 h-60 w-60 rounded-full bg-cyan-300/30 blur-3xl" />
+            <div className="pointer-events-none absolute -right-20 top-3 h-72 w-72 rounded-full bg-blue-300/30 blur-3xl" />
 
-                    <div className="auth-photo-box">
-                        <label className="auth-avatar__button" htmlFor="profilePhoto">
-                            {profilePreview ? (
-                                <img src={profilePreview} alt="Profile preview" />
-                            ) : (
-                                <span>+</span>
-                            )}
-                        </label>
-                        <input
-                            id="profilePhoto"
-                            type="file"
-                            accept="image/*"
-                            onChange={(event) => setProfilePhoto(event.target.files?.[0] || null)}
-                        />
-                        <span className="auth-avatar__hint">Add profile photo (optional)</span>
+            <div className="relative z-10 w-full max-w-5xl rounded-3xl border border-slate-200/80 bg-white/75 p-4 shadow-[0_22px_70px_rgba(15,23,42,0.16)] backdrop-blur-xl sm:p-5 lg:p-6">
+                <input
+                    id="profilePhoto"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(event) => setProfilePhoto(event.target.files?.[0] || null)}
+                />
+
+                <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white">
+                            <CiviSenseLogo size={22} />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-black tracking-tight text-slate-900">Create Account</h1>
+                            <p className="text-xs text-slate-500 sm:text-sm">Citizen signup with OTP verification</p>
+                        </div>
                     </div>
+                    <Link to="/" className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900">
+                        Back to home
+                    </Link>
                 </div>
 
-                <div className="auth-right">
-                    <div className="auth-right__top">
-                        <Link to="/" className="auth-back">
-                            Back to home
-                        </Link>
-                    </div>
+                {error && <div className="auth-error">{error}</div>}
+                {info && <div className="auth-info">{info}</div>}
 
-                    {error && <div className="auth-error">{error}</div>}
-                    {info && <div className="auth-info">{info}</div>}
+                <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
+                    <aside className="grid place-items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3">
+                        <label
+                            className="inline-flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-dashed border-sky-300 bg-sky-50 text-2xl font-bold text-sky-600"
+                            htmlFor="profilePhoto"
+                        >
+                            {profilePreview ? <img src={profilePreview} alt="Profile preview" className="h-full w-full object-cover" /> : <span>+</span>}
+                        </label>
+                        <p className="text-center text-xs text-slate-500">Add profile photo (optional)</p>
+                    </aside>
 
-                    <form onSubmit={handleSubmit} className="auth-form">
-                        <div className="input-group">
-                            <label htmlFor="name">Full Name</label>
-                            <input
-                                id="name"
-                                type="text"
-                                className="input"
-                                placeholder="Your name"
-                                value={name}
-                                onChange={(event) => setName(event.target.value)}
-                                required
-                            />
-                        </div>
+                    <div className="grid gap-3">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div className="input-group">
+                                <label htmlFor="name">Full Name</label>
+                                <input
+                                    id="name"
+                                    type="text"
+                                    className="input"
+                                    placeholder="Your name"
+                                    value={name}
+                                    onChange={(event) => setName(event.target.value)}
+                                    required
+                                />
+                            </div>
 
-                        <div className="input-group">
-                            <label htmlFor="email">Email</label>
-                            <input
-                                id="email"
-                                type="email"
-                                className="input"
-                                placeholder="you@example.com"
-                                value={email}
-                                onChange={(event) => setEmail(event.target.value)}
-                                required
-                            />
-                        </div>
-
-                        <div className="input-group">
-                            <label htmlFor="password">Password</label>
-                            <input
-                                id="password"
-                                type="password"
-                                className="input"
-                                placeholder="Minimum 8 characters"
-                                value={password}
-                                onChange={(event) => setPassword(event.target.value)}
-                                required
-                                minLength={8}
-                            />
-                            <div className="auth-strength">
-                                {[1, 2, 3, 4].map((item) => {
-                                    const active = passwordStrength >= item;
-                                    const tone =
-                                        passwordStrength <= 1
-                                            ? 'var(--danger)'
-                                            : passwordStrength <= 3
-                                            ? 'var(--warning)'
-                                            : 'var(--success)';
-                                    return (
-                                        <span
-                                            key={item}
-                                            className="auth-strength__bar"
-                                            style={{ backgroundColor: active ? tone : 'var(--border-light)' }}
-                                        />
-                                    );
-                                })}
+                            <div className="input-group">
+                                <label htmlFor="email">Email</label>
+                                <input
+                                    id="email"
+                                    type="email"
+                                    className="input"
+                                    placeholder="you@example.com"
+                                    value={email}
+                                    onChange={(event) => setEmail(event.target.value)}
+                                    required
+                                />
                             </div>
                         </div>
 
-                        <div className="input-group">
-                            <label htmlFor="confirmPassword">Confirm Password</label>
-                            <input
-                                id="confirmPassword"
-                                type="password"
-                                className="input"
-                                placeholder="Re-enter password"
-                                value={confirmPassword}
-                                onChange={(event) => setConfirmPassword(event.target.value)}
-                                required
-                            />
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div className="input-group">
+                                <label htmlFor="password">Password</label>
+                                <input
+                                    id="password"
+                                    type="password"
+                                    className="input"
+                                    placeholder="Minimum 8 characters"
+                                    value={password}
+                                    onChange={(event) => setPassword(event.target.value)}
+                                    required
+                                    minLength={8}
+                                />
+                                <div className="mt-1.5 flex gap-1">
+                                    {[1, 2, 3, 4].map((item) => {
+                                        const active = passwordStrength >= item;
+                                        const tone =
+                                            passwordStrength <= 1
+                                                ? 'var(--danger)'
+                                                : passwordStrength <= 3
+                                                ? 'var(--warning)'
+                                                : 'var(--success)';
+                                        return (
+                                            <span
+                                                key={item}
+                                                className="h-1 flex-1 rounded-full"
+                                                style={{ backgroundColor: active ? tone : 'var(--border-light)' }}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="input-group">
+                                <label htmlFor="confirmPassword">Confirm Password</label>
+                                <input
+                                    id="confirmPassword"
+                                    type="password"
+                                    className="input"
+                                    placeholder="Re-enter password"
+                                    value={confirmPassword}
+                                    onChange={(event) => setConfirmPassword(event.target.value)}
+                                    required
+                                />
+                            </div>
                         </div>
 
-                        <div className="auth-otp">
-                            <div className="auth-otp__row">
-                                <div className="input-group auth-otp__input">
+                        <div className="rounded-2xl border border-slate-200/80 bg-white p-3">
+                            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                                <div className="input-group">
                                     <label htmlFor="otp">Email OTP</label>
                                     <input
                                         id="otp"
@@ -245,7 +251,7 @@ export default function Register() {
                                 </div>
                                 <button
                                     type="button"
-                                    className="btn btn-ghost btn-sm auth-otp__btn"
+                                    className="btn btn-ghost btn-sm whitespace-nowrap"
                                     onClick={handleSendOtp}
                                     disabled={otpSending || otpCooldown > 0}
                                 >
@@ -256,20 +262,20 @@ export default function Register() {
                                         : 'Send OTP'}
                                 </button>
                             </div>
-                            <p className="auth-otp__hint">
-                                We will send the OTP to your Gmail address to verify your account.
+                            <p className="mt-2 text-xs text-slate-500">
+                                OTP will be sent to your email address.
                             </p>
                         </div>
 
-                        <button type="submit" className="btn btn-primary btn-lg auth-submit" disabled={loading}>
+                        <button type="submit" className="btn btn-primary btn-lg w-full" disabled={loading}>
                             {loading ? 'Creating account...' : 'Create Account'}
                         </button>
-                    </form>
 
-                    <p className="auth-footer">
-                        Already have an account? <Link to="/login">Sign in</Link>
-                    </p>
-                </div>
+                        <p className="text-sm text-slate-600">
+                            Already have an account? <Link to="/login" className="font-bold text-sky-700">Sign in</Link>
+                        </p>
+                    </div>
+                </form>
             </div>
         </div>
     );

@@ -1,14 +1,22 @@
 import axios from 'axios';
-import { clearAuthSession, isDemoSession } from '../utils/authStorage';
+import {
+    clearAuthSession,
+    getAccessToken,
+    getLegacyRefreshToken,
+    isDemoSession,
+} from '../utils/authStorage';
+
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
+    baseURL,
     headers: { 'Content-Type': 'application/json' },
-    timeout: 15000
+    timeout: 15000,
+    withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -29,9 +37,12 @@ const processQueue = (error, token = null) => {
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const originalRequest = error.config;
+        const originalRequest = error.config || {};
+        const isAuthRoute =
+            typeof originalRequest.url === 'string' &&
+            originalRequest.url.includes('/auth/refresh');
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
             if (isDemoSession()) {
                 return Promise.reject(error);
             }
@@ -41,6 +52,7 @@ api.interceptors.response.use(
                     failedQueue.push({ resolve, reject });
                 })
                     .then((token) => {
+                        originalRequest.headers = originalRequest.headers || {};
                         originalRequest.headers.Authorization = `Bearer ${token}`;
                         return api(originalRequest);
                     })
@@ -50,27 +62,21 @@ api.interceptors.response.use(
             originalRequest._retry = true;
             isRefreshing = true;
 
-            const refreshToken = localStorage.getItem('refreshToken');
-            if (!refreshToken) {
-                isRefreshing = false;
-                clearAuthSession();
-                window.location.href = '/login';
-                return Promise.reject(error);
-            }
-
             try {
+                const legacyRefreshToken = getLegacyRefreshToken();
+                const refreshPayload = legacyRefreshToken ? { refreshToken: legacyRefreshToken } : {};
+
                 const { data } = await axios.post(
-                    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/auth/refresh`,
-                    { refreshToken }
+                    `${baseURL}/auth/refresh`,
+                    refreshPayload,
+                    { withCredentials: true }
                 );
 
                 const newAccessToken = data.data.accessToken;
-                const newRefreshToken = data.data.refreshToken;
-
-                localStorage.setItem('accessToken', newAccessToken);
-                localStorage.setItem('refreshToken', newRefreshToken);
+                sessionStorage.setItem('accessToken', newAccessToken);
 
                 api.defaults.headers.Authorization = `Bearer ${newAccessToken}`;
+                originalRequest.headers = originalRequest.headers || {};
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
                 processQueue(null, newAccessToken);

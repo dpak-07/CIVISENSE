@@ -10,8 +10,8 @@ export const register = (formData) =>
         headers: { 'Content-Type': 'multipart/form-data' }
     });
 
-export const refreshToken = (token) =>
-    api.post('/auth/refresh', { refreshToken: token });
+export const refreshSession = (token = null) =>
+    api.post('/auth/refresh', token ? { refreshToken: token } : {});
 
-export const logout = (token) =>
-    api.post('/auth/logout', { refreshToken: token });
+export const logout = (token = null) =>
+    api.post('/auth/logout', token ? { refreshToken: token } : {});

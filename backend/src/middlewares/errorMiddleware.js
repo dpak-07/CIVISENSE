@@ -31,6 +31,13 @@ const normalizeError = (err) => {
     };
   }
 
+  if (err.message === 'CORS origin denied') {
+    return {
+      statusCode: StatusCodes.FORBIDDEN,
+      message: 'Request origin is not allowed by CORS policy'
+    };
+  }
+
   return {
     statusCode: err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
     message: err.message || 'Internal server error',

@@ -9,7 +9,11 @@ export default function Modal({
     subtitle = '',
     children,
     size = 'md',
-    closeOnBackdrop = true
+    closeOnBackdrop = true,
+    bodyScrollable = true,
+    overlayClassName = '',
+    modalClassName = '',
+    bodyClassName = ''
 }) {
     useEffect(() => {
         if (!isOpen) return undefined;
@@ -31,14 +35,38 @@ export default function Modal({
 
     if (!isOpen) return null;
 
+    const overlayClasses = [
+        'modal-overlay',
+        bodyScrollable ? '' : 'modal-overlay--stacked',
+        overlayClassName
+    ]
+        .filter(Boolean)
+        .join(' ');
+
+    const modalClasses = [
+        `modal modal--${size}`,
+        bodyScrollable ? '' : 'modal--static',
+        modalClassName
+    ]
+        .filter(Boolean)
+        .join(' ');
+
+    const bodyClasses = [
+        'modal__body',
+        bodyScrollable ? '' : 'modal__body--static',
+        bodyClassName
+    ]
+        .filter(Boolean)
+        .join(' ');
+
     return (
         <div
-            className="modal-overlay"
+            className={overlayClasses}
             onClick={closeOnBackdrop ? onClose : undefined}
             role="presentation"
         >
             <div
-                className={`modal modal--${size}`}
+                className={modalClasses}
                 role="dialog"
                 aria-modal="true"
                 aria-label={title}
@@ -53,7 +81,7 @@ export default function Modal({
                         <HiXMark />
                     </button>
                 </div>
-                <div className="modal__body">{children}</div>
+                <div className={bodyClasses}>{children}</div>
             </div>
         </div>
     );

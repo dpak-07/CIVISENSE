@@ -52,6 +52,13 @@ const getCoordinates = (location) => {
     return `${coordinates[1]}, ${coordinates[0]}`;
 };
 
+const normalizeSensitiveLocations = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.items)) return payload.items;
+    if (Array.isArray(payload?.results)) return payload.results;
+    return [];
+};
+
 export default function AdminZones() {
     const { user } = useAuth();
     const isSuperAdmin = user?.role === 'super_admin';
@@ -70,12 +77,16 @@ export default function AdminZones() {
 
     const loadZones = async () => {
         setLoading(true);
+        setError('');
         try {
             const { data } = await getSensitiveLocations();
-            setZones(data.data || []);
-        } catch {
+            setZones(normalizeSensitiveLocations(data?.data));
+        } catch (err) {
             if (isDemoSession()) {
                 setZones(DEMO_SENSITIVE_LOCATIONS);
+            } else {
+                setZones([]);
+                setError(getErrorMessage(err));
             }
         } finally {
             setLoading(false);

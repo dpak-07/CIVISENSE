@@ -55,6 +55,17 @@ const complaintSchema = new mongoose.Schema(
         }
       }
     },
+    city: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+      default: null
+    },
+    sensitiveLocation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SensitiveLocation',
+      default: null
+    },
     status: {
       type: String,
       enum: COMPLAINT_STATUS_VALUES,
@@ -189,5 +200,12 @@ complaintSchema.index({ location: '2dsphere' });
 complaintSchema.index({ category: 1 });
 complaintSchema.index({ status: 1 });
 complaintSchema.index({ 'priority.score': -1 });
+complaintSchema.index({ reportedBy: 1, createdAt: -1 });
+complaintSchema.index({ assignedMunicipalOffice: 1, createdAt: -1 });
+complaintSchema.index({ 'duplicateInfo.isDuplicate': 1, createdAt: -1 });
+complaintSchema.index({ 'priority.aiProcessed': 1, 'priority.aiProcessingStatus': 1, createdAt: 1 });
+complaintSchema.index({ category: 1, createdAt: -1 });
+complaintSchema.index({ city: 1, createdAt: -1 });
+complaintSchema.index({ sensitiveLocation: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Complaint', complaintSchema);

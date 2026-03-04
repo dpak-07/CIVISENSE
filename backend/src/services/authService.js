@@ -15,6 +15,7 @@ const SALT_ROUNDS = 12;
 const OTP_LENGTH = 6;
 const OTP_EXPIRES_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
+const OTP_RESEND_COOLDOWN_SECONDS = 60;
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
@@ -88,6 +89,17 @@ const requestRegisterOtp = async ({ email }) => {
   const existingUser = await User.findOne({ email: cleanEmail }).lean();
   if (existingUser) {
     throw new ApiError(StatusCodes.CONFLICT, 'Email already registered');
+  }
+
+  const latestOtp = await EmailOtp.findOne({ email: cleanEmail }).sort({ createdAt: -1 }).lean();
+  if (latestOtp?.createdAt) {
+    const secondsSinceLastOtp = Math.floor((Date.now() - new Date(latestOtp.createdAt).getTime()) / 1000);
+    if (secondsSinceLastOtp < OTP_RESEND_COOLDOWN_SECONDS) {
+      throw new ApiError(
+        StatusCodes.TOO_MANY_REQUESTS,
+        `Please wait ${OTP_RESEND_COOLDOWN_SECONDS - secondsSinceLastOtp}s before requesting another OTP`
+      );
+    }
   }
 
   const otp = String(crypto.randomInt(10 ** (OTP_LENGTH - 1), 10 ** OTP_LENGTH));

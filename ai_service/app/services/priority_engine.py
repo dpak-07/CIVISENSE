@@ -147,8 +147,12 @@ class PriorityEngine:
             text_phrase = "no strong severity keywords were detected"
 
         matched_type = getattr(geo_result, "matched_type", "none")
+        matched_name = getattr(geo_result, "matched_name", None)
         if matched_type and matched_type != "none":
-            geo_phrase = f"it is near a {matched_type}"
+            if isinstance(matched_name, str) and matched_name.strip():
+                geo_phrase = f"it is near sensitive location {matched_name.strip()} ({matched_type})"
+            else:
+                geo_phrase = f"it is near a {matched_type}"
         else:
             geo_phrase = "it is not near a sensitive location"
 

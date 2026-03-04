@@ -14,12 +14,16 @@ const createComplaint = asyncHandler(async (req, res) => {
 });
 
 const getComplaints = asyncHandler(async (req, res) => {
-  const complaints = await complaintService.getComplaints(req.query, req.user);
-  res.status(StatusCodes.OK).json({ success: true, data: complaints });
+  const result = await complaintService.getComplaints(req.query, req.user);
+  res.status(StatusCodes.OK).json({
+    success: true,
+    data: result.items,
+    pagination: result.pagination
+  });
 });
 
 const getComplaintById = asyncHandler(async (req, res) => {
-  const complaint = await complaintService.getComplaintById(req.params.id);
+  const complaint = await complaintService.getComplaintById(req.params.id, req.user);
   res.status(StatusCodes.OK).json({ success: true, data: complaint });
 });
 

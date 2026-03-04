@@ -127,13 +127,14 @@ CORS_ORIGIN=https://your-domain.com
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX=200
 AWS_REGION=<your-region>
+AWS_BUCKET_NAME=<your-bucket-name>
+# Optional: only if not using IAM role/default provider chain
 AWS_ACCESS_KEY_ID=<your-access-key-id>
 AWS_SECRET_ACCESS_KEY=<your-secret-access-key>
-AWS_BUCKET_NAME=<your-bucket-name>
 ```
 
 Notes:
-- In current backend code, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are mandatory.
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are optional when the EC2 instance role has S3 permissions.
 - Push notifications are optional. If needed, add Firebase env vars from `backend/FCM_SETUP.md`.
 
 ## Step 6: Configure AI Service (`/var/www/CIVISENCE/ai_service`)
@@ -149,14 +150,15 @@ pip install --only-binary=:all: -r requirements.txt
 deactivate
 ```
 
-2. Configure env:
+2. Configure env in shared backend file (AI service reads this automatically):
 
 ```bash
+cd /var/www/CIVISENCE/backend
 cp .env.example .env
 nano .env
 ```
 
-Minimum production values:
+Minimum AI-related values in `backend/.env`:
 
 ```env
 APP_NAME=CiviSense AI Decision Engine
@@ -327,17 +329,18 @@ sudo certbot renew --dry-run
 
 ## Step 12: S3 and IAM (for Backend Uploads)
 
-Backend uploads use AWS SDK and require these env vars:
+Backend uploads use AWS SDK and require:
 - `AWS_REGION`
+- `AWS_BUCKET_NAME`
+Optional when not using instance role/default credential chain:
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
-- `AWS_BUCKET_NAME`
 
 Recommended:
 
 1. Create S3 bucket (private by default).
 2. Create IAM policy with least-privilege S3 access to that bucket.
-3. Create IAM user/access key for backend env vars (or adjust backend code to use instance role credentials).
+3. Prefer EC2 instance role. Use IAM access keys only when role-based auth is not available.
 
 ## Step 13: Monitoring and Operations
 
@@ -357,6 +360,8 @@ Health checks:
 ```bash
 curl https://your-domain.com/health
 curl https://your-domain.com/ai/health
+# If AI_MONITOR_API_KEY is set:
+# curl -H "x-ai-monitor-key: <AI_MONITOR_API_KEY>" https://your-domain.com/ai/health
 ```
 
 ## Step 14: Update / Redeploy
@@ -387,7 +392,7 @@ sudo systemctl reload nginx
 ## Quick Troubleshooting
 
 - Backend not starting: check `backend/.env` and required variables.
-- AI service not starting: check `.venv` and `ai_service/.env`.
+- AI service not starting: check `.venv` and AI values in `backend/.env`.
 - 502 from Nginx: verify PM2 process status and local ports (`5000`, `8000`).
 - CORS error: set `CORS_ORIGIN` in backend `.env` to your actual frontend URL.
 - Build out-of-memory: use temporary swap before `npm run build`.

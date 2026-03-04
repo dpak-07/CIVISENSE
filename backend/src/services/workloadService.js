@@ -1,12 +1,18 @@
 ﻿const MunicipalOffice = require('../models/MunicipalOffice');
 
-const incrementWorkload = async (municipalOfficeId) => {
-  await MunicipalOffice.findByIdAndUpdate(municipalOfficeId, {
-    $inc: { workload: 1 }
-  });
+const incrementWorkload = async (municipalOfficeId, options = {}) => {
+  await MunicipalOffice.findByIdAndUpdate(
+    municipalOfficeId,
+    {
+      $inc: { workload: 1 }
+    },
+    {
+      session: options.session || null
+    }
+  );
 };
 
-const decrementWorkload = async (municipalOfficeId) => {
+const decrementWorkload = async (municipalOfficeId, options = {}) => {
   await MunicipalOffice.findOneAndUpdate(
     { _id: municipalOfficeId },
     [
@@ -17,7 +23,10 @@ const decrementWorkload = async (municipalOfficeId) => {
           }
         }
       }
-    ]
+    ],
+    {
+      session: options.session || null
+    }
   );
 };
 

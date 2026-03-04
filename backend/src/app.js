@@ -8,14 +8,30 @@ const loggingMiddleware = require('./middlewares/loggingMiddleware');
 const { notFoundHandler, errorHandler } = require('./middlewares/errorMiddleware');
 
 const app = express();
+const allowedOrigins = new Set((env.cors.origins || []).map((origin) => origin.toLowerCase()));
+
+const corsOriginResolver = (origin, callback) => {
+  // Requests like curl/postman may not send Origin header.
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
+
+  if (allowedOrigins.has(origin.toLowerCase())) {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error('CORS origin denied'));
+};
 
 app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(
   cors({
-    origin: env.corsOrigin === '*' ? true : env.corsOrigin.split(',').map((origin) => origin.trim()),
-    credentials: true
+    origin: corsOriginResolver,
+    credentials: env.cors.allowCredentials
   })
 );
 app.use(

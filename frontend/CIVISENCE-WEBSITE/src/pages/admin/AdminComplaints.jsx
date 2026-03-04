@@ -39,6 +39,14 @@ const getPriorityReason = (complaint) =>
     complaint?.priority?.reason ||
     'Priority reason not available';
 
+const getSensitiveLocationLabel = (complaint) => {
+    const location = complaint?.sensitiveLocation;
+    if (!location) return 'Not specified';
+    if (typeof location === 'string') return location;
+    const type = location.type || location.category;
+    return type ? `${location.name || 'Sensitive location'} (${type})` : location.name || 'Sensitive location';
+};
+
 const toUpdatedByLabel = (entry) => {
     if (entry?.updatedBy?.role === 'officer') {
         return entry.updatedBy?.municipalOfficeId?.name || entry.updatedBy?.name || 'Office Officer';
@@ -243,46 +251,56 @@ export default function AdminComplaints() {
                 </div>
             )}
 
-            <Modal isOpen={reviewOpen} onClose={closeReviewModal} title="Complaint Review" size="lg">
+            <Modal
+                isOpen={reviewOpen}
+                onClose={closeReviewModal}
+                title="Complaint Review"
+                size="xl"
+                bodyScrollable={false}
+            >
                 {loadingDetails ? (
                     <LoadingSpinner />
                 ) : selectedComplaint ? (
-                    <div className="admin-review">
+                    <div className="space-y-4 md:space-y-5">
                         {reviewError && <div className="auth-error">{reviewError}</div>}
 
-                        <div className="admin-review__grid">
-                            <div className="admin-review__section card">
+                        <div className="grid items-start gap-4 xl:grid-cols-12">
+                            <section className="card self-start xl:col-span-7 !p-4 md:!p-5">
                                 <h3>{selectedComplaint.title}</h3>
-                                <p className="admin-review__description">{selectedComplaint.description}</p>
+                                <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
+                                    {selectedComplaint.description}
+                                </p>
 
-                                <div className="admin-review__meta">
-                                    <div><span>Status:</span> {toStatusText(selectedComplaint.status)}</div>
-                                    <div><span>Category:</span> {selectedComplaint.category}</div>
-                                    <div><span>Priority:</span> {toStatusText(selectedComplaint.priority?.level || 'low')}</div>
-                                    <div><span>Created:</span> {formatDateTime(selectedComplaint.createdAt)}</div>
-                                    <div><span>Updated:</span> {formatDateTime(selectedComplaint.updatedAt)}</div>
+                                <div className="mt-4 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
+                                    <div><span className="font-semibold text-slate-500">Status:</span> {toStatusText(selectedComplaint.status)}</div>
+                                    <div><span className="font-semibold text-slate-500">Category:</span> {selectedComplaint.category}</div>
+                                    <div><span className="font-semibold text-slate-500">Priority:</span> {toStatusText(selectedComplaint.priority?.level || 'low')}</div>
+                                    <div><span className="font-semibold text-slate-500">City:</span> {selectedComplaint.city || 'Not provided'}</div>
+                                    <div><span className="font-semibold text-slate-500">Created:</span> {formatDateTime(selectedComplaint.createdAt)}</div>
+                                    <div><span className="font-semibold text-slate-500">Updated:</span> {formatDateTime(selectedComplaint.updatedAt)}</div>
                                 </div>
-                            </div>
+                            </section>
 
-                            <div className="admin-review__section card">
+                            <section className="card self-start xl:col-span-5 !p-4 md:!p-5">
                                 <h4>Report Details</h4>
-                                <div className="admin-review__meta">
-                                    <div><span>Reported By:</span> {selectedComplaint.reportedBy?.name || '-'}</div>
-                                    <div><span>Email:</span> {selectedComplaint.reportedBy?.email || '-'}</div>
-                                    <div><span>Location:</span> {toCoordinatesLabel(selectedComplaint)}</div>
-                                    <div><span>Priority Reason:</span> {getPriorityReason(selectedComplaint)}</div>
-                                    <div><span>Assigned Office:</span> {selectedComplaint.assignedMunicipalOffice?.name || selectedComplaint.assignedOfficeType || 'Pending'}</div>
+                                <div className="mt-3 grid gap-2 text-sm text-slate-600">
+                                    <div><span className="font-semibold text-slate-500">Reported By:</span> {selectedComplaint.reportedBy?.name || '-'}</div>
+                                    <div><span className="font-semibold text-slate-500">Email:</span> {selectedComplaint.reportedBy?.email || '-'}</div>
+                                    <div><span className="font-semibold text-slate-500">Location:</span> {toCoordinatesLabel(selectedComplaint)}</div>
+                                    <div><span className="font-semibold text-slate-500">Sensitive Location:</span> {getSensitiveLocationLabel(selectedComplaint)}</div>
+                                    <div><span className="font-semibold text-slate-500">Priority Reason:</span> {getPriorityReason(selectedComplaint)}</div>
+                                    <div><span className="font-semibold text-slate-500">Assigned Office:</span> {selectedComplaint.assignedMunicipalOffice?.name || selectedComplaint.assignedOfficeType || 'Pending'}</div>
                                 </div>
 
                                 {selectedComplaint.images?.[0]?.url && (
-                                    <div className="admin-review__image-wrap">
+                                    <div className="mt-4 grid gap-2">
                                         <img
                                             src={selectedComplaint.images[0].url}
                                             alt={selectedComplaint.title}
-                                            className="admin-review__image"
+                                            className="h-44 w-full rounded-xl border border-slate-200 object-cover"
                                         />
                                         <a
-                                            className="admin-review__image-link"
+                                            className="text-sm font-semibold text-sky-700"
                                             href={selectedComplaint.images[0].url}
                                             target="_blank"
                                             rel="noreferrer"
@@ -291,19 +309,19 @@ export default function AdminComplaints() {
                                         </a>
                                     </div>
                                 )}
-                            </div>
+                            </section>
                         </div>
 
                         {(selectedComplaint.resolutionRemark || selectedComplaint.rejectionReason) && (
-                            <div className="admin-review__section card">
+                            <div className="card !p-4 md:!p-5">
                                 <h4>Latest Decision Note</h4>
                                 {selectedComplaint.resolutionRemark && (
-                                    <p className="admin-review__note admin-review__note--ok">
+                                    <p className="mt-3 rounded-lg border border-emerald-300/70 bg-emerald-100/70 px-3 py-2 text-sm text-emerald-900">
                                         Resolution Remark: {selectedComplaint.resolutionRemark}
                                     </p>
                                 )}
                                 {selectedComplaint.rejectionReason && (
-                                    <p className="admin-review__note admin-review__note--warn">
+                                    <p className="mt-2 rounded-lg border border-rose-300/70 bg-rose-100/70 px-3 py-2 text-sm text-rose-900">
                                         Rejection Reason: {selectedComplaint.rejectionReason}
                                     </p>
                                 )}
@@ -311,13 +329,16 @@ export default function AdminComplaints() {
                         )}
 
                         {Array.isArray(selectedComplaint.statusHistory) && selectedComplaint.statusHistory.length > 0 && (
-                            <div className="admin-review__section card">
+                            <div className="card !p-4 md:!p-5">
                                 <h4>Status Timeline</h4>
-                                <div className="admin-review__timeline">
+                                <div className="mt-3 grid gap-2 md:grid-cols-2">
                                     {selectedComplaint.statusHistory.map((entry, index) => (
-                                        <div className="admin-review__timeline-item" key={`${entry.updatedAt}-${entry.status}-${index}`}>
-                                            <strong>{toStatusText(entry.status)}</strong>
-                                            <span>{formatDateTime(entry.updatedAt)}</span>
+                                        <div
+                                            className="rounded-xl border border-slate-200 bg-slate-50/90 p-3 text-xs text-slate-600"
+                                            key={`${entry.updatedAt}-${entry.status}-${index}`}
+                                        >
+                                            <strong className="text-sm text-slate-900">{toStatusText(entry.status)}</strong>
+                                            <p className="mt-1">{formatDateTime(entry.updatedAt)}</p>
                                             <p>Updated By: {toUpdatedByLabel(entry)}</p>
                                             {entry.remark && <p>Remark: {entry.remark}</p>}
                                             {entry.rejectionReason && <p>Rejection: {entry.rejectionReason}</p>}
@@ -327,15 +348,15 @@ export default function AdminComplaints() {
                             </div>
                         )}
 
-                        <div className="admin-review__actions card">
+                        <div className="card !p-4 md:!p-5">
                             <h4>Update Status</h4>
                             {statusLocked ? (
-                                <p className="admin-review__locked">
+                                <p className="mt-2 text-sm text-slate-500">
                                     This complaint is already terminal ({toStatusText(selectedComplaint.status)}).
                                 </p>
                             ) : (
                                 <>
-                                    <div className="admin-review__action-row">
+                                    <div className="mt-3 flex flex-wrap gap-2">
                                         <button
                                             type="button"
                                             className="btn btn-secondary"
@@ -354,7 +375,7 @@ export default function AdminComplaints() {
                                         </button>
                                     </div>
 
-                                    <div className="admin-review__reject">
+                                    <div className="mt-4 grid gap-2">
                                         <label htmlFor="reject-reason">Reject Complaint (Reason Required)</label>
                                         <textarea
                                             id="reject-reason"

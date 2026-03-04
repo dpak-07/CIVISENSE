@@ -5,8 +5,12 @@ const ApiError = require('../utils/ApiError');
 const notificationService = require('../services/notification.service');
 
 const getNotifications = asyncHandler(async (req, res) => {
-  const notifications = await notificationService.getUserNotifications(req.user.id);
-  res.status(StatusCodes.OK).json({ success: true, data: notifications });
+  const result = await notificationService.getUserNotifications(req.user.id, req.query);
+  res.status(StatusCodes.OK).json({
+    success: true,
+    data: result.items,
+    pagination: result.pagination
+  });
 });
 
 const markAsRead = asyncHandler(async (req, res) => {

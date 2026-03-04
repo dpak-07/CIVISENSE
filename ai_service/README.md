@@ -26,9 +26,14 @@ python -m venv .venv
 python -m pip install --upgrade pip
 pip install --only-binary=:all: -r requirements.txt
 ```
-6. Configure environment:
+6. Configure environment in the shared backend env file:
 ```powershell
-Copy-Item .env.example .env
+Copy-Item ..\backend\.env.example ..\backend\.env
+```
+The AI service reads `..\backend\.env` by default.  
+Optional override:
+```powershell
+$env:CIVISENSE_ENV_FILE="C:\path\to\backend\.env"
 ```
 For local standalone MongoDB, keep `MONGO_ALLOW_STANDALONE_FALLBACK=true` so a replica-set URI can automatically fall back to direct connection.
 
