@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api";
 import { AppLanguage } from "@/lib/preferences";
+import { normalizeMobileUploadUri } from "@/lib/services/uploadUtils";
 import { AuthUser, sessionStore } from "@/lib/session";
 import { Platform } from "react-native";
 
@@ -35,11 +36,12 @@ const updateSessionUser = async (user: AuthUser) => {
 
 export const uploadProfilePhoto = async (uri: string): Promise<AuthUser> => {
   const formData = new FormData();
-  const fileName = buildImageName(uri);
-  const mimeType = buildMimeType(uri);
+  const normalizedUri = await normalizeMobileUploadUri(uri);
+  const fileName = buildImageName(normalizedUri);
+  const mimeType = buildMimeType(normalizedUri);
 
   if (Platform.OS === "web") {
-    const imageResponse = await fetch(uri);
+    const imageResponse = await fetch(normalizedUri);
     const imageBlob = await imageResponse.blob();
     const file = new File([imageBlob], fileName, {
       type: imageBlob.type || mimeType,
@@ -47,14 +49,19 @@ export const uploadProfilePhoto = async (uri: string): Promise<AuthUser> => {
     formData.append("photo", file);
   } else {
     const file = {
-      uri,
+      uri: normalizedUri,
       name: fileName,
       type: mimeType,
     };
     formData.append("photo", file as unknown as Blob);
   }
 
-  const response = await apiClient.post<Envelope<AuthUser>>("/users/profile-photo", formData);
+  const response = await apiClient.post<Envelope<AuthUser>>("/users/profile-photo", formData, {
+    timeout: 60000,
+    headers: {
+      Accept: "application/json",
+    },
+  });
   const user = response.data.data;
   await updateSessionUser(user);
   return user;

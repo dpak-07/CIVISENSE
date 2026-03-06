@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Main Admin",
+    "email": "mainadmin@gmail.com",
+    "password": "1234",
+    "role": "super_admin",
+    "language": "en",
+    "isActive": true
+  }
+]

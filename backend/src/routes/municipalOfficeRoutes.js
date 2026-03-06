@@ -8,8 +8,21 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-router.post('/',municipalOfficeController.createMunicipalOffice);
+router.post(
+  '/',
+  allowRoles(ROLES.SUPER_ADMIN),
+  municipalOfficeController.createMunicipalOffice
+);
 router.get('/', municipalOfficeController.getMunicipalOffices);
-router.patch('/:id', allowRoles(ROLES.ADMIN), municipalOfficeController.updateMunicipalOffice);
+router.patch(
+  '/:id',
+  allowRoles(ROLES.SUPER_ADMIN),
+  municipalOfficeController.updateMunicipalOffice
+);
+router.delete(
+  '/:id',
+  allowRoles(ROLES.SUPER_ADMIN),
+  municipalOfficeController.deleteMunicipalOffice
+);
 
 module.exports = router;

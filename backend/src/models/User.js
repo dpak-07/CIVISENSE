@@ -27,6 +27,11 @@ const userSchema = new mongoose.Schema(
       enum: ROLE_VALUES,
       default: 'citizen'
     },
+    municipalOfficeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'MunicipalOffice',
+      default: null
+    },
     language: {
       type: String,
       enum: ['en', 'ta', 'hi'],
@@ -35,6 +40,25 @@ const userSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true
+    },
+    misuseReportCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    isBlacklisted: {
+      type: Boolean,
+      default: false
+    },
+    blacklistedAt: {
+      type: Date,
+      default: null
+    },
+    blacklistReason: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null
     },
     deviceToken: {
       type: String,

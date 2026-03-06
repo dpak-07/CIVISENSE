@@ -13,6 +13,7 @@ from app.services.image_downloader import ImageDownloader
 from app.services.mobilenet_service import MobileNetService
 from app.services.model_loader import YOLOModelService
 from app.services.priority_engine import PriorityEngine
+from app.services.s3_uploader import S3Uploader
 from app.workers.change_stream_listener import ChangeStreamListener
 from app.workers.processing_queue import ProcessingQueue
 from app.workers.retry_worker import RetryWorker
@@ -32,6 +33,7 @@ async def lifespan(app: FastAPI):
     image_downloader = ImageDownloader(settings)
     model_service = YOLOModelService(settings)
     mobilenet_service = MobileNetService(settings)
+    s3_uploader = S3Uploader(settings)
     processing_queue = None
     change_stream_listener = None
     retry_worker = None
@@ -46,7 +48,7 @@ async def lifespan(app: FastAPI):
 
         assert mongodb.complaints is not None
         assert mongodb.sensitive_locations is not None
-        priority_engine = PriorityEngine(mongodb.complaints, mongodb.sensitive_locations)
+        priority_engine = PriorityEngine(settings, mongodb.complaints, mongodb.sensitive_locations)
         ai_processor = AIProcessor(
             settings=settings,
             mongodb=mongodb,
@@ -54,6 +56,7 @@ async def lifespan(app: FastAPI):
             mobilenet_service=mobilenet_service,
             image_downloader=image_downloader,
             priority_engine=priority_engine,
+            s3_uploader=s3_uploader,
             runtime_stats=runtime_stats,
         )
 

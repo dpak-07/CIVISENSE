@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Linking,
   Modal,
   Platform,
@@ -61,8 +62,13 @@ export default function SettingsScreen() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const canUseNotifications = Platform.OS !== "web";
   const isDark = theme.mode === "dark";
+
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [user?.profilePhotoUrl]);
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.read).length,
@@ -332,9 +338,17 @@ export default function SettingsScreen() {
               },
             ]}
           >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{(user?.name || "U").charAt(0).toUpperCase()}</Text>
-            </View>
+            {user?.profilePhotoUrl && !avatarLoadFailed ? (
+              <Image
+                source={{ uri: user.profilePhotoUrl }}
+                style={styles.avatarImage}
+                onError={() => setAvatarLoadFailed(true)}
+              />
+            ) : (
+              <View style={styles.avatar}>
+                <Ionicons name="person" size={20} color="#64748B" />
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>
                 {user?.name || "Guest"}
@@ -700,9 +714,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#E2E8F0",
   },
-  avatarText: { color: "#FFF", fontSize: 20, fontWeight: "800" },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+  },
   name: { fontSize: 15, fontWeight: "700" },
   email: { fontSize: 12, marginTop: 2 },
   badge: {

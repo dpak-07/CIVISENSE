@@ -24,6 +24,8 @@ import { useAppPreferences } from "@/lib/appPreferencesContext";
 import { sessionStore } from "@/lib/session";
 import CiviSenseLogo from "@/components/branding/CiviSenseLogo";
 
+const HOME_LIVE_POLL_INTERVAL_MS = 15000;
+
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 
 type BadgeKind = "new" | "neutral" | "live";
@@ -69,6 +71,7 @@ export default function Home() {
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [user, setUser] = useState(sessionStore.getUser());
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const { preferences, setDarkMode, t } = useAppPreferences();
   const isDarkMode = preferences.darkMode;
 
@@ -79,6 +82,23 @@ export default function Home() {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [user?.profilePhotoUrl]);
+
+  const loadHomeStats = useCallback(async () => {
+    try {
+      const [myComplaints, notifications] = await Promise.all([
+        getMyComplaints(),
+        getNotifications(),
+      ]);
+      setComplaints(myComplaints);
+      setUnreadNotifications(notifications.filter((item) => !item.read).length);
+    } catch {
+      // Keep home screen usable even if stats fail.
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       const token = sessionStore.getAccessToken();
@@ -87,21 +107,13 @@ export default function Home() {
         return;
       }
 
-      const load = async () => {
-        try {
-          const [myComplaints, notifications] = await Promise.all([
-            getMyComplaints(),
-            getNotifications(),
-          ]);
-          setComplaints(myComplaints);
-          setUnreadNotifications(notifications.filter((item) => !item.read).length);
-        } catch {
-          // Keep home screen usable even if stats fail.
-        }
-      };
+      void loadHomeStats();
+      const timer = setInterval(() => {
+        void loadHomeStats();
+      }, HOME_LIVE_POLL_INTERVAL_MS);
 
-      void load();
-    }, [])
+      return () => clearInterval(timer);
+    }, [loadHomeStats])
   );
 
   const stats = useMemo(() => {
@@ -236,10 +248,17 @@ export default function Home() {
                 </Pressable>
                 <Pressable onPress={() => router.push("/profile")}
                 >
-                  <Image
-                    source={{ uri: user?.profilePhotoUrl || `https://i.pravatar.cc/150?u=${user?.id || "guest"}` }}
-                    style={styles.avatar}
-                  />
+                  {user?.profilePhotoUrl && !avatarLoadFailed ? (
+                    <Image
+                      source={{ uri: user.profilePhotoUrl }}
+                      style={styles.avatar}
+                      onError={() => setAvatarLoadFailed(true)}
+                    />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Ionicons name="person" size={16} color="#64748B" />
+                    </View>
+                  )}
                 </Pressable>
               </View>
             </Animated.View>
@@ -444,6 +463,16 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     borderWidth: 2,
     borderColor: "#FFFFFF",
+  },
+  avatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    backgroundColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   heroWrap: {

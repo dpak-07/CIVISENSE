@@ -1,17 +1,29 @@
 import { apiClient } from "@/lib/api";
 import { API_BASE_URL, API_BASE_URL_FALLBACKS } from "@/lib/config";
+import { AppLanguage } from "@/lib/preferences";
 import { sessionStore } from "@/lib/session";
 import { Platform } from "react-native";
 import { refreshSession } from "@/lib/services/authRefresh";
+import { normalizeMobileUploadUri } from "@/lib/services/uploadUtils";
 
 export type ComplaintImage = {
   url: string;
   uploadedAt?: string;
 };
 
+export type ComplaintStatus =
+  | "reported"
+  | "unassigned"
+  | "assigned"
+  | "in_progress"
+  | "resolved"
+  | "rejected";
+
+export type ComplaintPriorityLevel = "critical" | "high" | "medium" | "low";
+
 export type ComplaintPriority = {
   score?: number;
-  level?: string;
+  level?: ComplaintPriorityLevel | string;
   reason?: string | null;
   reasonSentence?: string | null;
   aiProcessed?: boolean;
@@ -28,14 +40,25 @@ export type AssignedMunicipalOffice = {
   isActive?: boolean;
 };
 
+export type ComplaintStatusHistoryEntry = {
+  status: ComplaintStatus | string;
+  remark?: string | null;
+  rejectionReason?: string | null;
+  updatedByRole?: string | null;
+  updatedAt?: string;
+};
+
 export type ComplaintRecord = {
   _id: string;
   title: string;
   description: string;
   category: string;
-  status: string;
+  status: ComplaintStatus | string;
   createdAt: string;
   updatedAt: string;
+  resolutionRemark?: string | null;
+  rejectionReason?: string | null;
+  statusHistory?: ComplaintStatusHistoryEntry[];
   location?: {
     type: "Point";
     coordinates: [number, number];
@@ -71,6 +94,8 @@ type Envelope<T> = {
   success: boolean;
   message?: string;
   data: T;
+  details?: unknown;
+  error?: string;
 };
 
 let androidPreferredBaseUrl = API_BASE_URL;
@@ -98,6 +123,61 @@ const buildMimeType = (uri: string): string => {
     return "image/png";
   }
   return "image/jpeg";
+};
+
+const getRequestLanguage = (): AppLanguage => {
+  const userLanguage = sessionStore.getUser()?.language;
+  if (userLanguage === "ta" || userLanguage === "hi" || userLanguage === "en") {
+    return userLanguage;
+  }
+  return "en";
+};
+
+const parseFetchEnvelope = async <T>(
+  response: Response
+): Promise<{ envelope: Envelope<T> | null; fallbackMessage: string | null }> => {
+  const rawText = await response.text().catch(() => "");
+  if (!rawText) {
+    return { envelope: null, fallbackMessage: null };
+  }
+
+  try {
+    const json = JSON.parse(rawText) as Envelope<T>;
+    return { envelope: json, fallbackMessage: null };
+  } catch {
+    const trimmed = rawText.trim();
+    return { envelope: null, fallbackMessage: trimmed ? trimmed : null };
+  }
+};
+
+const formatEnvelopeErrorMessage = (
+  payload: Envelope<unknown> | null,
+  fallbackMessage: string | null,
+  status: number
+): string => {
+  const base =
+    payload?.message ||
+    payload?.error ||
+    fallbackMessage ||
+    `Request failed (${status})`;
+
+  const details = payload?.details;
+  if (typeof details === "string" && details.trim()) {
+    return `${base}: ${details.trim()}`;
+  }
+  if (Array.isArray(details) && details.length > 0) {
+    return `${base}: ${details.map((item) => String(item)).join("; ")}`;
+  }
+  if (details && typeof details === "object") {
+    const summary = Object.entries(details as Record<string, unknown>)
+      .map(([key, value]) => `${key}: ${String(value)}`)
+      .join("; ");
+    if (summary) {
+      return `${base}: ${summary}`;
+    }
+  }
+
+  return base;
 };
 
 const toBackendCategory = (category: string): string =>
@@ -132,11 +212,12 @@ export const createComplaint = async (
     formData.append("latitude", String(input.latitude));
 
     if (input.imageUri) {
-      const fileName = buildImageName(input.imageUri);
-      const mimeType = buildMimeType(input.imageUri);
+      const normalizedUri = await normalizeMobileUploadUri(input.imageUri);
+      const fileName = buildImageName(normalizedUri);
+      const mimeType = buildMimeType(normalizedUri);
 
       if (Platform.OS === "web") {
-        const imageResponse = await fetch(input.imageUri);
+        const imageResponse = await fetch(normalizedUri);
         const imageBlob = await imageResponse.blob();
         const file = new File([imageBlob], fileName, {
           type: imageBlob.type || mimeType,
@@ -144,7 +225,7 @@ export const createComplaint = async (
         formData.append("image", file);
       } else {
         const file = {
-          uri: input.imageUri,
+          uri: normalizedUri,
           name: fileName,
           type: mimeType,
         };
@@ -156,6 +237,8 @@ export const createComplaint = async (
   };
 
   if (Platform.OS === "android") {
+    const language = getRequestLanguage();
+
     const sendRequest = async (token?: string) => {
       let lastError: Error | null = null;
 
@@ -165,6 +248,8 @@ export const createComplaint = async (
             method: "POST",
             headers: {
               Accept: "application/json",
+              "Accept-Language": language,
+              "X-App-Language": language,
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: await buildFormData(),
@@ -187,12 +272,15 @@ export const createComplaint = async (
       }
     }
 
-    const payload = (await response.json().catch(() => null)) as Envelope<
-      CreateComplaintResult
-    > | null;
+    const { envelope: payload, fallbackMessage } =
+      await parseFetchEnvelope<CreateComplaintResult>(response);
 
     if (!response.ok) {
-      const message = payload?.message || `Request failed (${response.status})`;
+      const message = formatEnvelopeErrorMessage(
+        payload as Envelope<unknown> | null,
+        fallbackMessage,
+        response.status
+      );
       throw new Error(message);
     }
 

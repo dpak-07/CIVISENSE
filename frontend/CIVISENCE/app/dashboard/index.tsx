@@ -12,11 +12,14 @@ import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiErrorMessage } from "@/lib/api";
 import { safeBack } from "@/lib/navigation";
 import { sessionStore } from "@/lib/session";
 import { ComplaintRecord, getMyComplaints } from "@/lib/services/complaints";
 import { AppNotification, getNotifications } from "@/lib/services/notifications";
+
+const DASHBOARD_LIVE_POLL_INTERVAL_MS = 15000;
 
 type StatCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -109,17 +112,20 @@ const toNotificationActivity = (notification: AppNotification): ActivityItem => 
 });
 
 export default function Dashboard() {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!sessionStore.getAccessToken()) {
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const [complaintsData, notificationsData] = await Promise.all([
         getMyComplaints(),
@@ -131,13 +137,20 @@ export default function Dashboard() {
     } catch (error) {
       Alert.alert("Dashboard error", getApiErrorMessage(error));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       void loadData();
+      const timer = setInterval(() => {
+        void loadData({ silent: true });
+      }, DASHBOARD_LIVE_POLL_INTERVAL_MS);
+
+      return () => clearInterval(timer);
     }, [loadData])
   );
 
@@ -197,7 +210,7 @@ export default function Dashboard() {
   return (
     <LinearGradient colors={["#f1f6fc", "#e0eaff"]} style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <Pressable onPress={() => safeBack("/")}>
             <Ionicons name="arrow-back" size={28} color="#1e3a8a" />
           </Pressable>

@@ -1,12 +1,15 @@
+import asyncio
+import io
 import logging
 import math
 import re
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from bson import ObjectId
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from pymongo import ReturnDocument
 
 from app.config import Settings
@@ -16,6 +19,7 @@ from app.services.image_downloader import ImageDownloader
 from app.services.mobilenet_service import MobileNetClassification, MobileNetService
 from app.services.model_loader import Detection, YOLOModelService
 from app.services.priority_engine import PriorityEngine, PriorityResult
+from app.services.s3_uploader import S3Uploader
 from app.utils.cosine_similarity import cosine_similarity
 
 logger = logging.getLogger(__name__)
@@ -63,6 +67,15 @@ SEMANTIC_PROFILES: dict[str, dict[str, set[str]]] = {
     },
 }
 
+ANNOTATION_COLORS: list[tuple[int, int, int]] = [
+    (37, 99, 235),
+    (2, 132, 199),
+    (5, 150, 105),
+    (217, 119, 6),
+    (220, 38, 38),
+    (124, 58, 237),
+]
+
 
 @dataclass(frozen=True)
 class DuplicateMatch:
@@ -76,6 +89,7 @@ class DuplicateMatch:
 
 @dataclass(frozen=True)
 class ImageContext:
+    source_image: Image.Image | None
     embedding: list[float] | None
     image_fingerprint: str | None
     yolo_detections: list[Detection]
@@ -94,6 +108,7 @@ class AIProcessor:
         mobilenet_service: MobileNetService,
         image_downloader: ImageDownloader,
         priority_engine: PriorityEngine,
+        s3_uploader: S3Uploader,
         runtime_stats: RuntimeStats,
     ) -> None:
         self.settings = settings
@@ -102,6 +117,7 @@ class AIProcessor:
         self.mobilenet_service = mobilenet_service
         self.image_downloader = image_downloader
         self.priority_engine = priority_engine
+        self.s3_uploader = s3_uploader
         self.runtime_stats = runtime_stats
 
     async def process_complaint(self, complaint_id: str) -> None:
@@ -129,7 +145,17 @@ class AIProcessor:
                 duplicate_match=duplicate_match,
                 image_context=image_context,
             )
-            ai_meta = self._build_ai_meta(duplicate_match, image_context)
+            ai_output_meta = await self._create_and_store_ai_output_image(
+                complaint=complaint,
+                priority_result=final_priority,
+                duplicate_match=duplicate_match,
+                image_context=image_context,
+            )
+            ai_meta = self._build_ai_meta(
+                duplicate_match=duplicate_match,
+                image_context=image_context,
+                ai_output_meta=ai_output_meta,
+            )
 
             await self._mark_success(object_id, final_priority, ai_meta)
             self.runtime_stats.processed_success += 1
@@ -166,6 +192,7 @@ class AIProcessor:
         image_url = self._extract_image_url(complaint)
         if not image_url:
             return ImageContext(
+                source_image=None,
                 embedding=None,
                 image_fingerprint=None,
                 yolo_detections=[],
@@ -186,6 +213,7 @@ class AIProcessor:
 
         if image is None:
             return ImageContext(
+                source_image=None,
                 embedding=None,
                 image_fingerprint=None,
                 yolo_detections=[],
@@ -232,6 +260,7 @@ class AIProcessor:
         )
 
         return ImageContext(
+            source_image=image,
             embedding=embedding,
             image_fingerprint=fingerprint,
             yolo_detections=detections,
@@ -402,7 +431,12 @@ class AIProcessor:
             reason_sentence=reason_sentence,
         )
 
-    def _build_ai_meta(self, duplicate_match: DuplicateMatch, image_context: ImageContext) -> dict[str, Any]:
+    def _build_ai_meta(
+        self,
+        duplicate_match: DuplicateMatch,
+        image_context: ImageContext,
+        ai_output_meta: dict[str, Any],
+    ) -> dict[str, Any]:
         top_yolo = sorted(image_context.yolo_detections, key=lambda d: d.confidence, reverse=True)[:3]
         mobilenet_top_labels: list[str] = []
         mobilenet_label = None
@@ -434,7 +468,166 @@ class AIProcessor:
             "yoloCategoryMatch": image_context.semantic_category_match,
             "yoloFallbackUsed": image_context.semantic_fallback_used,
             "yoloNote": image_context.semantic_note,
+            "modelVariant": "stock_pretrained_yolov8n_mobilenetv2",
+            "modelNote": self.settings.ai_model_disclaimer,
+            "aiOutputImageUrl": ai_output_meta.get("outputImageUrl"),
+            "aiOutputImageKey": ai_output_meta.get("outputImageKey"),
+            "aiOutputStatus": ai_output_meta.get("status"),
+            "aiOutputError": ai_output_meta.get("error"),
+            "aiOutputGeneratedAt": ai_output_meta.get("generatedAt"),
+            "aiGeneratedOutputPath": ai_output_meta.get("outputImageUrl"),
         }
+
+    async def _create_and_store_ai_output_image(
+        self,
+        complaint: dict[str, Any],
+        priority_result: PriorityResult,
+        duplicate_match: DuplicateMatch,
+        image_context: ImageContext,
+    ) -> dict[str, Any]:
+        if image_context.source_image is None:
+            return {"status": "skipped", "error": "source_image_unavailable", "generatedAt": datetime.now(timezone.utc)}
+
+        try:
+            rendered = await asyncio.to_thread(
+                self._render_ai_output_image,
+                complaint,
+                priority_result,
+                duplicate_match,
+                image_context,
+            )
+        except Exception as exc:
+            logger.warning(
+                "AI output rendering failed for complaint %s: %s",
+                complaint.get("_id"),
+                exc,
+            )
+            return {
+                "status": "render_failed",
+                "error": str(exc)[:240],
+                "generatedAt": datetime.now(timezone.utc),
+            }
+
+        if not rendered:
+            return {
+                "status": "render_failed",
+                "error": "empty_render_result",
+                "generatedAt": datetime.now(timezone.utc),
+            }
+
+        if not self.s3_uploader.enabled:
+            return {
+                "status": "upload_skipped",
+                "error": "s3_not_configured",
+                "generatedAt": datetime.now(timezone.utc),
+            }
+
+        complaint_id = str(complaint.get("_id") or "unknown")
+        prefix = (self.settings.ai_output_prefix or "ai-outputs").strip().strip("/")
+        if not prefix:
+            prefix = "ai-outputs"
+        key = (
+            f"{prefix}/{complaint_id}/"
+            f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}-{uuid.uuid4().hex[:8]}.jpg"
+        )
+        url = await self.s3_uploader.upload_bytes(data=rendered, key=key, content_type="image/jpeg")
+        generated_at = datetime.now(timezone.utc)
+        if not url:
+            return {
+                "status": "upload_failed",
+                "outputImageKey": key,
+                "error": "s3_upload_failed",
+                "generatedAt": generated_at,
+            }
+
+        return {
+            "status": "uploaded",
+            "outputImageUrl": url,
+            "outputImageKey": key,
+            "generatedAt": generated_at,
+        }
+
+    def _render_ai_output_image(
+        self,
+        complaint: dict[str, Any],
+        priority_result: PriorityResult,
+        duplicate_match: DuplicateMatch,
+        image_context: ImageContext,
+    ) -> bytes:
+        assert image_context.source_image is not None
+
+        base = image_context.source_image.convert("RGB")
+        width, height = base.size
+        max_dim = max(1, int(self.settings.yolo_max_image_dimension))
+        if max(width, height) > max_dim:
+            scale = max_dim / max(width, height)
+            base = base.resize(
+                (
+                    max(1, int(width * scale)),
+                    max(1, int(height * scale)),
+                ),
+                Image.Resampling.BILINEAR,
+            )
+
+        draw_font = ImageFont.load_default()
+        base_width, base_height = base.size
+        header_height = 86
+        footer_height = 44
+        canvas = Image.new("RGB", (base_width, base_height + header_height + footer_height), (244, 247, 252))
+        canvas.paste(base, (0, header_height))
+        draw = ImageDraw.Draw(canvas)
+
+        draw.rectangle((0, 0, base_width, header_height), fill=(20, 72, 109))
+        title = self._clip_text(str(complaint.get("title") or "CiviSense Complaint"), 84)
+        draw.text((12, 10), "CiviSense AI Review Output", fill=(245, 250, 255), font=draw_font)
+        draw.text((12, 28), title, fill=(245, 250, 255), font=draw_font)
+
+        category = self._clip_text(str(complaint.get("category") or "unknown"), 28)
+        summary = (
+            f"Priority {priority_result.priority_level.upper()} ({priority_result.priority_score:.2f}) | "
+            f"Category: {category} | Duplicate: {'Yes' if duplicate_match.is_duplicate else 'No'}"
+        )
+        draw.text((12, 46), self._clip_text(summary, 116), fill=(214, 233, 247), font=draw_font)
+
+        sorted_detections = sorted(
+            image_context.yolo_detections,
+            key=lambda detection: detection.confidence,
+            reverse=True,
+        )[: max(1, int(self.settings.ai_max_annotations))]
+
+        for idx, detection in enumerate(sorted_detections):
+            color = ANNOTATION_COLORS[idx % len(ANNOTATION_COLORS)]
+            x1, y1, x2, y2 = detection.bbox
+            x1 = max(0, min(base_width - 1, int(x1)))
+            x2 = max(0, min(base_width - 1, int(x2)))
+            y1 = max(0, min(base_height - 1, int(y1)))
+            y2 = max(0, min(base_height - 1, int(y2)))
+            y1 += header_height
+            y2 += header_height
+            if x2 <= x1 or y2 <= y1:
+                continue
+
+            draw.rectangle((x1, y1, x2, y2), outline=color, width=3)
+            label = self._clip_text(f"{detection.label} {detection.confidence:.2f}", 24)
+            label_y = max(0, y1 - 17)
+            draw.rectangle((x1, label_y, min(base_width - 1, x1 + 180), label_y + 15), fill=color)
+            draw.text((x1 + 4, label_y + 3), label, fill=(255, 255, 255), font=draw_font)
+
+        footer_top = header_height + base_height
+        draw.rectangle((0, footer_top, base_width, footer_top + footer_height), fill=(231, 237, 248))
+        disclaimer = self._clip_text(self.settings.ai_model_disclaimer, 140)
+        draw.text((12, footer_top + 11), disclaimer, fill=(58, 76, 97), font=draw_font)
+
+        with io.BytesIO() as buffer:
+            canvas.save(buffer, format="JPEG", quality=90, optimize=True)
+            return buffer.getvalue()
+
+    @staticmethod
+    def _clip_text(value: str, max_chars: int) -> str:
+        text = str(value or "").strip()
+        if len(text) <= max_chars:
+            return text
+        return f"{text[: max(0, max_chars - 3)]}..."
 
     async def _mark_success(
         self,

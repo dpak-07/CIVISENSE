@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +16,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -65,13 +67,24 @@ const buildTitle = (category: string, location: string) =>
 export default function ReportIssueScreen() {
   const log = (...args: unknown[]) => console.log("[Report]", ...args);
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const params = useLocalSearchParams<{
     photo?: string | string[];
     captureTs?: string | string[];
     category?: string | string[];
   }>();
   const photoParam = useMemo(
-    () => (Array.isArray(params.photo) ? params.photo[0] : params.photo),
+    () => {
+      const raw = Array.isArray(params.photo) ? params.photo[0] : params.photo;
+      if (!raw) {
+        return undefined;
+      }
+      try {
+        return decodeURIComponent(raw);
+      } catch {
+        return raw;
+      }
+    },
     [params.photo]
   );
   const categoryParam = useMemo(
@@ -87,10 +100,12 @@ export default function ReportIssueScreen() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeModal, setActiveModal] = useState<"none" | "confirm" | "success">("none");
-  const [autoReviewRequested, setAutoReviewRequested] = useState(false);
   const [queued, setQueued] = useState(false);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const capturePulse = useSharedValue(0);
   const captureSweep = useSharedValue(0);
+  const isCompact = windowWidth < 380;
+  const categoryCardWidth = isCompact ? "48.3%" : "31.3%";
 
   useEffect(() => {
     const loadDraft = async () => {
@@ -116,7 +131,7 @@ export default function ReportIssueScreen() {
     if (photoParam && photoParam.length > 0) {
       log("Photo param received", { uri: photoParam });
       setImage(photoParam);
-      setAutoReviewRequested(true);
+      setImageLoadFailed(false);
     }
   }, [photoParam, params.captureTs]);
 
@@ -286,6 +301,7 @@ export default function ReportIssueScreen() {
     setLocationText("");
     setCoordinates(null);
     setImage(null);
+    setImageLoadFailed(false);
     setQueued(false);
   };
 
@@ -295,20 +311,6 @@ export default function ReportIssueScreen() {
     Boolean(locationText) &&
     Boolean(coordinates) &&
     (description.trim().length === 0 || description.trim().length >= 10);
-
-  useEffect(() => {
-    if (!autoReviewRequested) {
-      return;
-    }
-    if (activeModal !== "none" || submitting) {
-      return;
-    }
-    if (!canSubmit) {
-      return;
-    }
-    setAutoReviewRequested(false);
-    setActiveModal("confirm");
-  }, [activeModal, autoReviewRequested, canSubmit, submitting]);
 
   const openConfirmModal = () => {
     if (activeModal !== "none" || submitting) {
@@ -356,11 +358,12 @@ export default function ReportIssueScreen() {
             contentContainerStyle={[
               styles.content,
               {
-                paddingBottom: Math.max(insets.bottom, 12) + 84,
+                paddingBottom: Math.max(insets.bottom, 12) + 20,
               },
             ]}
             showsVerticalScrollIndicator={false}
             contentInsetAdjustmentBehavior="never"
+            keyboardShouldPersistTaps="handled"
           >
             <Animated.View entering={FadeInDown.duration(520).delay(90)}>
               <Text style={styles.section}>Take a Photo</Text>
@@ -381,22 +384,37 @@ export default function ReportIssueScreen() {
                       <Animated.View pointerEvents="none" style={[styles.captureSweep, captureSweepStyle]} />
                     </LinearGradient>
                   </Pressable>
-                  <View style={styles.photoPlaceholder}>
-                    <Ionicons name="image-outline" size={18} color="#94A3B8" />
-                    <Text style={styles.photoPlaceholderText}>Photo preview will appear here</Text>
-                  </View>
+                  <Text style={styles.captureHelpText}>
+                    Capture a clear photo to continue
+                  </Text>
                 </>
               ) : (
-                <View style={styles.photoCapturedCard}>
+                <Animated.View entering={FadeInUp.duration(360)} style={styles.photoCapturedCard}>
+                  {!imageLoadFailed ? (
+                    <Image
+                      source={{ uri: image }}
+                      style={styles.photoPreview}
+                      resizeMode="cover"
+                      onError={() => setImageLoadFailed(true)}
+                    />
+                  ) : null}
                   <View style={styles.photoCapturedRow}>
-                    <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                    <Text style={styles.photoCapturedText}>Photo captured successfully</Text>
+                    <Ionicons
+                      name={imageLoadFailed ? "warning-outline" : "checkmark-circle"}
+                      size={20}
+                      color={imageLoadFailed ? "#F59E0B" : "#10B981"}
+                    />
+                    <Text style={styles.photoCapturedText}>
+                      {imageLoadFailed
+                        ? "Preview unavailable, but photo is attached"
+                        : "Photo captured successfully"}
+                    </Text>
                   </View>
                   <Pressable style={styles.retakeBtn} onPress={() => router.push("/report/camera")}>
                     <Ionicons name="camera-reverse" size={16} color="#4F46E5" />
                     <Text style={styles.retakeText}>Retake Photo</Text>
                   </Pressable>
-                </View>
+                </Animated.View>
               )}
             </Animated.View>
 
@@ -404,7 +422,15 @@ export default function ReportIssueScreen() {
               <Text style={styles.section}>Select Category</Text>
               <View style={styles.grid}>
                 {CATEGORIES.map((c) => (
-                  <Pressable key={c.name} style={[styles.cat, category === c.name && styles.catActive]} onPress={() => setCategory(c.name)}>
+                  <Pressable
+                    key={c.name}
+                    style={[
+                      styles.cat,
+                      { width: categoryCardWidth },
+                      category === c.name && styles.catActive,
+                    ]}
+                    onPress={() => setCategory(c.name)}
+                  >
                     <View style={[styles.catIcon, { backgroundColor: c.bg }]}><Ionicons name={c.icon as never} size={16} color="#0F172A" /></View>
                     <Text style={styles.catText}>{c.name}</Text>
                   </Pressable>
@@ -452,9 +478,22 @@ export default function ReportIssueScreen() {
               },
             ]}
           >
-            <Pressable style={[styles.submit, !canSubmit && styles.submitDisabled]} onPress={openConfirmModal} disabled={!canSubmit}>
-              <Text style={styles.submitText}>Review & Submit</Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFF" />
+            <Pressable
+              style={[styles.submit, (!canSubmit || submitting) && styles.submitDisabled]}
+              onPress={openConfirmModal}
+              disabled={!canSubmit || submitting}
+            >
+              {submitting ? (
+                <>
+                  <ActivityIndicator size="small" color="#FFF" />
+                  <Text style={styles.submitText}>Submitting...</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.submitText}>Review & Submit</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                </>
+              )}
             </Pressable>
           </Animated.View>
         </View>
@@ -544,7 +583,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     paddingHorizontal: 18,
     paddingBottom: 14,
     borderBottomWidth: 1,
@@ -557,7 +596,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#F5F7FF", alignItems: "center", justifyContent: "center" },
   backText: { fontSize: 20, fontWeight: "700", color: "#0F172A", lineHeight: 22 },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  headerTitle: { flexShrink: 1, fontSize: 18, fontWeight: "700", color: "#0F172A" },
   steps: { marginLeft: "auto", flexDirection: "row", gap: 6 },
   step: { height: 4, borderRadius: 99 },
   stepDone: { width: 24, backgroundColor: "#4F46E5" },
@@ -576,8 +615,7 @@ const styles = StyleSheet.create({
   captureTitle: { color: "#FFF", fontSize: 16, fontWeight: "700", lineHeight: 20 },
   captureSub: { color: "rgba(255,255,255,0.82)", fontSize: 12, marginTop: 4, fontWeight: "600", lineHeight: 17 },
   captureArrow: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  photoPlaceholder: { height: 108, borderWidth: 2, borderStyle: "dashed", borderColor: "#C7D2FE", borderRadius: 14, backgroundColor: "rgba(238,242,255,0.9)", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 },
-  photoPlaceholderText: { color: "#94A3B8", fontSize: 13, fontWeight: "500", textAlign: "center" },
+  captureHelpText: { color: "#64748B", fontSize: 12, fontWeight: "600", marginTop: 10, marginLeft: 2 },
   photoCapturedCard: {
     gap: 12,
     borderRadius: 14,
@@ -586,6 +624,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(238,242,255,0.75)",
     paddingHorizontal: 12,
     paddingVertical: 12,
+  },
+  photoPreview: {
+    width: "100%",
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: "#E2E8F0",
   },
   photoCapturedRow: {
     flexDirection: "row",
@@ -600,7 +644,7 @@ const styles = StyleSheet.create({
   retakeBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#EEF2FF", borderRadius: 10, paddingVertical: 9 },
   retakeText: { color: "#4F46E5", fontSize: 13, fontWeight: "700" },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 10 },
-  cat: { width: "31.3%", borderRadius: 12, borderWidth: 2, borderColor: "transparent", backgroundColor: "#FFF", alignItems: "center", paddingTop: 10, paddingBottom: 8, paddingHorizontal: 6 },
+  cat: { borderRadius: 12, borderWidth: 2, borderColor: "transparent", backgroundColor: "#FFF", alignItems: "center", paddingTop: 10, paddingBottom: 8, paddingHorizontal: 6 },
   catActive: { borderColor: "#4F46E5", backgroundColor: "#EEF2FF" },
   catIcon: { width: 34, height: 34, borderRadius: 9, alignItems: "center", justifyContent: "center", marginBottom: 5 },
   catText: { fontSize: 10.5, fontWeight: "700", color: "#0F172A", textAlign: "center", lineHeight: 14 },
@@ -617,14 +661,13 @@ const styles = StyleSheet.create({
   textInput: { minHeight: 96, fontSize: 14, color: "#0F172A", lineHeight: 21, paddingBottom: 22 },
   count: { position: "absolute", right: 14, bottom: 10, color: "#CBD5E1", fontSize: 11 },
   bottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 8,
+    marginTop: 6,
     borderTopWidth: 1,
     borderTopColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
   },
   submit: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 18, paddingVertical: 16, backgroundColor: "#4F46E5" },
   submitDisabled: { opacity: 0.5 },

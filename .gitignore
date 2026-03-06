@@ -125,6 +125,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+dist/
+**/dist/
 
 __pycache__/
 *.pyo

@@ -3,6 +3,8 @@ import { Platform } from "react-native";
 
 const DEFAULT_PROD_API_BASE_URL = "https://civisence.duckdns.org/api";
 const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || "";
+const envBaseUrls = process.env.EXPO_PUBLIC_API_BASE_URLS || "";
+const envFallbackBaseUrls = process.env.EXPO_PUBLIC_API_BASE_URL_FALLBACKS || "";
 const PROD_API_BASE_URLS = [
   DEFAULT_PROD_API_BASE_URL,
   "http://43.204.139.225/api",
@@ -10,6 +12,12 @@ const PROD_API_BASE_URLS = [
 
 const normalizeBaseUrl = (value: string): string =>
   value.trim().replace(/\/+$/, "");
+
+const parseEnvBaseUrls = (value: string): string[] =>
+  value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 
 const parseHost = (value: string | null | undefined): string | null => {
   if (!value) {
@@ -88,16 +96,16 @@ const resolveExpoHost = (): string | null => {
   return null;
 };
 
-const resolveEnvBaseUrl = (): string | null => {
-  if (!envBaseUrl) {
+const resolveSingleEnvBaseUrl = (value: string): string | null => {
+  if (!value) {
     return null;
   }
 
   if (Platform.OS === "web") {
-    return envBaseUrl;
+    return value;
   }
 
-  const host = parseHost(envBaseUrl);
+  const host = parseHost(value);
   if (!host) {
     return null;
   }
@@ -109,7 +117,7 @@ const resolveEnvBaseUrl = (): string | null => {
     }
 
     try {
-      const url = new URL(envBaseUrl);
+      const url = new URL(value);
       url.hostname = expoHost;
       return url.toString();
     } catch {
@@ -117,31 +125,36 @@ const resolveEnvBaseUrl = (): string | null => {
     }
   }
 
-  return envBaseUrl;
-};
-
-const resolveDefaultBaseUrl = (): string => {
-  return DEFAULT_PROD_API_BASE_URL;
+  return value;
 };
 
 const resolveApiBaseUrls = (): string[] => {
-  const resolvedEnvBaseUrl = resolveEnvBaseUrl();
-  if (resolvedEnvBaseUrl) {
-    const primary = normalizeBaseUrl(resolvedEnvBaseUrl);
-    if (!__DEV__) {
-      const fallbacks = PROD_API_BASE_URLS.map(normalizeBaseUrl).filter(
-        (url) => url.toLowerCase() !== primary.toLowerCase()
-      );
-      return [primary, ...fallbacks];
-    }
-    return [primary];
+  const envConfiguredUrls = [
+    ...parseEnvBaseUrls(envBaseUrl),
+    ...parseEnvBaseUrls(envBaseUrls),
+    ...parseEnvBaseUrls(envFallbackBaseUrls),
+  ];
+
+  const resolvedEnvUrls = envConfiguredUrls
+    .map((url) => resolveSingleEnvBaseUrl(url))
+    .filter((url): url is string => Boolean(url))
+    .map(normalizeBaseUrl);
+
+  const dedupedResolvedEnvUrls = Array.from(
+    new Map(resolvedEnvUrls.map((url) => [url.toLowerCase(), url])).values()
+  );
+
+  if (dedupedResolvedEnvUrls.length > 0) {
+    const prodFallbacks = PROD_API_BASE_URLS.map(normalizeBaseUrl).filter(
+      (url) =>
+        !dedupedResolvedEnvUrls.some(
+          (configured) => configured.toLowerCase() === url.toLowerCase()
+        )
+    );
+    return [...dedupedResolvedEnvUrls, ...prodFallbacks];
   }
 
-  if (!__DEV__) {
-    return PROD_API_BASE_URLS.map(normalizeBaseUrl);
-  }
-
-  return [normalizeBaseUrl(resolveDefaultBaseUrl())];
+  return PROD_API_BASE_URLS.map(normalizeBaseUrl);
 };
 
 export const API_BASE_URL_FALLBACKS = resolveApiBaseUrls();

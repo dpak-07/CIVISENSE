@@ -5,6 +5,9 @@ const municipalOfficeRoutes = require('./municipalOfficeRoutes');
 const adminRoutes = require('./adminRoutes');
 const notificationRoutes = require('./notificationRoutes');
 const userRoutes = require('./userRoutes');
+const publicRoutes = require('./publicRoutes');
+const sensitiveLocationRoutes = require('./sensitiveLocationRoutes');
+const publicController = require('../controllers/publicController');
 
 const router = express.Router();
 
@@ -14,5 +17,8 @@ router.use('/municipal-offices', municipalOfficeRoutes);
 router.use('/admin', adminRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/users', userRoutes);
+router.use('/public', publicRoutes);
+router.get('/developers', publicController.getDevelopers);
+router.use('/sensitive-locations', sensitiveLocationRoutes);
 
 module.exports = router;

@@ -1,0 +1,103 @@
+:root,
+:root[data-theme='light'],
+:root[data-theme='dark'] {
+  --primary: #0f62fe;
+  --primary-light: #2d76ff;
+  --primary-dark: #0043ce;
+  --primary-glow: rgba(15, 98, 254, 0.16);
+
+  --accent: #0f7a7a;
+  --accent-light: #0ea5a5;
+  --accent-alt: #0284c7;
+  --accent-glow: rgba(14, 165, 165, 0.14);
+
+  --success: #10b981;
+  --success-light: #059669;
+  --warning: #f59e0b;
+  --warning-light: #d97706;
+  --danger: #f43f5e;
+  --danger-light: #e11d48;
+  --info: #0ea5e9;
+
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #fcfdff;
+  --bg-elevated: #f7faff;
+  --bg-input: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.92);
+  --bg-soft: #f5f8ff;
+  --bg-soft-strong: #edf3ff;
+
+  --border-color: rgba(37, 99, 235, 0.14);
+  --border-light: rgba(37, 99, 235, 0.24);
+  --border-active: rgba(14, 165, 233, 0.36);
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-inverse: #ffffff;
+
+  --bg-body-gradient-a: transparent;
+  --bg-body-gradient-b: transparent;
+  --bg-body-base: #ffffff;
+  --bg-grid-line: transparent;
+  --bg-grid-opacity: 0;
+  --bg-orb-a: transparent;
+  --bg-orb-b: transparent;
+  --bg-line-highlight: transparent;
+  --feature-section-bg: #ffffff;
+  --footer-bg: #ffffff;
+  --city-shadow: transparent;
+  --scrollbar-track: #eef3fb;
+  --scrollbar-thumb: rgba(59, 130, 246, 0.36);
+  --scrollbar-thumb-hover: rgba(37, 99, 235, 0.56);
+
+  --font-family: 'Sora', 'Segoe UI', sans-serif;
+  --font-display: 'Rajdhani', 'Segoe UI', sans-serif;
+  --font-xs: 0.75rem;
+  --font-sm: 0.85rem;
+  --font-base: 0.96rem;
+  --font-md: 1rem;
+  --font-lg: 1.15rem;
+  --font-xl: 1.4rem;
+  --font-2xl: 1.85rem;
+  --font-3xl: 2.45rem;
+  --font-4xl: 3.4rem;
+  --font-5xl: 4.4rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.6rem;
+  --radius-lg: 0.9rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.8rem;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 4px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 10px 26px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 20px 54px rgba(15, 23, 42, 0.12);
+  --shadow-glow: 0 0 24px var(--primary-glow);
+  --shadow-accent-glow: 0 0 24px var(--accent-glow);
+
+  --transition-fast: 150ms ease;
+  --transition-base: 260ms ease;
+  --transition-slow: 450ms ease;
+  --transition-spring: 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --sidebar-width: 260px;
+  --sidebar-collapsed: 72px;
+  --topbar-height: 64px;
+  --max-width: 1200px;
+}

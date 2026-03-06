@@ -2,6 +2,19 @@
 const asyncHandler = require('../utils/asyncHandler');
 const authService = require('../services/authService');
 
+const requestRegisterOtp = asyncHandler(async (req, res) => {
+  const result = await authService.requestRegisterOtp(req.body);
+  res.status(StatusCodes.OK).json({ success: true, data: result });
+});
+
+const registerWithOtp = asyncHandler(async (req, res) => {
+  const result = await authService.registerWithOtp({
+    ...req.body,
+    profilePhotoUrl: req.uploadedProfilePhotoUrl || null
+  });
+  res.status(StatusCodes.CREATED).json({ success: true, data: result });
+});
+
 const register = asyncHandler(async (req, res) => {
   const result = await authService.register({
     ...req.body,
@@ -26,6 +39,8 @@ const logout = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  requestRegisterOtp,
+  registerWithOtp,
   register,
   login,
   refresh,

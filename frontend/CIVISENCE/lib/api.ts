@@ -2,11 +2,14 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { API_BASE_URL, getFallbackApiBaseUrl } from "@/lib/config";
 import { sessionStore } from "@/lib/session";
 import { refreshSession } from "@/lib/services/authRefresh";
+import { AppLanguage } from "@/lib/preferences";
 
 type ApiErrorBody = {
   success?: boolean;
   message?: string;
   details?: unknown;
+  error?: string;
+  errors?: string[] | Record<string, unknown>;
 };
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
@@ -35,11 +38,73 @@ let isClearingUnauthorizedSession = false;
 let isRefreshingSession = false;
 let refreshPromise: Promise<ReturnType<typeof refreshSession>> | null = null;
 
+const getRequestLanguage = (): AppLanguage => {
+  const sessionLanguage = sessionStore.getUser()?.language;
+  if (sessionLanguage === "ta" || sessionLanguage === "hi" || sessionLanguage === "en") {
+    return sessionLanguage;
+  }
+  return "en";
+};
+
+const appendErrorDetails = (message: string, details: unknown): string => {
+  if (!details) {
+    return message;
+  }
+
+  if (Array.isArray(details)) {
+    const merged = details
+      .map((item) => (typeof item === "string" ? item.trim() : String(item)))
+      .filter(Boolean)
+      .join("; ");
+    return merged ? `${message}: ${merged}` : message;
+  }
+
+  if (typeof details === "string") {
+    const trimmed = details.trim();
+    return trimmed ? `${message}: ${trimmed}` : message;
+  }
+
+  if (typeof details === "object") {
+    const entries = Object.entries(details as Record<string, unknown>)
+      .map(([key, value]) => `${key}: ${String(value)}`)
+      .join("; ");
+    return entries ? `${message}: ${entries}` : message;
+  }
+
+  return message;
+};
+
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = sessionStore.getAccessToken();
+  const language = getRequestLanguage();
+
+  config.headers["Accept-Language"] = language;
+  config.headers["X-App-Language"] = language;
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  const method = (config.method || "get").toLowerCase();
+  if (method === "get") {
+    const currentParams = config.params ?? {};
+    if (currentParams instanceof URLSearchParams) {
+      if (!currentParams.has("lang")) {
+        currentParams.set("lang", language);
+      }
+      config.params = currentParams;
+    } else if (
+      typeof currentParams === "object" &&
+      !Array.isArray(currentParams) &&
+      !("lang" in currentParams)
+    ) {
+      config.params = {
+        ...(currentParams as Record<string, unknown>),
+        lang: language,
+      };
+    }
+  }
+
   return config;
 });
 
@@ -111,14 +176,55 @@ apiClient.interceptors.response.use(
 export const getApiErrorMessage = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ApiErrorBody>;
-    return (
-      axiosError.response?.data?.message ||
+    const responseData = axiosError.response?.data;
+    const baseMessage =
+      responseData?.message ||
+      responseData?.error ||
       axiosError.message ||
-      "Request failed"
-    );
+      "Request failed";
+
+    if (!axiosError.response) {
+      const lowered = (axiosError.message || "").toLowerCase();
+      if (
+        axiosError.code === "ECONNABORTED" ||
+        lowered.includes("timeout") ||
+        lowered.includes("network error")
+      ) {
+        return "Network error. Please check your internet connection and server URL.";
+      }
+      return baseMessage;
+    }
+
+    if (responseData?.details) {
+      return appendErrorDetails(baseMessage, responseData.details);
+    }
+
+    if (responseData?.errors) {
+      return appendErrorDetails(baseMessage, responseData.errors);
+    }
+
+    return baseMessage;
   }
 
   if (error instanceof Error) {
+    const raw = error.message.trim();
+    if (raw.startsWith("{") && raw.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(raw) as ApiErrorBody;
+        const parsedMessage = parsed.message || parsed.error;
+        if (parsedMessage) {
+          if (parsed.details) {
+            return appendErrorDetails(parsedMessage, parsed.details);
+          }
+          if (parsed.errors) {
+            return appendErrorDetails(parsedMessage, parsed.errors);
+          }
+          return parsedMessage;
+        }
+      } catch {
+        // keep original error text
+      }
+    }
     return error.message;
   }
 

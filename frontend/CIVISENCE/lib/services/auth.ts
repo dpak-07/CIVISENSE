@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api";
+import { normalizeMobileUploadUri } from "@/lib/services/uploadUtils";
 import { AuthSession, sessionStore } from "@/lib/session";
 import { Platform } from "react-native";
 
@@ -18,6 +19,7 @@ type RegisterInput = {
   email: string;
   password: string;
   profilePhotoUri?: string | null;
+  otp?: string;
 };
 
 
@@ -43,20 +45,71 @@ export const loginUser = async (input: LoginInput): Promise<AuthSession> => {
   return saveSession(response.data.data);
 };
 
+export const requestRegisterOtp = async (email: string): Promise<void> => {
+  await apiClient.post("/auth/register/request-otp", { email });
+};
+
 export const registerUser = async (
   input: RegisterInput
 ): Promise<AuthSession> => {
+  if (input.otp) {
+    if (input.profilePhotoUri) {
+      const formData = new FormData();
+      formData.append("name", input.name);
+      formData.append("email", input.email);
+      formData.append("password", input.password);
+      formData.append("otp", input.otp);
+
+      const normalizedUri = await normalizeMobileUploadUri(input.profilePhotoUri);
+      const fileName = buildImageName(normalizedUri);
+      const mimeType = buildMimeType(normalizedUri);
+
+      if (Platform.OS === "web") {
+        const imageResponse = await fetch(normalizedUri);
+        const imageBlob = await imageResponse.blob();
+        const file = new File([imageBlob], fileName, {
+          type: imageBlob.type || mimeType,
+        });
+        formData.append("photo", file);
+      } else {
+        const file = {
+          uri: normalizedUri,
+          name: fileName,
+          type: mimeType,
+        };
+        formData.append("photo", file as unknown as Blob);
+      }
+
+      const response = await apiClient.post<AuthEnvelope>("/auth/register/verify-otp", formData, {
+        timeout: 60000,
+        headers: {
+          Accept: "application/json",
+        },
+      });
+      return saveSession(response.data.data);
+    }
+
+    const response = await apiClient.post<AuthEnvelope>("/auth/register/verify-otp", {
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      otp: input.otp,
+    });
+    return saveSession(response.data.data);
+  }
+
   if (input.profilePhotoUri) {
     const formData = new FormData();
     formData.append("name", input.name);
     formData.append("email", input.email);
     formData.append("password", input.password);
 
-    const fileName = buildImageName(input.profilePhotoUri);
-    const mimeType = buildMimeType(input.profilePhotoUri);
+    const normalizedUri = await normalizeMobileUploadUri(input.profilePhotoUri);
+    const fileName = buildImageName(normalizedUri);
+    const mimeType = buildMimeType(normalizedUri);
 
     if (Platform.OS === "web") {
-      const imageResponse = await fetch(input.profilePhotoUri);
+      const imageResponse = await fetch(normalizedUri);
       const imageBlob = await imageResponse.blob();
       const file = new File([imageBlob], fileName, {
         type: imageBlob.type || mimeType,
@@ -64,14 +117,19 @@ export const registerUser = async (
       formData.append("photo", file);
     } else {
       const file = {
-        uri: input.profilePhotoUri,
+        uri: normalizedUri,
         name: fileName,
         type: mimeType,
       };
       formData.append("photo", file as unknown as Blob);
     }
 
-    const response = await apiClient.post<AuthEnvelope>("/auth/register", formData);
+    const response = await apiClient.post<AuthEnvelope>("/auth/register", formData, {
+      timeout: 60000,
+      headers: {
+        Accept: "application/json",
+      },
+    });
     return saveSession(response.data.data);
   }
 

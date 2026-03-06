@@ -35,6 +35,32 @@ const municipalOfficeSchema = new mongoose.Schema(
         }
       }
     },
+    mapLink: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    officerCredentials: {
+      officerName: {
+        type: String,
+        trim: true,
+        maxlength: 120,
+        default: null
+      },
+      officerEmail: {
+        type: String,
+        trim: true,
+        lowercase: true,
+        maxlength: 255,
+        default: null
+      },
+      officerPassword: {
+        type: String,
+        trim: true,
+        maxlength: 120,
+        default: null
+      }
+    },
     workload: {
       type: Number,
       default: 0,

@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "civisense-backend",
   "version": "1.0.0",
   "description": "Production Node.js backend for CiviSense civic issue reporting platform",
@@ -6,7 +6,10 @@
   "type": "commonjs",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "seed:users": "node scripts/seedUsersFromJson.js",
+    "seed:developers": "node scripts/seedDevelopersFromJson.js",
+    "devs": "node scripts/seedDevelopersFromJson.js"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -26,6 +29,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
     "morgan": "^1.10.0",
+    "nodemailer": "^6.10.1",
     "uuid": "^11.1.0",
     "winston": "^3.17.0"
   },
