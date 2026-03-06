@@ -2,6 +2,44 @@
 
 Independent FastAPI microservice for complaint AI prioritization.
 
+## Image Category Validation (BLIP)
+
+The service now includes an explainable image-category validation layer:
+
+- Uses `Salesforce/blip-image-captioning-base` (HuggingFace, CPU inference).
+- Generates a caption from complaint images (S3 URL or local path).
+- Maps caption keywords to civic categories:
+  - `pothole`
+  - `garbage`
+  - `drainage`
+  - `water_leak`
+  - `streetlight`
+  - `road_damage`
+- Compares detected issue vs reported category.
+- Stores structured output in `complaints.aiMeta.categoryValidation`.
+
+Validation JSON shape:
+
+```json
+{
+  "detected_issue": "pothole",
+  "reported_category": "garbage",
+  "is_valid": false,
+  "confidence": 0.87,
+  "reason": "The image suggests pothole while the complaint was reported as garbage.",
+  "caption": "large pothole in the middle of the road",
+  "keyword_hits": ["pothole", "road hole"],
+  "status": "ok"
+}
+```
+
+Environment variables:
+
+- `HF_CAPTION_MODEL_NAME` (default: `Salesforce/blip-image-captioning-base`)
+- `HF_CAPTION_MAX_NEW_TOKENS` (default: `32`)
+- `HF_CAPTION_NUM_BEAMS` (default: `3`)
+- `CATEGORY_VALIDATION_REVIEW_CONFIDENCE` (default: `0.6`)
+
 ## Setup
 
 1. Open terminal in `ai_service`.

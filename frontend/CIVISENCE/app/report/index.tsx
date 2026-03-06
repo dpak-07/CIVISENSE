@@ -48,8 +48,10 @@ type DraftData = {
 const DRAFT_STORAGE_KEY = "civisense.report.draft.v1";
 const CATEGORIES = [
   { name: "Pothole", icon: "construct", bg: "#FEE2E2" },
+  { name: "Road Damage", icon: "warning", bg: "#FDE68A" },
   { name: "Streetlight", icon: "bulb", bg: "#FEF9C3" },
   { name: "Garbage", icon: "trash", bg: "#DCFCE7" },
+  { name: "Drainage", icon: "water", bg: "#CFFAFE" },
   { name: "Water Leak", icon: "water", bg: "#DBEAFE" },
   { name: "Traffic Sign", icon: "car-sport", bg: "#EDE9FE" },
   { name: "Other", icon: "help-circle", bg: "#F1F5F9" },
@@ -63,6 +65,21 @@ const formatCoordinates = (latitude: number, longitude: number) => {
 
 const buildTitle = (category: string, location: string) =>
   location.trim() ? `${category} issue near ${location.trim().slice(0, 70)}` : `${category} issue reported`;
+
+const buildDefaultDescription = (category: string, location: string, coordinates: Coordinates | null) => {
+  const safeCategory = category.trim() || "Issue";
+  const safeLocation = location.trim();
+
+  if (safeLocation) {
+    return `${safeCategory} issue reported near ${safeLocation}.`;
+  }
+
+  if (coordinates) {
+    return `${safeCategory} issue reported near coordinates ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}.`;
+  }
+
+  return `${safeCategory} issue reported near the provided location.`;
+};
 
 export default function ReportIssueScreen() {
   const log = (...args: unknown[]) => console.log("[Report]", ...args);
@@ -275,7 +292,7 @@ export default function ReportIssueScreen() {
     try {
       const payload = {
         title: buildTitle(category, locationText),
-        description: description.trim() || `${category} issue reported via mobile app.`,
+        description: description.trim() || buildDefaultDescription(category, locationText, coordinates),
         category,
         longitude: coordinates.longitude,
         latitude: coordinates.latitude,
