@@ -42,6 +42,39 @@ GENERIC_TRAFFIC_TERMS = {
     "road",
 }
 
+SCENE_SUMMARY_COLOR_TERMS = {
+    "pink",
+    "green",
+    "blue",
+    "red",
+    "white",
+    "black",
+    "brown",
+    "yellow",
+    "orange",
+    "purple",
+    "grey",
+    "gray",
+}
+
+NON_CIVIC_REVIEW_TERMS = {
+    "laptop",
+    "laptops",
+    "computer",
+    "monitor",
+    "keyboard",
+    "chair",
+    "table",
+    "desk",
+    "room",
+    "bathroom",
+    "kitchen",
+    "sofa",
+    "bed",
+    "stove",
+    "screen",
+}
+
 SEMANTIC_PROFILES: dict[str, dict[str, set[str]]] = {
     "garbage": {
         "positive": {"garbage", "trash", "waste", "litter", "bin", "dumpster", "refuse", "landfill"},
@@ -699,6 +732,7 @@ class AIProcessor:
         reported_category = str(category_validation.get("reported_category") or "unknown")
         confidence = float(category_validation.get("confidence") or 0.0)
         clip_non_civic_score = float(category_validation.get("clip_non_civic_score") or 0.0)
+        scene_summary = self._build_scene_summary(image_context=image_context, category_validation=category_validation)
         manual_review_required = (
             validation_status == "unsupported_category"
             or (
@@ -707,7 +741,13 @@ class AIProcessor:
                 and match_type != "related"
                 and (
                     confidence >= float(self.settings.category_validation_review_confidence)
-                    or (detected_issue == "unknown" and clip_non_civic_score >= 0.8)
+                    or (
+                        detected_issue == "unknown"
+                        and (
+                            clip_non_civic_score >= 0.45
+                            or self._scene_summary_requires_manual_review(scene_summary)
+                        )
+                    )
                 )
             )
         )
@@ -766,14 +806,6 @@ class AIProcessor:
                 f"{reason_sentence} AI image validation found a related issue category "
                 f"('{detected_issue.replace('_', ' ')}' vs '{reported_category.replace('_', ' ')}')."
             )
-        elif validation_status == "ok" and validation_is_valid is True and match_type == "other":
-            reason = (
-                f"{reason}; generic category selected "
-                f"(reported_category={reported_category}; detected_issue={detected_issue}; confidence={confidence:.2f})"
-            )
-            reason_sentence = (
-                f"{reason_sentence} The complaint used a general category, so image category check was informational."
-            )
 
         final_score = round(max(0.0, min(10.0, base_priority.priority_score + image_score_applied)), 2)
         final_level = self._map_priority_level(final_score)
@@ -803,6 +835,7 @@ class AIProcessor:
                     validation_status=validation_status or "unknown",
                     non_civic_score=float(category_validation.get("clip_non_civic_score") or 0.0),
                     manual_review_required=manual_review_required,
+                    scene_summary=scene_summary,
                     base_score=float(base_priority.priority_score),
                     image_score=float(image_score_applied),
                     final_score=float(final_score),
@@ -837,23 +870,6 @@ class AIProcessor:
         non_civic_score = float(category_validation.get("clip_non_civic_score") or 0.0)
         is_category_valid = category_validation.get("is_valid")
         match_type = str(category_validation.get("match_type") or "").strip().lower()
-
-        if status == "ok" and match_type == "other":
-            issue_weight = float(IMAGE_ISSUE_PRIORITY_WEIGHTS.get(detected_issue, 0.6))
-            return {
-                "imageScoreApplied": 0.0,
-                "issueScore": 0.0,
-                "alignmentAdjustment": 0.0,
-                "issueWeight": issue_weight,
-                "detectedIssue": detected_issue or "unknown",
-                "reportedCategory": reported_category or "other",
-                "validationConfidence": round(validation_confidence, 4),
-                "nonCivicScore": round(non_civic_score, 4),
-                "isCategoryValid": is_category_valid,
-                "matchType": "other",
-                "basePriorityScore": float(base_priority.priority_score),
-                "note": "Generic category selected: image score intentionally not applied",
-            }
 
         if status != "ok" or not detected_issue or detected_issue == "unknown":
             if status == "unsupported_category":
@@ -958,6 +974,10 @@ class AIProcessor:
         validation_confidence = float(category_validation.get("confidence") or 0.0)
         non_civic_score = float(category_validation.get("clip_non_civic_score") or 0.0)
         detected_issue = self._normalize_category_token(category_validation.get("detected_issue"))
+        scene_summary = self._build_scene_summary(
+            image_context=image_context,
+            category_validation=category_validation,
+        )
         review_required = (
             (
                 validation_status == "ok"
@@ -965,7 +985,13 @@ class AIProcessor:
                 and match_type != "related"
                 and (
                     validation_confidence >= float(self.settings.category_validation_review_confidence)
-                    or (detected_issue == "unknown" and non_civic_score >= 0.8)
+                    or (
+                        detected_issue == "unknown"
+                        and (
+                            non_civic_score >= 0.45
+                            or self._scene_summary_requires_manual_review(scene_summary)
+                        )
+                    )
                 )
             )
             or validation_status == "unsupported_category"
@@ -1005,6 +1031,7 @@ class AIProcessor:
             "categoryValidationClipTopIssue": category_validation.get("clip_top_issue"),
             "categoryValidationClipTopConfidence": category_validation.get("clip_top_confidence"),
             "categoryValidationClipNonCivicScore": category_validation.get("clip_non_civic_score"),
+            "categoryValidationSceneSummary": scene_summary,
             "reviewRequired": review_required,
             "reviewReason": category_validation.get("reason") if review_required else None,
             "imagePriorityScore": image_priority_meta.get("imageScoreApplied"),
@@ -1285,6 +1312,111 @@ class AIProcessor:
 
         return None, "insufficient_semantic_signal"
 
+    def _build_scene_summary(
+        self,
+        image_context: ImageContext,
+        category_validation: dict[str, Any],
+    ) -> str | None:
+        caption_summary = self._summarize_caption(category_validation.get("caption"))
+        if caption_summary:
+            return caption_summary
+
+        yolo_labels = [
+            detection.label
+            for detection in sorted(image_context.yolo_detections, key=lambda item: item.confidence, reverse=True)[:3]
+        ]
+        label_summary = self._summarize_labels(yolo_labels)
+        if label_summary:
+            return label_summary
+
+        mobilenet_result = image_context.mobilenet_result
+        if mobilenet_result is not None:
+            mobilenet_summary = self._summarize_labels(
+                [mobilenet_result.label, *mobilenet_result.top_labels[:2]]
+            )
+            if mobilenet_summary:
+                return mobilenet_summary
+
+        return None
+
+    def _summarize_caption(self, caption: Any) -> str | None:
+        text = self._normalize_phrase(str(caption or ""))
+        if not text:
+            return None
+
+        replacements = (
+            (r"\ba couple of\b", "two"),
+            (r"\bsitting on top of\b", "on"),
+            (r"\bon top of\b", "on"),
+            (r"\bside by side on\b", "on"),
+            (r"\bin front of\b", "near"),
+            (r"\bin the corner of\b", "in"),
+            (r"\bnext to\b", "near"),
+            (r"\battached to the side of\b", "on"),
+            (r"\battached to\b", "on"),
+            (r"\bhanging from\b", "on"),
+            (r"\busing\b", "with"),
+        )
+        for pattern, replacement in replacements:
+            text = re.sub(pattern, replacement, text)
+
+        text = re.sub(r"^(there is|there are)\s+", "", text)
+        text = re.sub(r"^(a|an|the)\s+(view|photo|picture)\s+of\s+", "", text)
+        text = re.sub(r"\b(is|are)\b", " ", text)
+
+        words = [
+            word
+            for word in text.split()
+            if word not in SCENE_SUMMARY_COLOR_TERMS
+        ]
+        text = " ".join(words)
+        text = re.sub(r"\s+", " ", text).strip(" .,;:")
+        text = re.sub(r"^(a|an|the)\s+", "", text)
+
+        if not text:
+            return None
+
+        if "laptops" in text and "table" in text:
+            return "two laptops on a table"
+        if ("laptop" in text or "computer" in text) and "table" in text:
+            return "laptop on a table"
+        if ("laptop" in text or "computer" in text) and "desk" in text:
+            return "computer on a desk"
+        if "room" in text and "chair" in text:
+            return "room with a chair"
+        if "bathroom" in text and "hose" in text:
+            return "hose in a bathroom"
+
+        words = text.split()
+        if len(words) > 9:
+            text = " ".join(words[:9])
+        return text.strip(" .,;:") or None
+
+    def _summarize_labels(self, labels: list[str]) -> str | None:
+        candidates: list[str] = []
+        for label in labels:
+            normalized = self._normalize_phrase(str(label or ""))
+            if not normalized or normalized in GENERIC_TRAFFIC_TERMS:
+                continue
+            candidates.append(normalized)
+
+        if not candidates:
+            return None
+
+        prioritized = [
+            candidate
+            for candidate in candidates
+            if any(term in candidate for term in NON_CIVIC_REVIEW_TERMS)
+        ]
+        return (prioritized[0] if prioritized else candidates[0]).strip() or None
+
+    @staticmethod
+    def _scene_summary_requires_manual_review(scene_summary: str | None) -> bool:
+        summary = str(scene_summary or "").strip().lower()
+        if not summary:
+            return False
+        return any(term in summary for term in NON_CIVIC_REVIEW_TERMS)
+
     @staticmethod
     def _normalize_phrase(text: str) -> str:
         cleaned = re.sub(r"[^a-z0-9\s]+", " ", text.lower())
@@ -1303,8 +1435,6 @@ class AIProcessor:
     def _determine_category_match_type(self, detected_issue: str, reported_category: str) -> str:
         detected = self._normalize_category_token(detected_issue)
         reported = self._normalize_category_token(reported_category)
-        if reported == "other":
-            return "other"
         if not detected or detected == "unknown" or not reported:
             return "mismatch"
         if detected == reported:

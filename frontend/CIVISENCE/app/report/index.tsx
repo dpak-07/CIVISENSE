@@ -48,10 +48,8 @@ type DraftData = {
 const DRAFT_STORAGE_KEY = "civisense.report.draft.v1";
 const CATEGORIES = [
   { name: "Pothole", icon: "construct", bg: "#FEE2E2" },
-  { name: "Road Damage", icon: "warning", bg: "#FDE68A" },
   { name: "Streetlight", icon: "bulb", bg: "#FEF9C3" },
   { name: "Garbage", icon: "trash", bg: "#DCFCE7" },
-  { name: "Drainage", icon: "water", bg: "#CFFAFE" },
   { name: "Water Leak", icon: "water", bg: "#DBEAFE" },
   { name: "Traffic Sign", icon: "car-sport", bg: "#EDE9FE" },
   { name: "Other", icon: "help-circle", bg: "#F1F5F9" },

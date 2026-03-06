@@ -30,7 +30,6 @@ SUPPORTED_CATEGORIES: tuple[str, ...] = (
     "streetlight",
     "road_damage",
     "traffic_sign",
-    "other",
 )
 
 CATEGORY_ALIASES: dict[str, str] = {
@@ -50,9 +49,6 @@ CATEGORY_ALIASES: dict[str, str] = {
     "traffic_signal": "traffic_sign",
     "road_sign": "traffic_sign",
     "traffic_signboard": "traffic_sign",
-    "others": "other",
-    "misc": "other",
-    "miscellaneous": "other",
 }
 
 CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
@@ -158,7 +154,6 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "traffic pole",
         "fallen sign",
     ),
-    "other": tuple(),
 }
 
 CATEGORY_CLIP_PROMPTS: dict[str, tuple[str, ...]] = {
@@ -204,7 +199,6 @@ CATEGORY_CLIP_PROMPTS: dict[str, tuple[str, ...]] = {
         "a fallen traffic sign in public street",
         "a faded warning signboard near junction",
     ),
-    "other": tuple(),
 }
 
 RELATED_CATEGORY_GROUPS: tuple[set[str], ...] = (
@@ -300,7 +294,6 @@ CATEGORY_MIN_CLIP_CONFIDENCE: dict[str, float] = {
     "streetlight": 0.42,
     "road_damage": 0.40,
     "traffic_sign": 0.45,
-    "other": 0.95,
 }
 
 
@@ -535,7 +528,7 @@ class ComplaintImageValidationService:
 
     def validate_category(self, detected_issue: str, reported_category: str) -> bool:
         match_type = self._determine_match_type(detected_issue, reported_category)
-        return match_type in {"exact", "related", "other"}
+        return match_type in {"exact", "related"}
 
     def generate_reason(
         self,
@@ -581,12 +574,6 @@ class ComplaintImageValidationService:
                 f"The detected issue '{detected.replace('_', ' ')}' is closely related to the reported "
                 f"category '{reported.replace('_', ' ')}', so this is treated as a valid related match. "
                 f"Generated caption: '{caption_snippet}'.{clip_evidence}{non_civic_evidence}"
-            )
-
-        if resolved_match_type == "other":
-            return (
-                "The complaint was reported under a generic 'other' category, so AI category validation "
-                f"is treated as informational only. Generated caption: '{caption_snippet}'."
             )
 
         return (
@@ -926,9 +913,6 @@ class ComplaintImageValidationService:
     def _determine_match_type(self, detected_issue: str, reported_category: str) -> str:
         detected = self._normalize_category(detected_issue)
         reported = self._normalize_category(reported_category)
-
-        if reported == "other":
-            return "other"
 
         if not detected or detected == "unknown" or not reported:
             return "mismatch"

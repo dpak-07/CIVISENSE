@@ -47,6 +47,7 @@ class PriorityReasoningService:
         validation_status: str,
         non_civic_score: float,
         manual_review_required: bool,
+        scene_summary: str | None,
         base_score: float,
         image_score: float,
         final_score: float,
@@ -60,11 +61,21 @@ class PriorityReasoningService:
             validation_status=validation_status,
             non_civic_score=non_civic_score,
             manual_review_required=manual_review_required,
+            scene_summary=scene_summary,
             base_score=base_score,
             image_score=image_score,
             final_score=final_score,
             final_level=final_level,
         )
+
+        # Keep mismatch/manual-review wording deterministic so the user sees
+        # exactly what the AI appeared to find in the image.
+        if scene_summary and (
+            manual_review_required
+            or detected_issue == "unknown"
+            or (match_type or "").strip().lower() == "mismatch"
+        ):
+            return fallback
 
         if not self.enabled or self._pipeline is None:
             return fallback
@@ -74,6 +85,7 @@ class PriorityReasoningService:
             "Explain priority for a civic complaint using these facts:\n"
             f"- reported category: {category}\n"
             f"- detected issue from image: {detected_issue}\n"
+            f"- plain description of what the image shows: {scene_summary or 'not available'}\n"
             f"- category match type: {match_type}\n"
             f"- validation status: {validation_status}\n"
             f"- manual review required: {bool(manual_review_required)}\n"
@@ -192,6 +204,7 @@ class PriorityReasoningService:
         validation_status: str,
         non_civic_score: float,
         manual_review_required: bool,
+        scene_summary: str | None,
         base_score: float,
         image_score: float,
         final_score: float,
@@ -201,11 +214,23 @@ class PriorityReasoningService:
         normalized_status = (validation_status or "").strip().lower()
         level = (final_level or "low").strip().lower()
         level_text = level.capitalize()
+        category_label = PriorityReasoningService._format_category_label(category)
+        detected_label = PriorityReasoningService._format_category_label(detected_issue)
+        detected_phrase = PriorityReasoningService._format_issue_phrase(detected_label)
+        scene_label = PriorityReasoningService._format_scene_summary(scene_summary)
         if normalized_status == "unsupported_category":
             message = (
                 f"Priority is set to {level_text} based on your report details. "
                 "This category will be reviewed manually."
             )
+            return message
+        elif detected_issue == "unknown" and scene_label:
+            message = (
+                f"Priority is set to {level_text}. AI predicted the image shows {scene_label}, "
+                f"not the reported {category_label} issue."
+            )
+            if manual_review_required:
+                message = f"{message} Please wait for manual review."
             return message
         elif detected_issue == "unknown" and float(non_civic_score or 0.0) >= 0.8:
             message = (
@@ -213,27 +238,77 @@ class PriorityReasoningService:
                 "so the report text was used."
             )
             if manual_review_required:
-                message = f"{message} It has been flagged for manual review."
+                message = f"{message} Please wait for manual review."
             return message
         elif normalized_match == "exact":
+            if scene_label:
+                return (
+                    f"Priority is set to {level_text}. AI predicted the image shows {scene_label}, "
+                    f"which matches the reported {category_label} issue."
+                )
             return f"Priority is set to {level_text} because the image and reported issue are consistent."
         elif normalized_match == "related":
-            message = (
-                f"Priority is set to {level_text} because the image shows a related issue category."
-            )
+            if scene_label:
+                message = (
+                    f"Priority is set to {level_text}. AI predicted the image shows {scene_label}, "
+                    f"which is related to the reported {category_label} issue."
+                )
+            else:
+                message = (
+                    f"Priority is set to {level_text} because the image shows a related issue category."
+                )
             if manual_review_required:
-                message = f"{message} It has been flagged for manual review."
+                message = f"{message} Please wait for manual review."
             return message
-        elif normalized_match == "other":
-            return (
-                f"Priority is set to {level_text} based on report details. "
-                "A general category was selected, so image matching was used only as supporting evidence."
-            )
         else:
-            message = (
-                f"Priority is set to {level_text}. The image appears different from the selected category, "
-                "so this report may need manual review."
-            )
+            if scene_label:
+                if detected_label and detected_label != "unknown":
+                    message = (
+                        f"Priority is set to {level_text}. AI predicted the image shows {scene_label}, "
+                        f"which looks closer to {detected_phrase} than the reported {category_label} issue."
+                    )
+                else:
+                    message = (
+                        f"Priority is set to {level_text}. AI predicted the image shows {scene_label}, "
+                        f"not the reported {category_label} issue."
+                    )
+            elif detected_label and detected_label != "unknown":
+                message = (
+                    f"Priority is set to {level_text}. AI predicted {detected_phrase}, "
+                    f"not the reported {category_label} issue."
+                )
+            else:
+                message = (
+                    f"Priority is set to {level_text}. The image appears different from the selected category."
+                )
             if manual_review_required:
-                message = f"{message} It has been flagged for manual review."
+                message = f"{message} Please wait for manual review."
             return message
+
+    @staticmethod
+    def _format_category_label(value: str) -> str:
+        label = re.sub(r"[_\s]+", " ", str(value or "").strip().lower()).strip()
+        return label or "unknown"
+
+    @staticmethod
+    def _format_scene_summary(scene_summary: str | None) -> str | None:
+        summary = re.sub(r"\s+", " ", str(scene_summary or "").strip().lower()).strip(" .,;:")
+        if not summary:
+            return None
+
+        starters = {"a", "an", "the", "two", "three", "four", "several", "multiple", "many"}
+        first_word = summary.split()[0]
+        if first_word not in starters and not first_word.isdigit() and not first_word.endswith("s"):
+            summary = f"a {summary}"
+        return summary
+
+    @staticmethod
+    def _format_issue_phrase(issue_label: str) -> str:
+        label = str(issue_label or "").strip().lower()
+        if not label or label == "unknown":
+            return "unknown issue"
+        starters = {"a", "an", "the"}
+        first_word = label.split()[0]
+        if first_word in starters or first_word.endswith("s"):
+            return label
+        return f"a {label}"
