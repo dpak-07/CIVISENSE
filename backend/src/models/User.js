@@ -41,6 +41,25 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
+    misuseReportCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    isBlacklisted: {
+      type: Boolean,
+      default: false
+    },
+    blacklistedAt: {
+      type: Date,
+      default: null
+    },
+    blacklistReason: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null
+    },
     deviceToken: {
       type: String,
       trim: true,

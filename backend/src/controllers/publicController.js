@@ -30,8 +30,17 @@ const getSensitiveLocations = asyncHandler(async (req, res) => {
   });
 });
 
+const getDevelopers = asyncHandler(async (_req, res) => {
+  const developers = await adminService.getPublicDevelopers();
+  res.status(StatusCodes.OK).json({
+    success: true,
+    data: developers
+  });
+});
+
 module.exports = {
   sendContactMessage,
   getAppConfig,
-  getSensitiveLocations
+  getSensitiveLocations,
+  getDevelopers
 };

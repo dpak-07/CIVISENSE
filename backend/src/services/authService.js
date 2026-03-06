@@ -10,13 +10,12 @@ const {
   signRefreshToken,
   verifyRefreshToken
 } = require('../utils/jwt');
+const { normalizeEmail, buildEmailCandidates } = require('../utils/email');
 
 const SALT_ROUNDS = 12;
 const OTP_LENGTH = 6;
 const OTP_EXPIRES_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
-
-const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
 const isValidOtp = (otp) => /^[0-9]{6}$/.test(String(otp || '').trim());
 
@@ -28,6 +27,10 @@ const sanitizeUser = (user) => ({
   municipalOfficeId: user.municipalOfficeId || null,
   language: user.language || 'en',
   isActive: user.isActive,
+  misuseReportCount: user.misuseReportCount || 0,
+  isBlacklisted: Boolean(user.isBlacklisted),
+  blacklistedAt: user.blacklistedAt || null,
+  blacklistReason: user.blacklistReason || null,
   profilePhotoUrl: user.profilePhotoUrl || null,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
@@ -156,7 +159,8 @@ const login = async ({ email, password }) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Email and password are required');
   }
 
-  const user = await User.findOne({ email: normalizeEmail(email) }).select(
+  const emailCandidates = buildEmailCandidates(email);
+  const user = await User.findOne({ email: { $in: emailCandidates } }).select(
     '+passwordHash +refreshTokenHash'
   );
   if (!user) {
@@ -165,6 +169,13 @@ const login = async ({ email, password }) => {
 
   if (!user.isActive) {
     throw new ApiError(StatusCodes.FORBIDDEN, 'User account is inactive');
+  }
+
+  if (user.isBlacklisted) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      user.blacklistReason || 'User account is blacklisted due to misuse reports'
+    );
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
@@ -198,8 +209,19 @@ const refreshAuthToken = async ({ refreshToken }) => {
   }
 
   const user = await User.findById(decoded.sub).select('+refreshTokenHash');
-  if (!user || !user.isActive || !user.refreshTokenHash) {
+  if (!user || !user.refreshTokenHash) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid refresh token');
+  }
+
+  if (!user.isActive) {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'User account is inactive');
+  }
+
+  if (user.isBlacklisted) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      user.blacklistReason || 'User account is blacklisted due to misuse reports'
+    );
   }
 
   const isRefreshTokenValid = await bcrypt.compare(refreshToken, user.refreshTokenHash);

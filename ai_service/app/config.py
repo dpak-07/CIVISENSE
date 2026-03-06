@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     image_max_bytes: int = Field(10 * 1024 * 1024, alias="IMAGE_MAX_BYTES")
 
     school_radius_meters: int = Field(2000, alias="SCHOOL_RADIUS_METERS")
+    hospital_radius_meters: int = Field(1400, alias="HOSPITAL_RADIUS_METERS")
+    transit_radius_meters: int = Field(1200, alias="TRANSIT_RADIUS_METERS")
+    government_radius_meters: int = Field(1000, alias="GOVERNMENT_RADIUS_METERS")
     duplicate_similarity_threshold: float = Field(0.92, alias="DUPLICATE_SIMILARITY_THRESHOLD")
     duplicate_lookback_days: int = Field(7, alias="DUPLICATE_LOOKBACK_DAYS")
     duplicate_compare_limit: int = Field(50, alias="DUPLICATE_COMPARE_LIMIT")
@@ -46,6 +49,19 @@ class Settings(BaseSettings):
     retry_interval_seconds: int = Field(60, alias="RETRY_INTERVAL_SECONDS")
     max_retry_attempts: int = Field(3, alias="MAX_RETRY_ATTEMPTS")
     retry_batch_size: int = Field(25, alias="RETRY_BATCH_SIZE")
+
+    aws_region: str | None = Field(default=None, alias="AWS_REGION")
+    aws_access_key_id: str | None = Field(default=None, alias="AWS_ACCESS_KEY_ID")
+    aws_secret_access_key: str | None = Field(default=None, alias="AWS_SECRET_ACCESS_KEY")
+    aws_bucket_name: str | None = Field(default=None, alias="AWS_BUCKET_NAME")
+    aws_s3_endpoint_url: str | None = Field(default=None, alias="AWS_S3_ENDPOINT_URL")
+
+    ai_output_prefix: str = Field("ai-outputs", alias="AI_OUTPUT_PREFIX")
+    ai_max_annotations: int = Field(6, alias="AI_MAX_ANNOTATIONS")
+    ai_model_disclaimer: str = Field(
+        "Note: This AI result is generated using a stock pre-trained model and will be fine-tuned in later versions.",
+        alias="AI_MODEL_DISCLAIMER",
+    )
 
 
 @lru_cache(maxsize=1)

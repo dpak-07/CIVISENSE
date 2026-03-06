@@ -61,14 +61,42 @@
     margin-bottom: var(--space-4);
 }
 
+.dev-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
 .dev-config-form {
     display: grid;
     gap: var(--space-4);
 }
 
+.dev-upload-field {
+    border: 1px dashed var(--border-light);
+    border-radius: var(--radius-md);
+    background: var(--bg-soft);
+    color: var(--text-secondary);
+    padding: var(--space-3) var(--space-4);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: fit-content;
+    cursor: pointer;
+}
+
+.dev-upload-field input[type='file'] {
+    display: none;
+}
+
+.dev-help-text {
+    color: var(--text-muted);
+    font-size: var(--font-xs);
+}
+
 .dev-user-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: var(--space-4);
 }
 
@@ -94,6 +122,34 @@
     color: var(--text-muted);
 }
 
+.dev-citizen-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.dev-citizen-pill {
+    border-radius: var(--radius-full);
+    padding: 4px 10px;
+    font-size: var(--font-xs);
+    font-weight: 700;
+}
+
+.dev-citizen-pill.ok {
+    background: rgba(16, 185, 129, 0.14);
+    color: var(--success-light);
+}
+
+.dev-citizen-pill.danger {
+    background: rgba(244, 63, 94, 0.14);
+    color: var(--danger-light);
+}
+
+.dev-citizen-pill.neutral {
+    background: rgba(15, 23, 42, 0.06);
+    color: var(--text-secondary);
+}
+
 .dev-user-card__form {
     display: grid;
     gap: var(--space-3);
@@ -105,6 +161,11 @@
     gap: var(--space-2);
     color: var(--text-secondary);
     font-size: var(--font-sm);
+}
+
+.dev-user-card__toggle--danger {
+    color: var(--danger-light);
+    font-weight: 600;
 }
 
 .dev-user-card__actions {
@@ -137,6 +198,21 @@
     color: var(--warning-light);
 }
 
+.dev-role-pill--citizen {
+    background: rgba(15, 23, 42, 0.08);
+    color: var(--text-secondary);
+}
+
+.dev-role-pill--team {
+    background: rgba(59, 130, 246, 0.16);
+    color: #1d4ed8;
+}
+
+.dev-role-pill--mentor {
+    background: rgba(139, 92, 246, 0.16);
+    color: #7c3aed;
+}
+
 .dev-success {
     margin: 0 0 var(--space-5);
     padding: var(--space-3) var(--space-4);
@@ -158,6 +234,20 @@
     min-width: 280px;
 }
 
+.dev-developer-card {
+    grid-column: span 1;
+}
+
+.dev-developer-social-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+}
+
+.dev-create-developer {
+    margin-top: var(--space-3);
+}
+
 @media (max-width: 768px) {
     .dev-console-topbar {
         padding: var(--space-3) var(--space-4);
@@ -177,5 +267,13 @@
 
     .dev-search {
         min-width: 0;
+    }
+
+    .dev-user-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dev-developer-social-grid {
+        grid-template-columns: 1fr;
     }
 }

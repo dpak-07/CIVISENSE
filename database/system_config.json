@@ -1,0 +1,8 @@
+[
+  {
+    "key": "app_distribution",
+    "androidApkUrl": "https://civisence.s3.ap-south-1.amazonaws.com/app-release.apk",
+    "iosNote": "iOS build is coming soon. Apple dev tools asked for money, our startup wallet said \"buffering...\".",
+    "updatedBy": null
+  }
+]

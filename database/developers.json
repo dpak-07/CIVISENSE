@@ -1,0 +1,96 @@
+[
+  {
+    "id": "deepak",
+    "profileType": "team",
+    "name": "Deepak S",
+    "role": "Team Lead - Cloud, Backend, Mobile App, Website",
+    "description": "Deepak leads the development and architecture of the CiviSense platform. He built the backend services, cloud infrastructure, and integrations between the mobile app and web platform to ensure a scalable civic reporting system.",
+    "photoUrl": null,
+    "skills": [
+      "System Architecture",
+      "Backend APIs",
+      "Cloud Deployment",
+      "Mobile Integration"
+    ],
+    "highlights": [
+      "Platform architecture leadership",
+      "Backend and cloud infrastructure"
+    ],
+    "socials": {
+      "github": "#",
+      "linkedin": "#",
+      "portfolio": "#"
+    },
+    "isActive": true
+  },
+  {
+    "id": "lokesh",
+    "profileType": "team",
+    "name": "Lokesh",
+    "role": "Idea Architect - Research Lead",
+    "description": "Lokesh proposed the initial concept behind the CiviSense platform and researched real civic infrastructure problems to shape the direction of the project.",
+    "photoUrl": null,
+    "highlights": [
+      "Project ideation",
+      "Civic problem research"
+    ],
+    "socials": {
+      "linkedin": "#"
+    },
+    "isActive": true
+  },
+  {
+    "id": "balavignesh",
+    "profileType": "team",
+    "name": "Bala Vignesh",
+    "role": "Research Contributor",
+    "description": "Bala Vignesh supported the research phase of the CiviSense project by exploring the feasibility of AI-based civic issue detection and contributing to early project studies.",
+    "photoUrl": null,
+    "highlights": [
+      "AI research support",
+      "Project feasibility analysis"
+    ],
+    "socials": {
+      "linkedin": "#"
+    },
+    "isActive": true
+  },
+  {
+    "id": "priyadharshini",
+    "profileType": "team",
+    "name": "Priya Dharshini",
+    "role": "UI/UX Designer - Mobile App Design",
+    "description": "Priya Dharshini designed the user interface and user experience for the CiviSense mobile app and dashboards, focusing on simple and intuitive civic reporting flows.",
+    "photoUrl": null,
+    "skills": [
+      "UI Design",
+      "UX Research",
+      "Mobile Interface Design"
+    ],
+    "highlights": [
+      "Mobile app interface design",
+      "Citizen reporting UX"
+    ],
+    "socials": {
+      "linkedin": "#",
+      "portfolio": "#"
+    },
+    "isActive": true
+  },
+  {
+    "id": "vijiyalakshmi",
+    "profileType": "mentor",
+    "name": "Mrs. Vijiyalakshmi",
+    "role": "Assistant Professor - Project Guide",
+    "description": "Mrs. Vijiyalakshmi from Velammal Engineering College provided academic mentorship and guidance throughout the development of the CiviSense project.",
+    "photoUrl": null,
+    "highlights": [
+      "Academic mentorship",
+      "Project supervision"
+    ],
+    "socials": {
+      "linkedin": "#"
+    },
+    "isActive": true
+  }
+]

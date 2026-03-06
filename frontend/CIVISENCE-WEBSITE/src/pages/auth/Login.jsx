@@ -17,6 +17,14 @@ const roleLabelMap = {
     admin: 'Admin'
 };
 
+const toAutoGmailEmail = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return '';
+    if (normalized.includes('@')) return normalized;
+    const local = normalized.replace(/[^a-z0-9]+/g, '') || 'municipaloffice';
+    return `${local}@gmail.com`;
+};
+
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -32,7 +40,11 @@ export default function Login() {
         setError('');
         setLoading(true);
         try {
-            const user = await login(email, password, portalMode);
+            const normalizedEmail =
+                portalMode === 'citizen'
+                    ? String(email || '').trim().toLowerCase()
+                    : toAutoGmailEmail(email);
+            const user = await login(normalizedEmail, password, portalMode);
             navigate(getRolePath(user.role), { replace: true });
         } catch (err) {
             setError(getErrorMessage(err));
@@ -81,13 +93,18 @@ export default function Login() {
                         <label htmlFor="email">Email</label>
                         <input
                             id="email"
-                            type="email"
+                            type={portalMode === 'citizen' ? 'email' : 'text'}
                             className="input"
-                            placeholder="you@example.com"
+                            placeholder={portalMode === 'citizen' ? 'you@example.com' : 'office-id or office@gmail.com'}
                             value={email}
                             onChange={(event) => setEmail(event.target.value)}
                             required
                         />
+                        {portalMode !== 'citizen' ? (
+                            <small className="text-muted">
+                                Auto-format enabled: if `@` is missing, `@gmail.com` is appended automatically.
+                            </small>
+                        ) : null}
                     </div>
 
                     <div className="input-group">

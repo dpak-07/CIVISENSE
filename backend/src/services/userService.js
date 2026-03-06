@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Complaint = require('../models/Complaint');
 const Notification = require('../models/Notification');
+const UserMisuseReport = require('../models/UserMisuseReport');
+const BlacklistedUser = require('../models/BlacklistedUser');
 const ApiError = require('../utils/ApiError');
 
 const sanitizeUser = (user) => ({
@@ -13,6 +15,10 @@ const sanitizeUser = (user) => ({
   municipalOfficeId: user.municipalOfficeId || null,
   language: user.language || 'en',
   isActive: user.isActive,
+  misuseReportCount: user.misuseReportCount || 0,
+  isBlacklisted: Boolean(user.isBlacklisted),
+  blacklistedAt: user.blacklistedAt || null,
+  blacklistReason: user.blacklistReason || null,
   profilePhotoUrl: user.profilePhotoUrl || null,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
@@ -85,6 +91,10 @@ const deleteAccount = async ({ userId }) => {
   }
 
   await Notification.deleteMany({ userId });
+  await UserMisuseReport.deleteMany({
+    $or: [{ reportedUserId: userId }, { reportedBy: userId }]
+  });
+  await BlacklistedUser.deleteMany({ userId });
 
   const deletedTag = `${Date.now()}_${userId}`;
   const anonymizedEmail = `deleted+${deletedTag}@civisense.local`;
@@ -95,6 +105,10 @@ const deleteAccount = async ({ userId }) => {
   user.passwordHash = placeholderPasswordHash;
   user.language = 'en';
   user.isActive = false;
+  user.misuseReportCount = 0;
+  user.isBlacklisted = false;
+  user.blacklistedAt = null;
+  user.blacklistReason = null;
   user.deviceToken = null;
   user.profilePhotoUrl = null;
   user.refreshTokenHash = null;

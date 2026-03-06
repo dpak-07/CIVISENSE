@@ -69,13 +69,33 @@
     gap: var(--space-4);
 }
 
-.input-row {
-    display: flex;
-    gap: var(--space-4);
+.modal-form--single-card {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
 }
 
-.input-row .input-group {
-    flex: 1;
+.modal-form--single-card > .input-group,
+.modal-form--single-card > .input-row {
+    min-width: 0;
+}
+
+.modal-form--single-card .input-group--span-3,
+.modal-form--single-card .modal-field--span-3 {
+    grid-column: 1 / -1;
+}
+
+.modal-form--single-card .input-group {
+    gap: 6px;
+}
+
+.modal-form--single-card .input-group label {
+    font-size: var(--font-xs);
+}
+
+.modal-form--single-card .input {
+    padding: 10px 12px;
+    font-size: var(--font-sm);
 }
 
 .sensitive-form__toggle {
@@ -91,8 +111,50 @@
     color: var(--text-muted);
 }
 
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    margin-top: 0;
+}
+
+.modal-form__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--space-2);
+    margin-top: 2px;
+}
+
 @media (max-width: 768px) {
-    .input-row {
+    .modal-form--single-card {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-form--single-card .input-group--span-3,
+    .modal-form--single-card .modal-field--span-3 {
+        grid-column: auto;
+    }
+
+    .modal-form__footer {
         flex-direction: column;
+        align-items: stretch;
+    }
+
+    .form-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .form-actions .btn {
+        flex: 1;
+    }
+}
+
+@media (max-width: 1100px) {
+    .modal-form--single-card {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

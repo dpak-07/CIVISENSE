@@ -1,13 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '../../components/Layout/DashboardLayout';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import EmptyState from '../../components/EmptyState';
+import StatusBadge from '../../components/StatusBadge';
 import ReportCard from '../../components/ReportCard';
 import Modal from '../../components/Modal';
 import {
+    HiOutlineBellAlert,
+    HiOutlineCheckCircle,
+    HiOutlineClock,
+    HiOutlineExclamationTriangle
+} from 'react-icons/hi2';
+import {
     getComplaints,
     getComplaintById,
-    updateComplaintStatus
+    updateComplaintStatus,
+    reportComplaintUser
 } from '../../api/complaints';
 import {
     formatDateTime,
@@ -21,6 +29,7 @@ import './AdminComplaints.css';
 
 const UPDATABLE_STATUSES = new Set(['reported', 'unassigned', 'assigned', 'in_progress']);
 const DEFAULT_RESOLUTION_REMARK = 'Issue resolved by administration.';
+const REFRESH_INTERVAL_MS = 20000;
 
 const toStatusText = (status) =>
     (status || 'reported').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -38,6 +47,12 @@ const getPriorityReason = (complaint) =>
     complaint?.priority?.reasonSentence ||
     complaint?.priority?.reason ||
     'Priority reason not available';
+
+const toPriorityClass = (priorityLevel) => {
+    const normalized = String(priorityLevel || 'low').toLowerCase();
+    if (['critical', 'high', 'medium', 'low'].includes(normalized)) return normalized;
+    return 'low';
+};
 
 const toUpdatedByLabel = (entry) => {
     if (entry?.updatedBy?.role === 'officer') {
@@ -71,15 +86,18 @@ export default function AdminComplaints() {
     const [reviewOpen, setReviewOpen] = useState(false);
     const [selectedComplaint, setSelectedComplaint] = useState(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
-    const [rejectionReason, setRejectionReason] = useState('');
     const [reviewError, setReviewError] = useState('');
+    const [reportingMisuse, setReportingMisuse] = useState(false);
+    const [misuseMessage, setMisuseMessage] = useState('');
+    const [actionModalType, setActionModalType] = useState('');
+    const [actionModalInput, setActionModalInput] = useState('');
+    const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+    const [imagePreviewTitle, setImagePreviewTitle] = useState('');
 
-    useEffect(() => {
-        void loadComplaints();
-    }, [statusFilter]);
-
-    const loadComplaints = async () => {
-        setLoading(true);
+    const loadComplaints = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) {
+            setLoading(true);
+        }
         try {
             const params = {};
             if (statusFilter) params.status = statusFilter;
@@ -93,14 +111,41 @@ export default function AdminComplaints() {
                 setComplaints(filtered);
             }
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
-    };
+    }, [statusFilter]);
+
+    useEffect(() => {
+        void loadComplaints();
+
+        const onWindowFocus = () => {
+            void loadComplaints({ silent: true });
+        };
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                void loadComplaints({ silent: true });
+            }
+        };
+        const intervalId = window.setInterval(() => {
+            void loadComplaints({ silent: true });
+        }, REFRESH_INTERVAL_MS);
+
+        window.addEventListener('focus', onWindowFocus);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', onWindowFocus);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, [loadComplaints]);
 
     const loadComplaintDetails = async (complaint) => {
         setLoadingDetails(true);
         setReviewError('');
-        setRejectionReason('');
+        setMisuseMessage('');
         try {
             if (isDemoSession()) {
                 setSelectedComplaint(complaint);
@@ -124,8 +169,23 @@ export default function AdminComplaints() {
         if (updating) return;
         setReviewOpen(false);
         setSelectedComplaint(null);
-        setRejectionReason('');
         setReviewError('');
+        setMisuseMessage('');
+        setActionModalType('');
+        setActionModalInput('');
+        setImagePreviewUrl('');
+        setImagePreviewTitle('');
+    };
+
+    const openImagePreview = (imageUrl, title = 'Complaint Image') => {
+        if (!imageUrl) return;
+        setImagePreviewUrl(imageUrl);
+        setImagePreviewTitle(title);
+    };
+
+    const closeImagePreview = () => {
+        setImagePreviewUrl('');
+        setImagePreviewTitle('');
     };
 
     const updateComplaintInState = (updatedComplaint) => {
@@ -179,13 +239,26 @@ export default function AdminComplaints() {
         await saveStatus('resolved', { remark });
     };
 
-    const handleReject = async () => {
-        const trimmedReason = rejectionReason.trim();
+    const openActionModal = (type) => {
+        setReviewError('');
+        setActionModalInput('');
+        setActionModalType(type);
+    };
+
+    const closeActionModal = () => {
+        if (updating || reportingMisuse) return;
+        setActionModalType('');
+        setActionModalInput('');
+    };
+
+    const handleReject = async (inputReason) => {
+        const trimmedReason = String(inputReason || '').trim();
         if (!trimmedReason) {
             setReviewError('Rejection reason is required.');
-            return;
+            return false;
         }
         await saveStatus('rejected', { rejectionReason: trimmedReason });
+        return true;
     };
 
     const handleMarkInProgress = async () => {
@@ -195,12 +268,82 @@ export default function AdminComplaints() {
         await saveStatus('in_progress');
     };
 
+    const handleReportMisuse = async (inputReason) => {
+        if (!selectedComplaint || reportingMisuse) return;
+
+        const reason = String(inputReason || '').trim();
+        if (!reason) {
+            setReviewError('Please enter a reason to report the user.');
+            return false;
+        }
+
+        setReviewError('');
+        setMisuseMessage('');
+        setReportingMisuse(true);
+        try {
+            if (isDemoSession()) {
+                setMisuseMessage('Demo: user misuse report submitted.');
+                return true;
+            }
+
+            const { data } = await reportComplaintUser(selectedComplaint._id, { reason });
+            const result = data?.data || {};
+
+            setSelectedComplaint((prev) =>
+                prev
+                    ? {
+                        ...prev,
+                        reportedBy: {
+                            ...(prev.reportedBy || {}),
+                            misuseReportCount: result.reportCount || 0,
+                            isBlacklisted: Boolean(result.blacklistTriggered)
+                        }
+                    }
+                    : prev
+            );
+
+            if (result.blacklistTriggered) {
+                setMisuseMessage(
+                    `User blacklisted after ${result.reportCount}/${result.threshold} misuse reports.`
+                );
+            } else {
+                setMisuseMessage(
+                    `User reported successfully (${result.reportCount}/${result.threshold}).`
+                );
+            }
+            return true;
+        } catch (err) {
+            setReviewError(getErrorMessage(err));
+            return false;
+        } finally {
+            setReportingMisuse(false);
+        }
+    };
+
+    const handleActionModalSubmit = async () => {
+        if (actionModalType === 'reject') {
+            const ok = await handleReject(actionModalInput);
+            if (ok) closeActionModal();
+            return;
+        }
+
+        if (actionModalType === 'misuse') {
+            const ok = await handleReportMisuse(actionModalInput);
+            if (ok) closeActionModal();
+        }
+    };
+
     const sortedComplaints = useMemo(
         () => sortComplaintsByPriorityAndDate(complaints),
         [complaints]
     );
 
     const statusLocked = selectedComplaint && !UPDATABLE_STATUSES.has(selectedComplaint.status);
+    const aiOutputImageUrl =
+        selectedComplaint?.aiMeta?.aiOutputImageUrl ||
+        selectedComplaint?.aiMeta?.aiGeneratedOutputPath ||
+        '';
+    const aiModelNote = selectedComplaint?.aiMeta?.modelNote || '';
 
     return (
         <DashboardLayout>
@@ -243,144 +386,301 @@ export default function AdminComplaints() {
                 </div>
             )}
 
-            <Modal isOpen={reviewOpen} onClose={closeReviewModal} title="Complaint Review" size="lg">
+            <Modal
+                isOpen={reviewOpen}
+                onClose={closeReviewModal}
+                title="Complaint Review"
+                size="xl"
+                className="modal--compact modal--review"
+            >
                 {loadingDetails ? (
                     <LoadingSpinner />
                 ) : selectedComplaint ? (
-                    <div className="admin-review">
+                    <div className="admin-review admin-review--single card">
                         {reviewError && <div className="auth-error">{reviewError}</div>}
 
-                        <div className="admin-review__grid">
-                            <div className="admin-review__section card">
-                                <h3>{selectedComplaint.title}</h3>
-                                <p className="admin-review__description">{selectedComplaint.description}</p>
-
-                                <div className="admin-review__meta">
-                                    <div><span>Status:</span> {toStatusText(selectedComplaint.status)}</div>
-                                    <div><span>Category:</span> {selectedComplaint.category}</div>
-                                    <div><span>Priority:</span> {toStatusText(selectedComplaint.priority?.level || 'low')}</div>
-                                    <div><span>Created:</span> {formatDateTime(selectedComplaint.createdAt)}</div>
-                                    <div><span>Updated:</span> {formatDateTime(selectedComplaint.updatedAt)}</div>
+                        <div className="admin-review__layout">
+                            <div className="admin-review__media card">
+                                <div className="admin-review__media-head">
+                                    <span className="admin-review__media-tag">Complaint Evidence</span>
+                                    <span className="admin-review__case-id">
+                                        #{String(selectedComplaint._id || '').slice(-6).toUpperCase() || 'NA'}
+                                    </span>
                                 </div>
-                            </div>
-
-                            <div className="admin-review__section card">
-                                <h4>Report Details</h4>
-                                <div className="admin-review__meta">
-                                    <div><span>Reported By:</span> {selectedComplaint.reportedBy?.name || '-'}</div>
-                                    <div><span>Email:</span> {selectedComplaint.reportedBy?.email || '-'}</div>
-                                    <div><span>Location:</span> {toCoordinatesLabel(selectedComplaint)}</div>
-                                    <div><span>Priority Reason:</span> {getPriorityReason(selectedComplaint)}</div>
-                                    <div><span>Assigned Office:</span> {selectedComplaint.assignedMunicipalOffice?.name || selectedComplaint.assignedOfficeType || 'Pending'}</div>
-                                </div>
-
-                                {selectedComplaint.images?.[0]?.url && (
-                                    <div className="admin-review__image-wrap">
+                                {selectedComplaint.images?.[0]?.url ? (
+                                    <div className="admin-review__image-frame">
                                         <img
                                             src={selectedComplaint.images[0].url}
                                             alt={selectedComplaint.title}
                                             className="admin-review__image"
                                         />
-                                        <a
-                                            className="admin-review__image-link"
-                                            href={selectedComplaint.images[0].url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                        >
-                                            Open S3 Image
-                                        </a>
                                     </div>
+                                ) : (
+                                    <div className="admin-review__image-empty">No image</div>
                                 )}
-                            </div>
-                        </div>
-
-                        {(selectedComplaint.resolutionRemark || selectedComplaint.rejectionReason) && (
-                            <div className="admin-review__section card">
-                                <h4>Latest Decision Note</h4>
-                                {selectedComplaint.resolutionRemark && (
-                                    <p className="admin-review__note admin-review__note--ok">
-                                        Resolution Remark: {selectedComplaint.resolutionRemark}
-                                    </p>
-                                )}
-                                {selectedComplaint.rejectionReason && (
-                                    <p className="admin-review__note admin-review__note--warn">
-                                        Rejection Reason: {selectedComplaint.rejectionReason}
-                                    </p>
-                                )}
-                            </div>
-                        )}
-
-                        {Array.isArray(selectedComplaint.statusHistory) && selectedComplaint.statusHistory.length > 0 && (
-                            <div className="admin-review__section card">
-                                <h4>Status Timeline</h4>
-                                <div className="admin-review__timeline">
-                                    {selectedComplaint.statusHistory.map((entry, index) => (
-                                        <div className="admin-review__timeline-item" key={`${entry.updatedAt}-${entry.status}-${index}`}>
-                                            <strong>{toStatusText(entry.status)}</strong>
-                                            <span>{formatDateTime(entry.updatedAt)}</span>
-                                            <p>Updated By: {toUpdatedByLabel(entry)}</p>
-                                            {entry.remark && <p>Remark: {entry.remark}</p>}
-                                            {entry.rejectionReason && <p>Rejection: {entry.rejectionReason}</p>}
-                                        </div>
-                                    ))}
+                                <div className="admin-review__media-actions">
+                                    {selectedComplaint.images?.[0]?.url ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-sm admin-review__image-link"
+                                            onClick={() => openImagePreview(selectedComplaint.images[0].url, 'Complaint Image')}
+                                        >
+                                            View Image
+                                        </button>
+                                    ) : (
+                                        <span className="admin-review__media-note">No evidence image attached yet.</span>
+                                    )}
+                                    {aiOutputImageUrl ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-sm admin-review__image-link admin-review__image-link--ai"
+                                            onClick={() => openImagePreview(aiOutputImageUrl, 'AI Output Image')}
+                                        >
+                                            View AI Output
+                                        </button>
+                                    ) : null}
+                                    {aiModelNote ? <p className="admin-review__ai-note">{aiModelNote}</p> : null}
                                 </div>
                             </div>
-                        )}
 
-                        <div className="admin-review__actions card">
-                            <h4>Update Status</h4>
-                            {statusLocked ? (
-                                <p className="admin-review__locked">
-                                    This complaint is already terminal ({toStatusText(selectedComplaint.status)}).
-                                </p>
-                            ) : (
-                                <>
-                                    <div className="admin-review__action-row">
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary"
-                                            disabled={Boolean(updating)}
-                                            onClick={() => void handleMarkInProgress()}
-                                        >
-                                            {updating === 'in_progress' ? 'Saving...' : 'Mark In Progress'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-success"
-                                            disabled={Boolean(updating)}
-                                            onClick={() => void handleResolve()}
-                                        >
-                                            {updating === 'resolved' ? 'Saving...' : 'Resolve (Confirm)'}
-                                        </button>
+                            <div className="admin-review__content">
+                                <div className="admin-review__title-row">
+                                    <div>
+                                        <p className="admin-review__eyebrow">Administrative Review</p>
+                                        <h3>{selectedComplaint.title}</h3>
                                     </div>
+                                    <div className="admin-review__title-tags">
+                                        <StatusBadge status={selectedComplaint.status} />
+                                        <span
+                                            className={`admin-review__priority-pill admin-review__priority-pill--${toPriorityClass(
+                                                selectedComplaint.priority?.level
+                                            )}`}
+                                        >
+                                            Priority {toStatusText(selectedComplaint.priority?.level || 'low')}
+                                        </span>
+                                    </div>
+                                </div>
 
-                                    <div className="admin-review__reject">
-                                        <label htmlFor="reject-reason">Reject Complaint (Reason Required)</label>
-                                        <textarea
-                                            id="reject-reason"
-                                            className="input"
-                                            rows={4}
-                                            value={rejectionReason}
-                                            onChange={(e) => setRejectionReason(e.target.value)}
-                                            placeholder="Enter rejection reason..."
-                                            disabled={Boolean(updating)}
-                                        />
-                                        <button
-                                            type="button"
-                                            className="btn btn-danger"
-                                            disabled={Boolean(updating)}
-                                            onClick={() => void handleReject()}
-                                        >
-                                            {updating === 'rejected' ? 'Saving...' : 'Reject Complaint'}
-                                        </button>
+                                <div className="admin-review__description-card">
+                                    <h4>Issue Summary</h4>
+                                    <p className="admin-review__description">{selectedComplaint.description}</p>
+                                </div>
+
+                                <div className="admin-review__meta admin-review__meta--two-col">
+                                    <div className="admin-review__meta-card">
+                                        <span className="admin-review__meta-label">Category</span>
+                                        <p className="admin-review__meta-value">{selectedComplaint.category || '-'}</p>
                                     </div>
-                                </>
-                            )}
+                                    <div className="admin-review__meta-card">
+                                        <span className="admin-review__meta-label">Assigned Office</span>
+                                        <p className="admin-review__meta-value">{selectedComplaint.assignedMunicipalOffice?.name || selectedComplaint.assignedOfficeType || 'Pending'}</p>
+                                    </div>
+                                    <div className="admin-review__meta-card">
+                                        <span className="admin-review__meta-label">Location</span>
+                                        <p className="admin-review__meta-value">{toCoordinatesLabel(selectedComplaint)}</p>
+                                    </div>
+                                    <div className="admin-review__meta-card admin-review__meta-card--reason">
+                                        <span className="admin-review__meta-label">Priority Reason</span>
+                                        <p className="admin-review__meta-value">{getPriorityReason(selectedComplaint)}</p>
+                                    </div>
+                                    <div className="admin-review__meta-card">
+                                        <span className="admin-review__meta-label">Created</span>
+                                        <p className="admin-review__meta-value">{formatDateTime(selectedComplaint.createdAt)}</p>
+                                    </div>
+                                    <div className="admin-review__meta-card">
+                                        <span className="admin-review__meta-label">Updated</span>
+                                        <p className="admin-review__meta-value">{formatDateTime(selectedComplaint.updatedAt)}</p>
+                                    </div>
+                                    <div className="admin-review__meta-card">
+                                        <span className="admin-review__meta-label">Reported By</span>
+                                        <p className="admin-review__meta-value">{selectedComplaint.reportedBy?.name || '-'}</p>
+                                    </div>
+                                    <div className="admin-review__meta-card">
+                                        <span className="admin-review__meta-label">Email</span>
+                                        <p className="admin-review__meta-value">{selectedComplaint.reportedBy?.email || '-'}</p>
+                                    </div>
+                                    <div className="admin-review__meta-card">
+                                        <span className="admin-review__meta-label">User Reports</span>
+                                        <p className="admin-review__meta-value">{selectedComplaint.reportedBy?.misuseReportCount || 0}</p>
+                                    </div>
+                                </div>
+
+                                {(selectedComplaint.resolutionRemark || selectedComplaint.rejectionReason) && (
+                                    <div className="admin-review__section">
+                                        <h4>Latest Decision</h4>
+                                        {selectedComplaint.resolutionRemark && (
+                                            <p className="admin-review__note admin-review__note--ok">
+                                                Resolution Remark: {selectedComplaint.resolutionRemark}
+                                            </p>
+                                        )}
+                                        {selectedComplaint.rejectionReason && (
+                                            <p className="admin-review__note admin-review__note--warn">
+                                                Rejection Reason: {selectedComplaint.rejectionReason}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {Array.isArray(selectedComplaint.statusHistory) && selectedComplaint.statusHistory.length > 0 && (
+                                    <div className="admin-review__section">
+                                        <h4>Status Trail</h4>
+                                        <div className="admin-review__timeline">
+                                            {selectedComplaint.statusHistory.slice(-1).reverse().map((entry, index) => (
+                                                <div className="admin-review__timeline-item" key={`${entry.updatedAt}-${entry.status}-${index}`}>
+                                                    <strong>{toStatusText(entry.status)}</strong>
+                                                    <span>{formatDateTime(entry.updatedAt)}</span>
+                                                    <p>Updated By: {toUpdatedByLabel(entry)}</p>
+                                                    {entry.remark && <p>Remark: {entry.remark}</p>}
+                                                    {entry.rejectionReason && <p>Rejection: {entry.rejectionReason}</p>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {selectedComplaint.statusHistory.length > 1 ? (
+                                            <p className="admin-review__hint">
+                                                Showing latest update. {selectedComplaint.statusHistory.length - 1} older update(s) hidden.
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="admin-review__panel">
+                                <div className="admin-review__actions">
+                                    <div className="admin-review__actions-head">
+                                        <h4>Command Actions</h4>
+                                        <p>Apply municipal workflow action with audit trace.</p>
+                                    </div>
+                                    {statusLocked ? (
+                                        <p className="admin-review__locked">
+                                            This complaint is already terminal ({toStatusText(selectedComplaint.status)}).
+                                        </p>
+                                    ) : (
+                                        <>
+                                            <div className="admin-review__action-row">
+                                                <button
+                                                    type="button"
+                                                    className="admin-review__action-btn admin-review__action-btn--progress"
+                                                    disabled={Boolean(updating)}
+                                                    onClick={() => void handleMarkInProgress()}
+                                                >
+                                                    <span className="admin-review__action-icon"><HiOutlineClock /></span>
+                                                    <span className="admin-review__action-copy">
+                                                        <strong>{updating === 'in_progress' ? 'Saving...' : 'Mark In Progress'}</strong>
+                                                        <small>Move case into active departmental queue</small>
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="admin-review__action-btn admin-review__action-btn--resolve"
+                                                    disabled={Boolean(updating)}
+                                                    onClick={() => void handleResolve()}
+                                                >
+                                                    <span className="admin-review__action-icon"><HiOutlineCheckCircle /></span>
+                                                    <span className="admin-review__action-copy">
+                                                        <strong>{updating === 'resolved' ? 'Saving...' : 'Mark Resolved'}</strong>
+                                                        <small>Complete case and finalize closure note</small>
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="admin-review__action-btn admin-review__action-btn--reject"
+                                                    disabled={Boolean(updating) || reportingMisuse}
+                                                    onClick={() => openActionModal('reject')}
+                                                >
+                                                    <span className="admin-review__action-icon"><HiOutlineExclamationTriangle /></span>
+                                                    <span className="admin-review__action-copy">
+                                                        <strong>Reject Complaint</strong>
+                                                        <small>Send back with documented rejection reason</small>
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="admin-review__action-btn admin-review__action-btn--misuse"
+                                                    disabled={Boolean(updating) || reportingMisuse}
+                                                    onClick={() => openActionModal('misuse')}
+                                                >
+                                                    <span className="admin-review__action-icon"><HiOutlineBellAlert /></span>
+                                                    <span className="admin-review__action-copy">
+                                                        <strong>{reportingMisuse ? 'Reporting...' : 'Report User'}</strong>
+                                                        <small>Escalate user misuse for blacklist workflow</small>
+                                                    </span>
+                                                </button>
+                                            </div>
+                                            {misuseMessage ? (
+                                                <p className="admin-review__success">{misuseMessage}</p>
+                                            ) : null}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ) : (
                     <EmptyState title="No complaint selected" message="Choose a complaint to review." />
                 )}
+            </Modal>
+
+            <Modal
+                isOpen={Boolean(actionModalType)}
+                onClose={closeActionModal}
+                title={actionModalType === 'reject' ? 'Reject Complaint' : 'Report User'}
+                size="sm"
+            >
+                <div className="admin-review__popup">
+                    <label htmlFor="admin-action-input">
+                        {actionModalType === 'reject'
+                            ? 'Enter rejection reason'
+                            : 'Enter misuse report reason'}
+                    </label>
+                    <textarea
+                        id="admin-action-input"
+                        className="input"
+                        rows={4}
+                        value={actionModalInput}
+                        onChange={(e) => setActionModalInput(e.target.value)}
+                        placeholder={
+                            actionModalType === 'reject'
+                                ? 'Write why this complaint is rejected...'
+                                : 'Write why this user should be reported...'
+                        }
+                        disabled={Boolean(updating) || reportingMisuse}
+                    />
+                    <div className="admin-review__popup-actions">
+                        <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={closeActionModal}
+                            disabled={Boolean(updating) || reportingMisuse}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => void handleActionModalSubmit()}
+                            disabled={Boolean(updating) || reportingMisuse}
+                        >
+                            {updating || reportingMisuse ? 'Submitting...' : 'Submit'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={Boolean(imagePreviewUrl)}
+                onClose={closeImagePreview}
+                title={imagePreviewTitle || 'Complaint Image'}
+                size="lg"
+                className="modal--image-preview"
+                bodyClassName="image-preview-modal__body"
+            >
+                {imagePreviewUrl ? (
+                    <img
+                        src={imagePreviewUrl}
+                        alt={selectedComplaint?.title || 'Complaint image'}
+                        className="image-preview-modal__image"
+                    />
+                ) : null}
             </Modal>
         </DashboardLayout>
     );

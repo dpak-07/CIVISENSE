@@ -1,4 +1,5 @@
 const COORDINATE_PAIR_REGEX = /(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/;
+const BANG_COORDINATE_REGEX = /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/;
 
 const toNumber = (value) => Number(value);
 
@@ -26,7 +27,7 @@ const normalizeCoordinates = ({ longitude, latitude }) => {
 };
 
 const extractFromUrlParams = (url) => {
-  const candidateParams = ['q', 'query', 'll'];
+  const candidateParams = ['q', 'query', 'll', 'destination', 'origin'];
   for (const key of candidateParams) {
     const value = url.searchParams.get(key);
     if (!value) continue;
@@ -60,6 +61,16 @@ const parseCoordinatesFromMapLink = (mapLink) => {
   const trimmed = mapLink.trim();
   if (!trimmed) {
     return null;
+  }
+
+  const bangMatch = trimmed.match(BANG_COORDINATE_REGEX);
+  if (bangMatch) {
+    const latitude = toNumber(bangMatch[1]);
+    const longitude = toNumber(bangMatch[2]);
+    const normalized = normalizeCoordinates({ longitude, latitude });
+    if (normalized) {
+      return normalized;
+    }
   }
 
   try {

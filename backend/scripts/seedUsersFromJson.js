@@ -3,6 +3,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const { normalizeEmail, ensureDefaultDomainEmail } = require('../src/utils/email');
 
 const SALT_ROUNDS = 12;
 
@@ -18,8 +19,7 @@ const readJsonArray = (filePath) => {
   return parsed;
 };
 
-const normalizeText = (value) =>
-  typeof value === 'string' ? value.trim() : '';
+const normalizeText = (value) => (typeof value === 'string' ? value.trim() : '');
 
 const resolveMongoUri = () => {
   const candidates = [
@@ -61,10 +61,21 @@ const loadUserSeedData = () => {
 };
 
 const buildUserPayload = async ({ entry, municipalOfficeId }) => {
-  const email = normalizeText(entry.email).toLowerCase();
+  const role = normalizeText(entry.role) || 'officer';
+  const rawEmail = normalizeText(entry.email);
+  const normalizedRawEmail = normalizeEmail(rawEmail);
+  const fallbackEmailSource =
+    normalizeText(entry.municipalOfficeName) || normalizeText(entry.name) || 'municipaloffice';
+
+  const email =
+    role === 'officer'
+      ? ensureDefaultDomainEmail(normalizedRawEmail || fallbackEmailSource, {
+          defaultDomain: 'gmail.com',
+          fallbackLocal: fallbackEmailSource
+        })
+      : normalizedRawEmail;
   const name = normalizeText(entry.name);
   const password = String(entry.password || '').trim();
-  const role = normalizeText(entry.role) || 'officer';
   const language = normalizeText(entry.language) || 'en';
   const isActive = entry.isActive !== false;
 
@@ -75,14 +86,17 @@ const buildUserPayload = async ({ entry, municipalOfficeId }) => {
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
   return {
-    name,
-    email,
-    passwordHash,
-    role,
-    language,
-    isActive,
-    municipalOfficeId: municipalOfficeId || null,
-    refreshTokenHash: null
+    payload: {
+      name,
+      email,
+      passwordHash,
+      role,
+      language,
+      isActive,
+      municipalOfficeId: municipalOfficeId || null,
+      refreshTokenHash: null
+    },
+    legacyEmail: role === 'officer' ? normalizedRawEmail : null
   };
 };
 
@@ -105,7 +119,7 @@ const main = async () => {
   let skipped = 0;
 
   for (const entry of admins) {
-    const payload = await buildUserPayload({ entry, municipalOfficeId: null });
+    const { payload } = await buildUserPayload({ entry, municipalOfficeId: null });
     await User.findOneAndUpdate(
       { email: payload.email },
       { $set: payload },
@@ -122,7 +136,25 @@ const main = async () => {
       continue;
     }
 
-    const payload = await buildUserPayload({ entry, municipalOfficeId });
+    const { payload, legacyEmail } = await buildUserPayload({ entry, municipalOfficeId });
+
+    const candidateEmails = [payload.email];
+    if (legacyEmail && legacyEmail !== payload.email) {
+      candidateEmails.push(legacyEmail);
+    }
+
+    const existingOfficer = await User.findOne({
+      role: payload.role,
+      municipalOfficeId,
+      email: { $in: candidateEmails }
+    }).lean();
+
+    if (existingOfficer) {
+      await User.findByIdAndUpdate(existingOfficer._id, { $set: payload }, { runValidators: true });
+      upserted += 1;
+      continue;
+    }
+
     await User.findOneAndUpdate(
       { email: payload.email },
       { $set: payload },
@@ -131,9 +163,15 @@ const main = async () => {
     upserted += 1;
   }
 
+  const legacyCleanup = await User.deleteMany({
+    role: 'officer',
+    email: { $not: /@/ }
+  });
+
   console.log('User seed completed');
   console.log(`Upserted users: ${upserted}`);
   console.log(`Skipped municipal users (missing office mapping): ${skipped}`);
+  console.log(`Removed legacy officer logins without domain: ${legacyCleanup.deletedCount}`);
 };
 
 main()

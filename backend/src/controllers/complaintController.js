@@ -36,6 +36,24 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
   res.status(StatusCodes.OK).json({ success: true, data: complaint });
 });
 
+const reportComplaintUserMisuse = asyncHandler(async (req, res) => {
+  const result = await complaintService.reportComplaintUserMisuse({
+    complaintId: req.params.id,
+    reason: req.body?.reason,
+    note: req.body?.note,
+    reportedBy: req.user.id,
+    reportedByRole: req.user.role
+  });
+
+  res.status(StatusCodes.CREATED).json({
+    success: true,
+    message: result.blacklistTriggered
+      ? 'User reported and blacklisted after threshold'
+      : 'User misuse report submitted',
+    data: result
+  });
+});
+
 const deleteComplaint = asyncHandler(async (req, res) => {
   const result = await complaintService.deleteComplaint({
     complaintId: req.params.id,
@@ -55,5 +73,6 @@ module.exports = {
   getComplaints,
   getComplaintById,
   updateComplaintStatus,
+  reportComplaintUserMisuse,
   deleteComplaint
 };

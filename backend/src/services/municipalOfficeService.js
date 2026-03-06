@@ -7,8 +7,10 @@ const Complaint = require('../models/Complaint');
 const ApiError = require('../utils/ApiError');
 const { buildGoogleMapsLink, normalizeCoordinates, parseCoordinatesFromMapLink } = require('../utils/mapLink');
 const { ROLES } = require('../constants/roles');
+const { ensureDefaultDomainEmail, normalizeEmail } = require('../utils/email');
 
 const SALT_ROUNDS = 12;
+const DEFAULT_OFFICER_PASSWORD = '1234';
 
 const buildLocationPayload = (payload, fallback = {}) => {
   const directCoordinates =
@@ -123,9 +125,10 @@ const attachOfficerAccounts = async (offices) => {
 
 const normalizeOfficerPayload = (payload, officeName) => {
   const officerName = String(payload.officerName || '').trim() || `${officeName} Officer`;
-  const officerEmail = String(payload.officerEmail || '')
-    .trim()
-    .toLowerCase();
+  const officerEmail = ensureDefaultDomainEmail(payload.officerEmail, {
+    defaultDomain: 'gmail.com',
+    fallbackLocal: officeName
+  });
   const officerPassword = String(payload.officerPassword || '');
   const officerIsActive = typeof payload.officerIsActive === 'undefined' ? true : Boolean(payload.officerIsActive);
 
@@ -137,8 +140,21 @@ const normalizeOfficerPayload = (payload, officeName) => {
   };
 };
 
+const buildOfficerCredentialSnapshot = ({
+  officerName,
+  officerEmail,
+  officerPassword,
+  fallbackPassword = DEFAULT_OFFICER_PASSWORD
+}) => ({
+  officerName: String(officerName || '').trim() || null,
+  officerEmail:
+    ensureDefaultDomainEmail(officerEmail, { defaultDomain: 'gmail.com' }) || null,
+  officerPassword: String(officerPassword || fallbackPassword || '').trim() || null
+});
+
 const ensureOfficerEmailAvailable = async ({ email, excludeUserId = null }) => {
-  const query = { email };
+  const normalized = normalizeEmail(email);
+  const query = { email: normalized };
   if (excludeUserId) {
     query._id = { $ne: excludeUserId };
   }
@@ -171,13 +187,20 @@ const createMunicipalOffice = async (payload) => {
 
   await ensureOfficerEmailAvailable({ email: officerPayload.officerEmail });
 
+  const officerCredentialSnapshot = buildOfficerCredentialSnapshot({
+    officerName: officerPayload.officerName,
+    officerEmail: officerPayload.officerEmail,
+    officerPassword: officerPayload.officerPassword
+  });
+
   const office = await MunicipalOffice.create({
     name,
     type,
     zone,
     location: locationPayload.location,
     mapLink: locationPayload.mapLink,
-    maxCapacity
+    maxCapacity,
+    officerCredentials: officerCredentialSnapshot
   });
 
   try {
@@ -229,6 +252,7 @@ const updateOfficerAccount = async ({ officeId, payload, officeName }) => {
     return null;
   }
 
+  const office = await MunicipalOffice.findById(officeId).select('officerCredentials').lean();
   const currentOfficer = await User.findOne({
     role: ROLES.OFFICER,
     municipalOfficeId: officeId
@@ -236,6 +260,8 @@ const updateOfficerAccount = async ({ officeId, payload, officeName }) => {
 
   const normalized = normalizeOfficerPayload(payload, officeName);
   const nextEmail = normalized.officerEmail || currentOfficer?.email || '';
+  const existingSnapshot = office?.officerCredentials || {};
+  const nextPassword = normalized.officerPassword || existingSnapshot.officerPassword || DEFAULT_OFFICER_PASSWORD;
 
   if (!nextEmail) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'officerEmail is required to update officer account');
@@ -270,7 +296,11 @@ const updateOfficerAccount = async ({ officeId, payload, officeName }) => {
 
   if (currentOfficer) {
     await User.findByIdAndUpdate(currentOfficer._id, { $set: update }, { runValidators: true });
-    return currentOfficer._id;
+    return buildOfficerCredentialSnapshot({
+      officerName: normalized.officerName,
+      officerEmail: nextEmail,
+      officerPassword: nextPassword
+    });
   }
 
   const placeholderPasswordHash = update.passwordHash;
@@ -281,7 +311,11 @@ const updateOfficerAccount = async ({ officeId, payload, officeName }) => {
     passwordHash: placeholderPasswordHash
   });
 
-  return created._id;
+  return buildOfficerCredentialSnapshot({
+    officerName: created.name,
+    officerEmail: created.email,
+    officerPassword: nextPassword
+  });
 };
 
 const updateMunicipalOffice = async (officeId, payload) => {
@@ -336,13 +370,22 @@ const updateMunicipalOffice = async (officeId, payload) => {
     runValidators: true
   }).lean();
 
-  await updateOfficerAccount({
+  const officerCredentialSnapshot = await updateOfficerAccount({
     officeId: office._id,
     payload,
     officeName: office.name
   });
 
-  const [withOfficer] = await attachOfficerAccounts([office]);
+  let refreshedOffice = office;
+  if (officerCredentialSnapshot) {
+    refreshedOffice = await MunicipalOffice.findByIdAndUpdate(
+      office._id,
+      { $set: { officerCredentials: officerCredentialSnapshot } },
+      { new: true, runValidators: true }
+    ).lean();
+  }
+
+  const [withOfficer] = await attachOfficerAccounts([refreshedOffice]);
   return withOfficer;
 };
 

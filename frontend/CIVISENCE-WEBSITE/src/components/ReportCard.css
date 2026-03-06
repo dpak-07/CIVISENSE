@@ -96,12 +96,22 @@
     min-width: 0;
 }
 
-.report-card__path-link {
-    color: var(--accent-light);
+.report-card__path-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.report-card__path-button {
+    align-self: flex-start;
+    padding: 6px 10px;
+    min-height: auto;
     font-size: var(--font-xs);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+}
+
+.report-card__path-button--ai {
+    border-color: rgba(37, 99, 235, 0.32);
+    color: #1d4ed8;
 }
 
 .report-card__actions {

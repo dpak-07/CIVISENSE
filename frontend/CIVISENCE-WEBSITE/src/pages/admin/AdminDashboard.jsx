@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardLayout from '../../components/Layout/DashboardLayout';
 import StatsCard from '../../components/StatsCard';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -27,35 +27,41 @@ import {
     XAxis,
     YAxis,
     CartesianGrid,
-    Tooltip
+    Tooltip,
+    Legend
 } from 'recharts';
 
 const CHART_COLORS = ['#0f62fe', '#16d5d5', '#10b981', '#f59e0b', '#ef4444', '#22c0ff'];
+const REFRESH_INTERVAL_MS = 20000;
 
 const toShortOfficeName = (name = '') => {
     if (name.length <= 18) return name;
     return `${name.slice(0, 16)}..`;
 };
+const prettyLabel = (value) => String(value || '').replace(/_/g, ' ');
 
 export default function AdminDashboard() {
     const [metrics, setMetrics] = useState(null);
     const [offices, setOffices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const isMountedRef = useRef(true);
 
-    useEffect(() => {
-        void loadData();
-    }, []);
-
-    const loadData = async () => {
+    const loadData = useCallback(async ({ silent = false } = {}) => {
+        if (!silent && isMountedRef.current) {
+            setLoading(true);
+        }
         try {
             const [metricsRes, officesRes] = await Promise.all([
                 getDashboardMetrics(),
                 getOffices()
             ]);
+            if (!isMountedRef.current) return;
             setMetrics(metricsRes.data.data);
             setOffices(officesRes.data.data || []);
+            setError('');
         } catch (err) {
+            if (!isMountedRef.current) return;
             if (isDemoSession()) {
                 setMetrics(DEMO_ADMIN_METRICS);
                 setOffices(DEMO_OFFICES || []);
@@ -64,9 +70,38 @@ export default function AdminDashboard() {
             }
             setError(getErrorMessage(err));
         } finally {
-            setLoading(false);
+            if (!silent && isMountedRef.current) {
+                setLoading(false);
+            }
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+
+        void loadData();
+        const onWindowFocus = () => {
+            void loadData({ silent: true });
+        };
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                void loadData({ silent: true });
+            }
+        };
+        const intervalId = window.setInterval(() => {
+            void loadData({ silent: true });
+        }, REFRESH_INTERVAL_MS);
+
+        window.addEventListener('focus', onWindowFocus);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+
+        return () => {
+            isMountedRef.current = false;
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', onWindowFocus);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, [loadData]);
 
     const statusData = metrics?.statusBreakdown
         ? Object.entries(metrics.statusBreakdown).map(([name, value]) => ({ name, value }))
@@ -98,13 +133,19 @@ export default function AdminDashboard() {
     const resolvedReports = metrics?.resolvedReports || metrics?.resolvedComplaints || 0;
     const highPriorityCount =
         (metrics?.priorityBreakdown?.critical || 0) + (metrics?.priorityBreakdown?.high || 0);
+    const lastSnapshotText = metrics?.snapshotAt
+        ? new Date(metrics.snapshotAt).toLocaleString()
+        : 'live';
 
     return (
         <DashboardLayout>
             <div className="page-header">
                 <div>
                     <h1>Admin Dashboard</h1>
-                    <p>Office capacity board, global complaint status, and resolution tracking.</p>
+                    <p>
+                        Office capacity board, global complaint status, and resolution tracking.
+                        <span className="admin-dashboard__subhead"> Last snapshot: {lastSnapshotText}</span>
+                    </p>
                 </div>
             </div>
 
@@ -121,22 +162,30 @@ export default function AdminDashboard() {
                 {statusData.length > 0 && (
                     <div className="chart-card card">
                         <h3>Global Status Breakdown</h3>
+                        <p className="admin-dashboard__chart-meta">All complaint states across the platform.</p>
                         <ResponsiveContainer width="100%" height={260}>
                             <PieChart>
                                 <Pie
                                     data={statusData}
                                     cx="50%"
-                                    cy="50%"
+                                    cy="44%"
                                     innerRadius={60}
-                                    outerRadius={98}
+                                    outerRadius={84}
                                     dataKey="value"
-                                    label={({ name, value }) => `${name}: ${value}`}
+                                    label={false}
+                                    labelLine={false}
                                 >
                                     {statusData.map((_, i) => (
                                         <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                                     ))}
                                 </Pie>
                                 <Tooltip />
+                                <Legend
+                                    formatter={(value) => prettyLabel(value)}
+                                    verticalAlign="bottom"
+                                    iconType="circle"
+                                    wrapperStyle={{ fontSize: '12px', lineHeight: 1.6 }}
+                                />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
@@ -145,8 +194,9 @@ export default function AdminDashboard() {
                 {officeCapacityData.length > 0 && (
                     <div className="chart-card card">
                         <h3>Top Office Capacity Usage</h3>
+                        <p className="admin-dashboard__chart-meta">Highest load ratio offices (workload/capacity).</p>
                         <ResponsiveContainer width="100%" height={260}>
-                            <BarChart data={officeCapacityData.slice(0, 8)}>
+                            <BarChart data={officeCapacityData.slice(0, 8)} margin={{ top: 8, right: 12, left: -12, bottom: 24 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                                 <XAxis dataKey="shortName" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
                                 <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />

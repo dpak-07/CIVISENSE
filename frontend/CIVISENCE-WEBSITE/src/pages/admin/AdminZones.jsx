@@ -136,6 +136,20 @@ export default function AdminZones() {
         }));
     };
 
+    const handleMapLinkChange = (mapLinkValue) => {
+        const parsed = parseCoordinatesFromMapLink(mapLinkValue);
+        setForm((prev) => ({
+            ...prev,
+            mapLink: mapLinkValue,
+            ...(parsed
+                ? {
+                    longitude: parsed.longitude.toString(),
+                    latitude: parsed.latitude.toString()
+                }
+                : {})
+        }));
+    };
+
     const resolveLocation = () => {
         const latitude = toOptionalNumber(form.latitude);
         const longitude = toOptionalNumber(form.longitude);
@@ -244,6 +258,10 @@ export default function AdminZones() {
 
     const handleFieldChange = (event) => {
         const { name, value, type, checked } = event.target;
+        if (name === 'mapLink') {
+            handleMapLinkChange(value);
+            return;
+        }
         setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
@@ -318,12 +336,28 @@ export default function AdminZones() {
                 onClose={() => !saving && setShowModal(false)}
                 title={editingId ? 'Edit Sensitive Zone' : 'Create Sensitive Zone'}
                 subtitle="Store zone location via Google Maps URL with parsed coordinates."
+                size="xl"
+                className="modal--compact"
+                bodyScrollable={false}
             >
                 {error && <div className="auth-error">{error}</div>}
-                <form onSubmit={handleSubmit} className="modal-form">
+                <form onSubmit={handleSubmit} className="modal-form modal-form--single-card">
                     <div className="input-group">
                         <label>Name *</label>
                         <input className="input" name="name" value={form.name} onChange={handleFieldChange} required />
+                    </div>
+                    <div className="input-group">
+                        <label>Priority Weight *</label>
+                        <input
+                            className="input"
+                            name="priorityWeight"
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={form.priorityWeight}
+                            onChange={handleFieldChange}
+                            required
+                        />
                     </div>
                     <div className="input-group">
                         <label>Type *</label>
@@ -336,35 +370,28 @@ export default function AdminZones() {
                             ))}
                         </select>
                     </div>
-                    <div className="input-row">
-                        <div className="input-group">
-                            <label>Priority Weight *</label>
-                            <input
-                                className="input"
-                                name="priorityWeight"
-                                type="number"
-                                min="1"
-                                max="10"
-                                value={form.priorityWeight}
-                                onChange={handleFieldChange}
-                                required
-                            />
-                        </div>
-                        <div className="input-group">
-                            <label>Radius (meters) *</label>
-                            <input
-                                className="input"
-                                name="radiusMeters"
-                                type="number"
-                                min="10"
-                                max="10000"
-                                value={form.radiusMeters}
-                                onChange={handleFieldChange}
-                                required
-                            />
-                        </div>
+                    <div className="input-group">
+                        <label>Radius (meters) *</label>
+                        <input
+                            className="input"
+                            name="radiusMeters"
+                            type="number"
+                            min="10"
+                            max="10000"
+                            value={form.radiusMeters}
+                            onChange={handleFieldChange}
+                            required
+                        />
                     </div>
                     <div className="input-group">
+                        <label>Latitude (optional)</label>
+                        <input className="input" name="latitude" type="number" step="any" value={form.latitude} onChange={handleFieldChange} />
+                    </div>
+                    <div className="input-group">
+                        <label>Longitude (optional)</label>
+                        <input className="input" name="longitude" type="number" step="any" value={form.longitude} onChange={handleFieldChange} />
+                    </div>
+                    <div className="input-group input-group--span-3">
                         <label>Google Maps Link *</label>
                         <input
                             className="input"
@@ -376,29 +403,21 @@ export default function AdminZones() {
                         />
                         <small className="form-help-text">Paste any maps URL containing coordinates.</small>
                     </div>
-                    <div className="input-row">
-                        <div className="input-group">
-                            <label>Latitude (optional)</label>
-                            <input className="input" name="latitude" type="number" step="any" value={form.latitude} onChange={handleFieldChange} />
-                        </div>
-                        <div className="input-group">
-                            <label>Longitude (optional)</label>
-                            <input className="input" name="longitude" type="number" step="any" value={form.longitude} onChange={handleFieldChange} />
-                        </div>
-                    </div>
-                    <div className="input-group">
+                    <div className="input-group input-group--span-3">
                         <label>Description</label>
-                        <textarea className="input" rows={4} name="description" value={form.description} onChange={handleFieldChange} />
+                        <textarea className="input" rows={3} name="description" value={form.description} onChange={handleFieldChange} />
                     </div>
-                    <label className="sensitive-form__toggle">
-                        <input type="checkbox" name="isActive" checked={form.isActive} onChange={handleFieldChange} />
-                        Active
-                    </label>
-                    <div className="form-actions">
-                        <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)} disabled={saving}>Cancel</button>
-                        <button type="submit" className="btn btn-primary" disabled={saving}>
-                            {saving ? 'Saving...' : editingId ? 'Update Zone' : 'Create Zone'}
-                        </button>
+                    <div className="modal-form__footer modal-field--span-3">
+                        <label className="sensitive-form__toggle">
+                            <input type="checkbox" name="isActive" checked={form.isActive} onChange={handleFieldChange} />
+                            Active
+                        </label>
+                        <div className="form-actions">
+                            <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)} disabled={saving}>Cancel</button>
+                            <button type="submit" className="btn btn-primary" disabled={saving}>
+                                {saving ? 'Saving...' : editingId ? 'Update Zone' : 'Create Zone'}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </Modal>

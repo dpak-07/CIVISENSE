@@ -1,6 +1,23 @@
+/* HERO */
+
 .about-page__hero {
     padding: var(--space-16) 0 var(--space-10);
     text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.about-page__hero::before {
+    content: "";
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(99,102,241,0.25), transparent);
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    filter: blur(120px);
+    z-index: 0;
 }
 
 .about-page__hero h1 {
@@ -9,6 +26,8 @@
     max-width: 940px;
     margin-left: auto;
     margin-right: auto;
+    position: relative;
+    z-index: 1;
 }
 
 .about-page__hero p {
@@ -18,7 +37,13 @@
     margin-left: auto;
     margin-right: auto;
     font-size: var(--font-lg);
+    position: relative;
+    z-index: 1;
 }
+
+
+
+/* PURPOSE */
 
 .about-page__purpose {
     padding-bottom: var(--space-10);
@@ -26,7 +51,20 @@
 
 .about-purpose-card {
     border: 1px solid rgba(167, 139, 250, 0.34);
-    background: linear-gradient(130deg, rgba(79, 70, 229, 0.18), rgba(34, 211, 238, 0.1));
+    background: linear-gradient(
+        135deg,
+        rgba(79, 70, 229, 0.18),
+        rgba(34, 211, 238, 0.1)
+    );
+    backdrop-filter: blur(10px);
+    border-radius: 18px;
+    padding: var(--space-8);
+    transition: all 0.4s ease;
+}
+
+.about-purpose-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25);
 }
 
 .about-purpose-card h2 {
@@ -38,11 +76,19 @@
     color: var(--text-secondary);
 }
 
+
+
+/* BLOCK SECTIONS */
+
 .about-page__blocks,
 .about-page__workflow,
 .about-page__principles {
     padding-bottom: var(--space-16);
 }
+
+
+
+/* GRID */
 
 .about-block-grid {
     display: grid;
@@ -50,22 +96,50 @@
     gap: var(--space-6);
 }
 
+
+
+/* BLOCK CARD */
+
+.about-block-card {
+    padding: var(--space-7);
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+    backdrop-filter: blur(12px);
+    transition: all 0.35s ease;
+    position: relative;
+}
+
+.about-block-card:hover {
+    transform: translateY(-8px);
+    border-color: rgba(99,102,241,0.5);
+    box-shadow: 0 25px 45px rgba(0,0,0,0.25);
+}
+
+
+
+/* ICON */
+
 .about-block-card__icon {
-    width: 48px;
-    height: 48px;
+    width: 50px;
+    height: 50px;
     border-radius: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     margin-bottom: var(--space-4);
-    background: rgba(99, 102, 241, 0.2);
+    background: rgba(99,102,241,0.2);
     color: var(--primary-light);
-    font-size: 1.3rem;
+    font-size: 1.4rem;
 }
+
+
+
+/* BLOCK CONTENT */
 
 .about-block-card h3 {
     margin-bottom: var(--space-3);
-    font-size: 1.2rem;
+    font-size: 1.25rem;
 }
 
 .about-block-card ul {
@@ -77,12 +151,12 @@
 .about-block-card li {
     color: var(--text-secondary);
     font-size: var(--font-sm);
-    padding-left: 15px;
+    padding-left: 16px;
     position: relative;
 }
 
 .about-block-card li::before {
-    content: '';
+    content: "";
     position: absolute;
     left: 0;
     top: 8px;
@@ -91,6 +165,10 @@
     border-radius: 50%;
     background: var(--accent-light);
 }
+
+
+
+/* SECTION HEADER */
 
 .section-header {
     text-align: center;
@@ -102,19 +180,42 @@
     font-size: clamp(1.8rem, 4vw, 2.9rem);
 }
 
+
+
+/* WORKFLOW GRID */
+
 .about-workflow-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--space-5);
 }
 
+
+
+/* WORKFLOW CARD */
+
 .about-workflow-step {
     text-align: center;
+    padding: var(--space-6);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: all 0.35s ease;
 }
 
+.about-workflow-step:hover {
+    transform: translateY(-6px);
+    border-color: rgba(34,211,238,0.5);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+}
+
+
+
+/* WORKFLOW ICON */
+
 .about-workflow-step__icon {
-    width: 46px;
-    height: 46px;
+    width: 48px;
+    height: 48px;
     border-radius: 12px;
     display: inline-flex;
     align-items: center;
@@ -122,8 +223,12 @@
     margin-bottom: var(--space-4);
     background: rgba(34, 211, 238, 0.16);
     color: var(--accent-light);
-    font-size: 1.2rem;
+    font-size: 1.3rem;
 }
+
+
+
+/* WORKFLOW TEXT */
 
 .about-workflow-step h3 {
     margin-bottom: var(--space-2);
@@ -134,10 +239,31 @@
     font-size: var(--font-sm);
 }
 
+
+
+/* PRINCIPLES */
+
 .about-principles-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-5);
+}
+
+
+
+/* PRINCIPLE CARD */
+
+.about-principle {
+    padding: var(--space-6);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: all 0.35s ease;
+}
+
+.about-principle:hover {
+    transform: translateY(-6px);
+    border-color: rgba(167,139,250,0.6);
 }
 
 .about-principle h3 {
@@ -149,17 +275,29 @@
     color: var(--text-secondary);
 }
 
+
+
+/* RESPONSIVE */
+
 @media (max-width: 1024px) {
+
     .about-block-grid,
     .about-workflow-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
 }
 
 @media (max-width: 768px) {
+
     .about-block-grid,
     .about-workflow-grid,
     .about-principles-grid {
         grid-template-columns: 1fr;
     }
+
+    .about-page__hero {
+        padding-top: var(--space-12);
+    }
+
 }

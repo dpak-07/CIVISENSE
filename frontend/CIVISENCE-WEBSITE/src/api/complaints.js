@@ -12,4 +12,7 @@ export const createComplaint = (formData) =>
 export const updateComplaintStatus = (id, payload) =>
     api.patch(`/complaints/${id}/status`, payload);
 
+export const reportComplaintUser = (id, payload) =>
+    api.patch(`/complaints/${id}/report-user`, payload);
+
 export const deleteComplaint = (id) => api.delete(`/complaints/${id}`);

@@ -4,6 +4,8 @@ const Complaint = require('../models/Complaint');
 const MunicipalOffice = require('../models/MunicipalOffice');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const UserMisuseReport = require('../models/UserMisuseReport');
+const BlacklistedUser = require('../models/BlacklistedUser');
 const ApiError = require('../utils/ApiError');
 const { ROLES } = require('../constants/roles');
 const { detectDuplicate } = require('./duplicateDetectionService');
@@ -17,9 +19,11 @@ const {
   AI_PROCESSING_STATUS
 } = require('../constants/complaint');
 
+const MISUSE_REPORT_THRESHOLD = Math.max(Number(process.env.MISUSE_REPORT_THRESHOLD) || 3, 1);
+
 
 const complaintPopulate = [
-  { path: 'reportedBy', select: 'name email role isActive' },
+  { path: 'reportedBy', select: 'name email role isActive isBlacklisted misuseReportCount' },
   { path: 'assignedMunicipalOffice', select: 'name type zone workload maxCapacity isActive' },
   { path: 'duplicateInfo.masterComplaintId', select: 'title status category' },
   {
@@ -351,6 +355,16 @@ const buildStatusUpdateNotificationMessage = ({ status, remark, rejectionReason 
   return `Complaint status updated to ${status.replace(/_/g, ' ')}.`;
 };
 
+const buildMisuseWarningMessage = ({ reportCount, threshold }) => {
+  const remaining = Math.max(threshold - reportCount, 0);
+  if (remaining <= 0) {
+    return `Your account has been blacklisted after receiving ${reportCount} misuse reports.`;
+  }
+
+  const plural = remaining === 1 ? 'report' : 'reports';
+  return `A misuse report was filed on your account. ${remaining} more ${plural} can result in blacklisting.`;
+};
+
 const updateComplaintStatus = async ({
   complaintId,
   status,
@@ -452,6 +466,156 @@ const updateComplaintStatus = async ({
   return Complaint.findById(complaint._id).populate(complaintPopulate).lean();
 };
 
+const reportComplaintUserMisuse = async ({
+  complaintId,
+  reason,
+  note,
+  reportedBy,
+  reportedByRole
+}) => {
+  const reasonText = toOptionalTrimmedText(reason);
+  if (!reasonText) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Misuse report reason is required');
+  }
+
+  const noteText = toOptionalTrimmedText(note);
+  const complaint = await getComplaintOrThrow(complaintId);
+
+  if (!complaint.reportedBy) {
+    throw new ApiError(StatusCodes.CONFLICT, 'Complaint does not have a valid reported user');
+  }
+
+  if (String(complaint.reportedBy) === String(reportedBy)) {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'You cannot report your own account');
+  }
+
+  if (reportedByRole === ROLES.OFFICER) {
+    const reviewer = await User.findById(reportedBy).select('municipalOfficeId role').lean();
+    if (!reviewer || reviewer.role !== ROLES.OFFICER) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'Only office officers can use this action');
+    }
+
+    if (
+      !reviewer.municipalOfficeId ||
+      !complaint.assignedMunicipalOffice ||
+      String(reviewer.municipalOfficeId) !== String(complaint.assignedMunicipalOffice)
+    ) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        'You can report misuse only for complaints assigned to your office'
+      );
+    }
+  }
+
+  const reportedUser = await User.findById(complaint.reportedBy)
+    .select('name email isBlacklisted misuseReportCount')
+    .lean();
+  if (!reportedUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Reported user not found');
+  }
+
+  if (reportedUser.isBlacklisted) {
+    throw new ApiError(StatusCodes.CONFLICT, 'User is already blacklisted');
+  }
+
+  let createdReport;
+  try {
+    createdReport = await UserMisuseReport.create({
+      complaintId: complaint._id,
+      reportedUserId: reportedUser._id,
+      reportedBy,
+      reportedByRole,
+      reason: reasonText,
+      note: noteText
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        'You have already submitted a misuse report for this complaint'
+      );
+    }
+    throw error;
+  }
+
+  const reportCount = await UserMisuseReport.countDocuments({
+    reportedUserId: reportedUser._id
+  });
+
+  let blacklistTriggered = false;
+
+  const userUpdate = {
+    misuseReportCount: reportCount
+  };
+
+  if (reportCount >= MISUSE_REPORT_THRESHOLD) {
+    blacklistTriggered = true;
+    const blacklistReason = `Auto-blacklisted after ${reportCount} misuse reports.`;
+    const blacklistedAt = new Date();
+    userUpdate.isBlacklisted = true;
+    userUpdate.blacklistedAt = blacklistedAt;
+    userUpdate.blacklistReason = blacklistReason;
+    userUpdate.isActive = false;
+
+    await User.findByIdAndUpdate(reportedUser._id, { $set: userUpdate });
+
+    await BlacklistedUser.findOneAndUpdate(
+      { userId: reportedUser._id },
+      {
+        $set: {
+          reason: blacklistReason,
+          reportCount,
+          threshold: MISUSE_REPORT_THRESHOLD,
+          latestReportId: createdReport._id,
+          source: 'misuse_report_threshold',
+          createdBy: reportedBy || null,
+          blacklistedAt,
+          notifiedAt: blacklistedAt,
+          isActive: true
+        },
+        $addToSet: {
+          reportIds: createdReport._id
+        }
+      },
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    await sendNotification(
+      reportedUser._id,
+      'Account blacklisted',
+      `Your account has been blacklisted after ${reportCount} misuse reports. Contact support for review.`,
+      complaint._id
+    );
+  } else {
+    await User.findByIdAndUpdate(reportedUser._id, { $set: userUpdate });
+    await sendNotification(
+      reportedUser._id,
+      'Misuse warning',
+      buildMisuseWarningMessage({
+        reportCount,
+        threshold: MISUSE_REPORT_THRESHOLD
+      }),
+      complaint._id
+    );
+  }
+
+  return {
+    complaintId: complaint._id.toString(),
+    reportedUserId: reportedUser._id.toString(),
+    reportCount,
+    threshold: MISUSE_REPORT_THRESHOLD,
+    blacklistTriggered,
+    report: {
+      id: createdReport._id.toString(),
+      reason: createdReport.reason,
+      note: createdReport.note,
+      reportedBy: createdReport.reportedBy.toString(),
+      reportedByRole: createdReport.reportedByRole,
+      createdAt: createdReport.createdAt
+    }
+  };
+};
+
 const deleteComplaint = async ({ complaintId, requesterId, requesterRole }) => {
   const complaint = await getComplaintOrThrow(complaintId);
 
@@ -495,6 +659,7 @@ module.exports = {
   getComplaints,
   getComplaintById,
   updateComplaintStatus,
+  reportComplaintUserMisuse,
   deleteComplaint
 };
 

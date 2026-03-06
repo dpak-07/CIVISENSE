@@ -18,5 +18,10 @@ router.patch(
   allowRoles(ROLES.OFFICER, ROLES.ADMIN, ROLES.SUPER_ADMIN),
   complaintController.updateComplaintStatus
 );
+router.patch(
+  '/:id/report-user',
+  allowRoles(ROLES.OFFICER, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  complaintController.reportComplaintUserMisuse
+);
 
 module.exports = router;

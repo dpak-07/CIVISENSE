@@ -1,31 +1,75 @@
 import asyncio
 import logging
 import math
+import re
 from dataclasses import dataclass
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorCollection
 from pymongo.errors import OperationFailure
 
+from app.config import Settings
 
 logger = logging.getLogger(__name__)
-
-GEO_RADIUS_METERS = 2000
 
 
 @dataclass(frozen=True)
 class GeoMultiplierResult:
     multiplier: float
     matched_type: str
+    matched_name: str | None
+    matched_distance_meters: float | None
+    matched_keyword: str | None
+
+
+@dataclass(frozen=True)
+class GeoRule:
+    location_type: str
+    multiplier: float
+    keywords: list[str]
+    radius_meters: int
 
 
 class GeoMultiplier:
-    def __init__(self, sensitive_locations: AsyncIOMotorCollection) -> None:
+    def __init__(self, sensitive_locations: AsyncIOMotorCollection, settings: Settings) -> None:
+        self.settings = settings
         self.sensitive_locations = sensitive_locations
-        self._rules: list[tuple[str, float, list[str]]] = [
-            ("school", 1.5, ["school"]),
-            ("hospital", 1.4, ["hospital", "clinic", "medical"]),
-            ("metro", 1.2, ["metro", "subway", "station"]),
+        self._rules: list[GeoRule] = [
+            GeoRule(
+                location_type="school",
+                multiplier=1.6,
+                keywords=[
+                    "school",
+                    "higher secondary",
+                    "secondary school",
+                    "public school",
+                    "matriculation",
+                    "vidyalaya",
+                    "academy",
+                    "college",
+                    "university",
+                    "institute",
+                ],
+                radius_meters=max(100, int(self.settings.school_radius_meters)),
+            ),
+            GeoRule(
+                location_type="hospital",
+                multiplier=1.45,
+                keywords=["hospital", "clinic", "medical", "health", "trauma"],
+                radius_meters=max(100, int(self.settings.hospital_radius_meters)),
+            ),
+            GeoRule(
+                location_type="metro",
+                multiplier=1.25,
+                keywords=["metro", "subway", "station", "railway", "bus stand"],
+                radius_meters=max(100, int(self.settings.transit_radius_meters)),
+            ),
+            GeoRule(
+                location_type="government",
+                multiplier=1.2,
+                keywords=["government", "collectorate", "secretariat", "court", "office", "police"],
+                radius_meters=max(100, int(self.settings.government_radius_meters)),
+            ),
         ]
         self._geo_query_supported: bool | None = None
         self._geo_support_lock = asyncio.Lock()
@@ -34,26 +78,52 @@ class GeoMultiplier:
     async def resolve(self, complaint: dict[str, Any]) -> GeoMultiplierResult:
         coordinates = self._extract_coordinates(complaint)
         if coordinates is None:
-            return GeoMultiplierResult(multiplier=1.0, matched_type="none")
+            return GeoMultiplierResult(
+                multiplier=1.0,
+                matched_type="none",
+                matched_name=None,
+                matched_distance_meters=None,
+                matched_keyword=None,
+            )
 
         lng, lat = coordinates
-        for location_type, multiplier, keywords in self._rules:
-            if await self._is_near_location_type(lng, lat, keywords):
-                return GeoMultiplierResult(multiplier=multiplier, matched_type=location_type)
+        for rule in self._rules:
+            match = await self._find_near_location_match(lng, lat, rule)
+            if match is None:
+                continue
+            return GeoMultiplierResult(
+                multiplier=rule.multiplier,
+                matched_type=rule.location_type,
+                matched_name=match.get("name"),
+                matched_distance_meters=match.get("distance_meters"),
+                matched_keyword=match.get("keyword"),
+            )
 
-        return GeoMultiplierResult(multiplier=1.0, matched_type="none")
+        return GeoMultiplierResult(
+            multiplier=1.0,
+            matched_type="none",
+            matched_name=None,
+            matched_distance_meters=None,
+            matched_keyword=None,
+        )
 
-    async def _is_near_location_type(self, lng: float, lat: float, keywords: list[str]) -> bool:
+    async def _find_near_location_match(
+        self,
+        lng: float,
+        lat: float,
+        rule: GeoRule,
+    ) -> dict[str, Any] | None:
         if not await self._is_geo_query_supported():
-            return await self._fallback_scan(lng, lat, keywords)
+            return await self._fallback_scan(lng, lat, rule)
 
-        conditions = []
-        for keyword in keywords:
+        conditions: list[dict[str, Any]] = []
+        for keyword in rule.keywords:
+            escaped = re.escape(keyword)
             conditions.extend(
                 [
-                    {"type": {"$regex": keyword, "$options": "i"}},
-                    {"name": {"$regex": keyword, "$options": "i"}},
-                    {"category": {"$regex": keyword, "$options": "i"}},
+                    {"type": {"$regex": escaped, "$options": "i"}},
+                    {"name": {"$regex": escaped, "$options": "i"}},
+                    {"category": {"$regex": escaped, "$options": "i"}},
                 ]
             )
 
@@ -61,34 +131,48 @@ class GeoMultiplier:
             "location": {
                 "$nearSphere": {
                     "$geometry": {"type": "Point", "coordinates": [lng, lat]},
-                    "$maxDistance": GEO_RADIUS_METERS,
+                    "$maxDistance": int(rule.radius_meters),
                 }
             },
             "$or": conditions,
         }
 
         try:
-            match = await self.sensitive_locations.find_one(query, projection={"_id": 1})
-            return match is not None
+            match = await self.sensitive_locations.find_one(
+                query,
+                projection={"_id": 1, "name": 1, "type": 1, "category": 1, "location": 1},
+            )
+            if match is None:
+                return None
+            distance_meters = self._distance_for_document(lng, lat, match)
+            keyword = self._extract_best_keyword(match, rule.keywords)
+            return {
+                "name": match.get("name"),
+                "distance_meters": distance_meters,
+                "keyword": keyword,
+            }
         except OperationFailure as exc:
             if getattr(exc, "code", None) == 291:
                 self._geo_query_supported = False
                 self._log_geo_disabled_once(exc)
-                return await self._fallback_scan(lng, lat, keywords)
+                return await self._fallback_scan(lng, lat, rule)
             logger.warning("Geo multiplier fallback due to operation error: %s", exc)
-            return await self._fallback_scan(lng, lat, keywords)
+            return await self._fallback_scan(lng, lat, rule)
         except Exception as exc:
             logger.warning("Geo multiplier fallback due to query error: %s", exc)
-            return await self._fallback_scan(lng, lat, keywords)
+            return await self._fallback_scan(lng, lat, rule)
 
-    async def _fallback_scan(self, lng: float, lat: float, keywords: list[str]) -> bool:
+    async def _fallback_scan(self, lng: float, lat: float, rule: GeoRule) -> dict[str, Any] | None:
         cursor = self.sensitive_locations.find(
             {},
             projection={"location": 1, "type": 1, "name": 1, "category": 1},
         )
 
+        best_match: dict[str, Any] | None = None
+        best_distance = float("inf")
+
         async for document in cursor:
-            if not self._matches_keywords(document, keywords):
+            if not self._matches_keywords(document, rule.keywords):
                 continue
 
             coordinates = self._extract_coordinates(document)
@@ -96,10 +180,18 @@ class GeoMultiplier:
                 continue
 
             distance = self._haversine_meters(lng, lat, coordinates[0], coordinates[1])
-            if distance <= GEO_RADIUS_METERS:
-                return True
+            if distance > int(rule.radius_meters):
+                continue
 
-        return False
+            if distance < best_distance:
+                best_distance = distance
+                best_match = {
+                    "name": document.get("name"),
+                    "distance_meters": round(distance, 1),
+                    "keyword": self._extract_best_keyword(document, rule.keywords),
+                }
+
+        return best_match
 
     async def _is_geo_query_supported(self) -> bool:
         if self._geo_query_supported is not None:
@@ -171,6 +263,25 @@ class GeoMultiplier:
 
         joined = " ".join(text_parts)
         return any(keyword in joined for keyword in keywords)
+
+    def _distance_for_document(self, source_lng: float, source_lat: float, document: dict[str, Any]) -> float | None:
+        coordinates = self._extract_coordinates(document)
+        if coordinates is None:
+            return None
+        return round(self._haversine_meters(source_lng, source_lat, coordinates[0], coordinates[1]), 1)
+
+    @staticmethod
+    def _extract_best_keyword(document: dict[str, Any], keywords: list[str]) -> str | None:
+        text_parts = []
+        for field in ("type", "name", "category"):
+            value = document.get(field)
+            if isinstance(value, str):
+                text_parts.append(value.lower())
+        joined = " ".join(text_parts)
+        for keyword in keywords:
+            if keyword.lower() in joined:
+                return keyword
+        return None
 
     @staticmethod
     def _haversine_meters(lng1: float, lat1: float, lng2: float, lat2: float) -> float:

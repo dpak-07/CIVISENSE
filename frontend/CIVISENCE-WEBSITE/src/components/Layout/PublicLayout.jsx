@@ -13,6 +13,7 @@ const navItems = [
     { label: 'Developers', to: '/developers' },
     { label: 'Contact', to: '/contact' }
 ];
+const containerClass = 'container';
 
 export default function PublicLayout({ children }) {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -24,7 +25,7 @@ export default function PublicLayout({ children }) {
     return (
         <div className="public-layout">
             <header className="public-header glass">
-                <div className="container public-header__inner">
+                <div className={`${containerClass} public-header__inner`}>
                     <Link to="/" className="public-logo" onClick={closeMenu}>
                         <CiviSenseLogo size={44} className="public-logo__icon" />
                         <span className="public-logo__text-wrap">
@@ -67,7 +68,7 @@ export default function PublicLayout({ children }) {
                 </div>
 
                 <div className={`public-mobile-menu ${menuOpen ? 'open' : ''}`}>
-                    <div className="container public-mobile-menu__inner glass">
+                    <div className={`${containerClass} public-mobile-menu__inner glass`}>
                         {navItems.map((item) => (
                             <Link
                                 key={item.to}
@@ -90,7 +91,7 @@ export default function PublicLayout({ children }) {
             <main className="public-main">{children}</main>
 
             <footer className="public-footer">
-                <div className="container public-footer__grid">
+                <div className={`${containerClass} public-footer__grid`}>
                     <div>
                         <div className="public-footer__brand">
                             <CiviSenseLogo size={36} className="public-logo__icon" />
@@ -126,7 +127,7 @@ export default function PublicLayout({ children }) {
                         </ul>
                     </div>
                 </div>
-                <div className="container public-footer__bottom">
+                <div className={`${containerClass} public-footer__bottom`}>
                     <p>Copyright {new Date().getFullYear()} CiviSense. Government-ready civic operations interface.</p>
                 </div>
             </footer>

@@ -78,7 +78,7 @@ export default function App() {
                         <Route path="/admin/offices" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminOffices /></ProtectedRoute>} />
                         <Route path="/admin/zones" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminZones /></ProtectedRoute>} />
                         <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminAnalytics /></ProtectedRoute>} />
-                        <Route path="/devs" element={<ProtectedRoute><DevTools /></ProtectedRoute>} />
+                        <Route path="/devs" element={<ProtectedRoute allowedRoles={['super_admin']}><DevTools /></ProtectedRoute>} />
 
                         {/* Catch-all */}
                         <Route path="*" element={<Navigate to="/" replace />} />

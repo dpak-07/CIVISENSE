@@ -1,183 +1,446 @@
-import { useEffect, useState } from 'react';
-import { HiOutlineChevronLeft, HiOutlineChevronRight } from 'react-icons/hi2';
+import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+    HiOutlineChevronLeft,
+    HiOutlineChevronRight,
+    HiOutlineSparkles,
+    HiOutlineUserCircle
+} from 'react-icons/hi2';
+import { FaGithub, FaGlobe, FaLinkedin } from 'react-icons/fa';
 import PublicLayout from '../../components/Layout/PublicLayout';
-import CiviSenseLogo from '../../components/branding/CiviSenseLogo';
+import { getPublicDevelopers } from '../../api/public';
+import { getErrorMessage } from '../../utils/helpers';
 import './Developers.css';
 
-const ROTATE_MS = 5600;
-const OUT_MS = 420;
-const IN_MS = 360;
+const AUTO_ROTATE_MS = 7000;
 
-const developers = [
+const fallbackTeam = [
     {
-        name: 'Deepak Kumar',
-        role: 'Lead Full Stack Engineer',
-        photo: 'https://i.pravatar.cc/480?img=12',
+        id: 'deepak',
+        profileType: 'team',
+        name: 'Deepak S',
+        role: 'Team Lead - Cloud, Backend, Mobile App, Website',
         description:
-            'Deepak designed the full technical backbone of CiviSense. He built the role-based architecture that connects citizen, sub-office, and admin flows in one coherent system.',
-        work: [
-            'Designed the core API structure and authentication lifecycle',
-            'Implemented multi-role routing between citizen, officer, and admin portals',
-            'Integrated release-ready website + backend workflow',
-            'Aligned product behavior with real civic complaint operations'
-        ],
-        badges: ['Architecture', 'Integration', 'DevOps']
+            'Deepak leads the development and architecture of the CiviSense platform. He built the backend services, cloud infrastructure, and integrations between the mobile app and web platform to ensure a scalable civic reporting system.',
+        photoUrl: null,
+        skills: ['System Architecture', 'Backend APIs', 'Cloud Deployment', 'Mobile Integration'],
+        highlights: ['Platform architecture leadership', 'Backend and cloud infrastructure'],
+        socials: { github: '#', linkedin: '#', portfolio: '#' },
+        isActive: true
     },
     {
-        name: 'Ananya R',
-        role: 'Frontend Experience Engineer',
-        photo: 'https://i.pravatar.cc/480?img=47',
+        id: 'lokesh',
+        profileType: 'team',
+        name: 'Lokesh',
+        role: 'Idea Architect - Research Lead',
         description:
-            'Ananya transformed functional pages into a polished civic interface with clear hierarchy, transitions, and consistent responsive behavior.',
-        work: [
-            'Crafted landing, about, contact, and developers experiences',
-            'Implemented motion language and transition consistency',
-            'Improved responsive behavior for mobile and desktop',
-            'Built reusable visual styles for speed and consistency'
-        ],
-        badges: ['UI Systems', 'Motion', 'Responsive']
+            'Lokesh proposed the initial concept behind the CiviSense platform and researched real civic infrastructure problems to shape the direction of the project.',
+        photoUrl: null,
+        skills: [],
+        highlights: ['Project ideation', 'Civic problem research'],
+        socials: { github: '#', linkedin: '#', portfolio: '#' },
+        isActive: true
     },
     {
-        name: 'Karthik S',
-        role: 'AI Systems Engineer',
-        photo: 'https://i.pravatar.cc/480?img=33',
+        id: 'balavignesh',
+        profileType: 'team',
+        name: 'Bala Vignesh',
+        role: 'Research Contributor',
         description:
-            'Karthik engineered the AI support layer used for complaint intelligence, duplicate detection, and practical priority scoring.',
-        work: [
-            'Built complaint priority and signal scoring logic',
-            'Added duplicate detection hooks for repeated reports',
-            'Defined AI integration interfaces for backend services',
-            'Focused on production-safe AI behavior and fallback paths'
-        ],
-        badges: ['AI Logic', 'Scoring', 'Reliability']
+            'Bala Vignesh supported the research phase of the CiviSense project by exploring the feasibility of AI-based civic issue detection and contributing to early project studies.',
+        photoUrl: null,
+        skills: [],
+        highlights: ['AI research support', 'Project feasibility analysis'],
+        socials: { github: '#', linkedin: '#', portfolio: '#' },
+        isActive: true
     },
     {
-        name: 'Mira N',
-        role: 'Backend Reliability Engineer',
-        photo: 'https://i.pravatar.cc/480?img=5',
+        id: 'priyadharshini',
+        profileType: 'team',
+        name: 'Priya Dharshini',
+        role: 'UI/UX Designer - Mobile App Design',
         description:
-            'Mira hardened reliability so CiviSense remains stable under real civic usage with robust validation, error handling, and service consistency.',
-        work: [
-            'Improved backend stability and guardrails for failures',
-            'Strengthened secure service boundaries and validation paths',
-            'Refined monitoring and operational readiness practices',
-            'Supported resilient rollout and maintainability improvements'
-        ],
-        badges: ['Reliability', 'Security', 'Maintainability']
+            'Priya Dharshini designed the user interface and user experience for the CiviSense mobile app and dashboards, focusing on simple and intuitive civic reporting flows.',
+        photoUrl: null,
+        skills: ['UI Design', 'UX Research', 'Mobile Interface Design'],
+        highlights: ['Mobile app interface design', 'Citizen reporting UX'],
+        socials: { github: '#', linkedin: '#', portfolio: '#' },
+        isActive: true
     }
 ];
 
+const fallbackMentor = {
+    id: 'vijiyalakshmi',
+    profileType: 'mentor',
+    name: 'Mrs. Vijiyalakshmi',
+    role: 'Assistant Professor - Project Guide',
+    description:
+        'Mrs. Vijiyalakshmi from Velammal Engineering College provided academic mentorship and guidance throughout the development of the CiviSense project.',
+    photoUrl: null,
+    highlights: ['Academic mentorship', 'Project supervision'],
+    socials: { github: '#', linkedin: '#', portfolio: '#' }
+};
+
+const profileVariants = {
+    enter: (direction) => ({
+        opacity: 0,
+        x: direction > 0 ? 32 : -32
+    }),
+    center: {
+        opacity: 1,
+        x: 0
+    },
+    exit: (direction) => ({
+        opacity: 0,
+        x: direction > 0 ? -32 : 32
+    })
+};
+
+const sectionVariant = {
+    hidden: { opacity: 0, y: 14 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.38, ease: 'easeOut' } }
+};
+
+const toStringList = (value) => {
+    if (Array.isArray(value)) {
+        return value.map((item) => String(item || '').trim()).filter(Boolean);
+    }
+
+    if (typeof value === 'string') {
+        return value
+            .split(',')
+            .map((item) => String(item || '').trim())
+            .filter(Boolean);
+    }
+
+    return [];
+};
+
+const normalizeProfile = (item, index = 0) => ({
+    id: String(item?.id || item?._id || `dev-${index}`),
+    profileType: String(item?.profileType || 'team').toLowerCase() === 'mentor' ? 'mentor' : 'team',
+    name: String(item?.name || '').trim() || 'Unnamed Developer',
+    role: String(item?.role || '').trim() || 'Developer',
+    description: String(item?.description || '').trim() || 'Profile description will be updated soon.',
+    photoUrl: String(item?.photoUrl || '').trim() || null,
+    skills: toStringList(item?.skills),
+    highlights: toStringList(item?.highlights),
+    socials: {
+        github: String(item?.socials?.github || '#').trim() || '#',
+        linkedin: String(item?.socials?.linkedin || '#').trim() || '#',
+        portfolio: String(item?.socials?.portfolio || '#').trim() || '#'
+    },
+    isActive: item?.isActive !== false,
+    displayOrder: Number(item?.displayOrder || 0)
+});
+
 export default function Developers() {
+    const [teamProfiles, setTeamProfiles] = useState([]);
+    const [mentorProfile, setMentorProfile] = useState(null);
     const [activeIndex, setActiveIndex] = useState(0);
-    const [phase, setPhase] = useState('in');
-    const [paused, setPaused] = useState(false);
-    const [transitioning, setTransitioning] = useState(false);
-    const [progressKey, setProgressKey] = useState(0);
-
-    const runTransition = (nextIndex) => {
-        if (transitioning || nextIndex === activeIndex) return;
-        setTransitioning(true);
-        setPhase('out');
-
-        window.setTimeout(() => {
-            setActiveIndex(nextIndex);
-            setPhase('glitch-in');
-            setProgressKey((prev) => prev + 1);
-
-            window.setTimeout(() => {
-                setPhase('in');
-                setTransitioning(false);
-            }, IN_MS);
-        }, OUT_MS);
-    };
-
-    const goPrev = () => runTransition((activeIndex - 1 + developers.length) % developers.length);
-    const goNext = () => runTransition((activeIndex + 1) % developers.length);
+    const [direction, setDirection] = useState(1);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     useEffect(() => {
-        if (paused || transitioning) return undefined;
-        const timerId = window.setTimeout(() => {
-            goNext();
-        }, ROTATE_MS);
-        return () => window.clearTimeout(timerId);
-    }, [activeIndex, paused, transitioning]);
+        const loadProfiles = async () => {
+            setLoading(true);
+            setError('');
 
-    const member = developers[activeIndex];
+            try {
+                const { data } = await getPublicDevelopers();
+                const payload = data?.data || {};
+
+                const rawProfiles = Array.isArray(payload.profiles)
+                    ? payload.profiles
+                    : [...(payload.team || []), ...(payload.mentor ? [payload.mentor] : [])];
+
+                const normalizedProfiles = rawProfiles.map((item, index) => normalizeProfile(item, index));
+                const nextTeam = normalizedProfiles
+                    .filter((item) => item.profileType === 'team' && item.isActive)
+                    .sort((a, b) => a.displayOrder - b.displayOrder);
+                const nextMentor =
+                    normalizedProfiles.find((item) => item.profileType === 'mentor' && item.isActive) || null;
+
+                setTeamProfiles(nextTeam.length ? nextTeam : fallbackTeam);
+                setMentorProfile(nextMentor || fallbackMentor);
+            } catch (err) {
+                setError(getErrorMessage(err));
+                setTeamProfiles(fallbackTeam);
+                setMentorProfile(fallbackMentor);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void loadProfiles();
+    }, []);
+
+    const hasMultipleProfiles = teamProfiles.length > 1;
+
+    useEffect(() => {
+        if (!teamProfiles.length) {
+            setActiveIndex(0);
+            return;
+        }
+
+        if (activeIndex > teamProfiles.length - 1) {
+            setActiveIndex(0);
+        }
+    }, [teamProfiles, activeIndex]);
+
+    useEffect(() => {
+        if (!hasMultipleProfiles) return;
+
+        const timerId = window.setInterval(() => {
+            setDirection(1);
+            setActiveIndex((prev) => (prev + 1) % teamProfiles.length);
+        }, AUTO_ROTATE_MS);
+
+        return () => window.clearInterval(timerId);
+    }, [hasMultipleProfiles, teamProfiles.length]);
+
+    const activeDeveloper = useMemo(() => {
+        if (!teamProfiles.length) return fallbackTeam[0];
+        return teamProfiles[activeIndex] || teamProfiles[0];
+    }, [teamProfiles, activeIndex]);
+
+    const goToNext = () => {
+        if (!hasMultipleProfiles) return;
+        setDirection(1);
+        setActiveIndex((prev) => (prev + 1) % teamProfiles.length);
+    };
+
+    const goToPrev = () => {
+        if (!hasMultipleProfiles) return;
+        setDirection(-1);
+        setActiveIndex((prev) => (prev - 1 + teamProfiles.length) % teamProfiles.length);
+    };
+
+    const goToIndex = (index) => {
+        if (!hasMultipleProfiles || index === activeIndex) return;
+        setDirection(index > activeIndex ? 1 : -1);
+        setActiveIndex(index);
+    };
+
+    const renderSocialLink = (url, label, Icon) => {
+        const disabled = !url || url === '#';
+
+        return (
+            <a
+                href={disabled ? undefined : url}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={label}
+                className={`dev-page__social ${disabled ? 'dev-page__social--disabled' : ''}`}
+            >
+                <Icon />
+            </a>
+        );
+    };
 
     return (
         <PublicLayout>
-            <section className="dev-page__hero">
-                <div className="container">
-                    <div className="dev-page__hero-brand">
-                        <CiviSenseLogo size={58} className="dev-page__hero-logo" />
-                        <span className="section-tag">Developer Team</span>
+            <div className="dev-page">
+                <section className="dev-page__hero">
+                    <div className="dev-page__orb dev-page__orb--left" />
+                    <div className="dev-page__orb dev-page__orb--right" />
+
+                    <div className="container">
+                        <motion.div
+                            initial={{ opacity: 0, y: 14 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4 }}
+                            className="dev-page__hero-inner"
+                        >
+                            <span className="section-tag">
+                                <HiOutlineSparkles />
+                                CiviSense Developer Team
+                            </span>
+                            <h1>The Team Behind CiviSense</h1>
+                            <p>
+                                Engineers, researchers, and designers working together to build an AI-powered civic
+                                intelligence platform for transparent and faster issue resolution.
+                            </p>
+                            {loading ? <p className="dev-page__status">Loading developer profiles...</p> : null}
+                            {!loading && error ? (
+                                <p className="dev-page__status dev-page__status--warn">Showing fallback profile data: {error}</p>
+                            ) : null}
+                        </motion.div>
                     </div>
-                    <h1>Meet the builders of CiviSense.</h1>
-                    <p>
-                        Cinematic rotating profile showcase with glitch transitions, feature highlights,
-                        and manual controls for each core team member.
-                    </p>
-                </div>
-            </section>
+                </section>
 
-            <section className="dev-page__showcase">
-                <div className="container">
-                    <article
-                        className={`dev-profile-card card ${phase}`}
-                        onMouseEnter={() => setPaused(true)}
-                        onMouseLeave={() => setPaused(false)}
-                    >
-                        <div key={`p-${progressKey}`} className="dev-profile-card__progress" aria-hidden="true" />
-
-                        <div className="dev-profile-card__photo-wrap">
-                            <img src={member.photo} alt={member.name} className="dev-profile-card__photo" loading="lazy" />
-                            <span className="dev-profile-card__scan" aria-hidden="true" />
-                            <span className="dev-profile-card__glitch" aria-hidden="true" />
+                <section className="dev-page__showcase">
+                    <div className="container">
+                        <div className="dev-page__heading-row">
+                            <div>
+                                <p className="dev-page__eyebrow">Interactive Team Showcase</p>
+                                <h2>One Developer Card at a Time</h2>
+                            </div>
+                            {hasMultipleProfiles ? (
+                                <p className="dev-page__rotate-note">
+                                    Auto-rotates every {AUTO_ROTATE_MS / 1000} seconds
+                                </p>
+                            ) : null}
                         </div>
 
-                        <div className="dev-profile-card__content">
-                            <h2>{member.name}</h2>
-                            <strong>{member.role}</strong>
-                            <p>{member.description}</p>
+                        <div className="dev-page__profile-shell">
+                            <AnimatePresence custom={direction} mode="wait">
+                                <motion.article
+                                    key={activeDeveloper.id}
+                                    custom={direction}
+                                    variants={profileVariants}
+                                    initial="enter"
+                                    animate="center"
+                                    exit="exit"
+                                    transition={{ duration: 0.28, ease: 'easeInOut' }}
+                                    className="dev-page__profile"
+                                >
+                                    <div className="dev-page__photo-panel">
+                                        <div className="dev-page__photo-frame">
+                                            {activeDeveloper.photoUrl ? (
+                                                <img
+                                                    src={activeDeveloper.photoUrl}
+                                                    alt={activeDeveloper.name}
+                                                    className="dev-page__photo"
+                                                />
+                                            ) : (
+                                                <div className="dev-page__photo-empty">
+                                                    <span className="dev-page__photo-icon">
+                                                        <HiOutlineUserCircle />
+                                                    </span>
+                                                    <p>Photo will be updated soon</p>
+                                                    <small>{activeDeveloper.name}</small>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
 
-                            <div className="dev-profile-card__badges">
-                                {member.badges.map((badge) => (
-                                    <span key={badge}>{badge}</span>
+                                    <div className="dev-page__content">
+                                        <p className="dev-page__role">{activeDeveloper.role}</p>
+                                        <h3>{activeDeveloper.name}</h3>
+                                        <p className="dev-page__description">{activeDeveloper.description}</p>
+
+                                        {activeDeveloper.skills.length > 0 ? (
+                                            <div className="dev-page__skills">
+                                                {activeDeveloper.skills.map((skill) => (
+                                                    <span key={`${activeDeveloper.id}-${skill}`}>{skill}</span>
+                                                ))}
+                                            </div>
+                                        ) : null}
+
+                                        <div className="dev-page__socials">
+                                            {renderSocialLink(
+                                                activeDeveloper.socials.github,
+                                                `${activeDeveloper.name} GitHub`,
+                                                FaGithub
+                                            )}
+                                            {renderSocialLink(
+                                                activeDeveloper.socials.linkedin,
+                                                `${activeDeveloper.name} LinkedIn`,
+                                                FaLinkedin
+                                            )}
+                                            {renderSocialLink(
+                                                activeDeveloper.socials.portfolio,
+                                                `${activeDeveloper.name} Portfolio`,
+                                                FaGlobe
+                                            )}
+                                        </div>
+                                    </div>
+                                </motion.article>
+                            </AnimatePresence>
+                        </div>
+
+                        <div className="dev-page__controls">
+                            <button
+                                type="button"
+                                onClick={goToPrev}
+                                disabled={!hasMultipleProfiles}
+                                className="dev-page__nav-btn"
+                                aria-label="Previous developer"
+                            >
+                                <HiOutlineChevronLeft />
+                            </button>
+
+                            <div className="dev-page__dots">
+                                {teamProfiles.map((developer, index) => (
+                                    <button
+                                        key={developer.id}
+                                        type="button"
+                                        onClick={() => goToIndex(index)}
+                                        className={`dev-page__dot ${index === activeIndex ? 'active' : ''}`}
+                                        aria-label={`Show ${developer.name}`}
+                                    >
+                                        {developer.name}
+                                    </button>
                                 ))}
                             </div>
 
-                            <h4>What they built</h4>
-                            <ul>
-                                {member.work.map((item) => (
-                                    <li key={item}>{item}</li>
-                                ))}
-                            </ul>
+                            <button
+                                type="button"
+                                onClick={goToNext}
+                                disabled={!hasMultipleProfiles}
+                                className="dev-page__nav-btn"
+                                aria-label="Next developer"
+                            >
+                                <HiOutlineChevronRight />
+                            </button>
                         </div>
-                    </article>
+                    </div>
+                </section>
 
-                    <div className="dev-controls">
-                        <button type="button" className="dev-controls__btn" onClick={goPrev} aria-label="Previous developer">
-                            <HiOutlineChevronLeft />
-                        </button>
-                        <div className="dev-controls__dots">
-                            {developers.map((item, index) => (
-                                <button
-                                    key={item.name}
-                                    type="button"
-                                    className={`dev-controls__dot ${activeIndex === index ? 'active' : ''}`}
-                                    onClick={() => runTransition(index)}
-                                    aria-label={`Show ${item.name}`}
+                <section className="dev-page__highlights">
+                    <div className="container">
+                        <div className="section-header">
+                            <span className="section-tag">Contribution Highlights</span>
+                            <h2>Team Work Areas</h2>
+                        </div>
+
+                        <div className="dev-page__highlight-grid">
+                            {teamProfiles.map((developer, developerIndex) => (
+                                <motion.article
+                                    key={`highlight-${developer.id}`}
+                                    variants={sectionVariant}
+                                    initial="hidden"
+                                    whileInView="visible"
+                                    viewport={{ once: true, amount: 0.25 }}
+                                    transition={{ delay: developerIndex * 0.05 }}
+                                    className="dev-page__highlight-card"
                                 >
-                                    <span>{item.name}</span>
-                                </button>
+                                    <h3>{developer.name}</h3>
+                                    <p className="dev-page__highlight-role">{developer.role}</p>
+                                    <div className="dev-page__highlight-tags">
+                                        {developer.highlights.length > 0 ? (
+                                            developer.highlights.map((highlight) => (
+                                                <span key={`${developer.id}-${highlight}`}>{highlight}</span>
+                                            ))
+                                        ) : (
+                                            <span>Highlights will be updated soon.</span>
+                                        )}
+                                    </div>
+                                </motion.article>
                             ))}
                         </div>
-                        <button type="button" className="dev-controls__btn" onClick={goNext} aria-label="Next developer">
-                            <HiOutlineChevronRight />
-                        </button>
                     </div>
-                </div>
-            </section>
+                </section>
+
+                <section className="dev-page__mentor">
+                    <div className="container">
+                        <motion.article
+                            variants={sectionVariant}
+                            initial="hidden"
+                            whileInView="visible"
+                            viewport={{ once: true, amount: 0.3 }}
+                            className="dev-page__mentor-card"
+                        >
+                            <p className="dev-page__eyebrow">Project Guide / Mentor</p>
+                            <h2>{mentorProfile?.name || fallbackMentor.name}</h2>
+                            <p className="dev-page__mentor-role">{mentorProfile?.role || fallbackMentor.role}</p>
+                            <p className="dev-page__mentor-desc">{mentorProfile?.description || fallbackMentor.description}</p>
+                        </motion.article>
+                    </div>
+                </section>
+            </div>
         </PublicLayout>
     );
 }

@@ -9,7 +9,9 @@ const ApiError = require('../utils/ApiError');
 
 const MIME_EXTENSION_MAP = {
   'image/jpeg': '.jpg',
-  'image/png': '.png'
+  'image/png': '.png',
+  'application/vnd.android.package-archive': '.apk',
+  'application/octet-stream': '.apk'
 };
 
 const buildObjectKey = (prefix, filename, mimetype, seed) => {
@@ -79,7 +81,15 @@ const uploadProfilePhotoToS3 = async (stream, filename, mimetype, userId) => {
   return uploadStreamToS3(stream, key, mimetype);
 };
 
+const uploadApkToS3 = async (stream, filename, mimetype, uploadedBy) => {
+  const safeUploader = uploadedBy ? String(uploadedBy).replace(/[^a-z0-9_-]/gi, '') : 'system';
+  const seed = `${safeUploader}-${uuidv4()}`;
+  const key = buildObjectKey('app-builds/android', filename, mimetype, seed);
+  return uploadStreamToS3(stream, key, mimetype);
+};
+
 module.exports = {
   uploadToS3,
-  uploadProfilePhotoToS3
+  uploadProfilePhotoToS3,
+  uploadApkToS3
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/Layout/DashboardLayout';
 import StatsCard from '../../components/StatsCard';
@@ -16,27 +16,58 @@ import {
     HiOutlineExclamationTriangle
 } from 'react-icons/hi2';
 
+const REFRESH_INTERVAL_MS = 20000;
+
 export default function CitizenDashboard() {
     const { user } = useAuth();
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadComplaints();
-        const intervalId = window.setInterval(loadComplaints, 12000);
-        return () => window.clearInterval(intervalId);
-    }, [user?.id]);
-
-    const loadComplaints = async () => {
+    const loadComplaints = useCallback(async ({ silent = false } = {}) => {
+        if (!user?.id) {
+            setComplaints([]);
+            setLoading(false);
+            return;
+        }
+        if (!silent) {
+            setLoading(true);
+        }
         try {
             const { data } = await getComplaints({ reportedBy: user.id });
             setComplaints(data.data || []);
         } catch {
             /* ignore */
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
-    };
+    }, [user?.id]);
+
+    useEffect(() => {
+        void loadComplaints();
+
+        const onWindowFocus = () => {
+            void loadComplaints({ silent: true });
+        };
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                void loadComplaints({ silent: true });
+            }
+        };
+        const intervalId = window.setInterval(() => {
+            void loadComplaints({ silent: true });
+        }, REFRESH_INTERVAL_MS);
+
+        window.addEventListener('focus', onWindowFocus);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', onWindowFocus);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, [loadComplaints]);
 
     const total = complaints.length;
     const resolved = complaints.filter((c) => c.status === 'resolved').length;

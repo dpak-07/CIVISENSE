@@ -5,6 +5,7 @@ from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorCollection
 
+from app.config import Settings
 from app.services.cluster_detector import ClusterDetector
 from app.services.geo_multiplier import GeoMultiplier
 from app.services.text_scoring_engine import TextScoringEngine
@@ -27,20 +28,23 @@ class PriorityResult:
 class PriorityEngine:
     def __init__(
         self,
+        settings: Settings,
         complaints: AsyncIOMotorCollection,
         sensitive_locations: AsyncIOMotorCollection,
     ) -> None:
         self.text_engine = TextScoringEngine()
-        self.geo_multiplier = GeoMultiplier(sensitive_locations)
+        self.geo_multiplier = GeoMultiplier(sensitive_locations, settings=settings)
         self.cluster_detector = ClusterDetector(complaints)
 
     async def compute(self, complaint: dict[str, Any]) -> PriorityResult:
         title = complaint.get("title")
         description = complaint.get("description")
+        category = complaint.get("category")
 
         text_result = self.text_engine.score(
             title=title if isinstance(title, str) else "",
             description=description if isinstance(description, str) else "",
+            category=category if isinstance(category, str) else None,
         )
         geo_result = await self.geo_multiplier.resolve(complaint)
         cluster_result = await self.cluster_detector.detect(complaint)
@@ -57,8 +61,14 @@ class PriorityEngine:
             f"text_base={text_result.base_score:.2f} "
             f"[high={text_result.high_count} ({self._format_keywords(text_result.matched_high)}), "
             f"medium={text_result.medium_count} ({self._format_keywords(text_result.matched_medium)}), "
-            f"normal={text_result.normal_count} ({self._format_keywords(text_result.matched_normal)})]; "
-            f"geo_multiplier={geo_result.multiplier:.2f} (context={geo_result.matched_type}); "
+            f"normal={text_result.normal_count} ({self._format_keywords(text_result.matched_normal)}), "
+            f"urgency={text_result.urgency_count} ({self._format_keywords(text_result.matched_urgency)})]; "
+            f"category_signal={text_result.category_signal or 'none'}; "
+            f"geo_multiplier={geo_result.multiplier:.2f} "
+            f"(context={geo_result.matched_type}, "
+            f"name={geo_result.matched_name or 'none'}, "
+            f"distance_m={geo_result.matched_distance_meters if geo_result.matched_distance_meters is not None else 'na'}, "
+            f"keyword={geo_result.matched_keyword or 'none'}); "
             f"time_boost={time_score:.2f}; "
             f"cluster_boost={cluster_result.cluster_boost:.2f} (nearby_reports={cluster_result.nearby_count}); "
             f"final_score={final_score:.2f}; level={level.upper()}"
@@ -138,17 +148,24 @@ class PriorityEngine:
         level_label = level.capitalize()
 
         if getattr(text_result, "high_count", 0) > 0:
-            text_phrase = "urgent wording was detected"
+            text_phrase = "safety-critical wording was detected"
         elif getattr(text_result, "medium_count", 0) > 0:
-            text_phrase = "moderate severity wording was detected"
+            text_phrase = "moderate-risk wording was detected"
         elif getattr(text_result, "normal_count", 0) > 0:
-            text_phrase = "issue keywords were detected"
+            text_phrase = "issue-specific keywords were detected"
         else:
             text_phrase = "no strong severity keywords were detected"
 
         matched_type = getattr(geo_result, "matched_type", "none")
-        if matched_type and matched_type != "none":
-            geo_phrase = f"it is near a {matched_type}"
+        matched_name = getattr(geo_result, "matched_name", None)
+        matched_distance = getattr(geo_result, "matched_distance_meters", None)
+        if matched_type and matched_type != "none" and matched_name:
+            if matched_distance is not None:
+                geo_phrase = f"it is near {matched_name} ({matched_type}, {matched_distance:.0f}m)"
+            else:
+                geo_phrase = f"it is near {matched_name} ({matched_type})"
+        elif matched_type and matched_type != "none":
+            geo_phrase = f"it is near a sensitive {matched_type} location"
         else:
             geo_phrase = "it is not near a sensitive location"
 
@@ -164,8 +181,8 @@ class PriorityEngine:
         return (
             f"Priority {level_label} because {text_phrase}, {geo_phrase}, "
             f"{cluster_phrase}, and {time_phrase}. "
-            f"Computed score components include text severity, geo sensitivity multiplier, "
-            f"time aging boost, and nearby cluster impact."
+            "Score combines text severity, sensitive-location multiplier, "
+            "case aging, and nearby report clustering."
         )
 
     @staticmethod

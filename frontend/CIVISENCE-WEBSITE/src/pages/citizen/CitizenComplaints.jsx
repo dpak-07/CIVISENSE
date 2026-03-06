@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '../../components/Layout/DashboardLayout';
 import EmptyState from '../../components/EmptyState';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -8,6 +8,8 @@ import { getComplaints } from '../../api/complaints';
 import { sortComplaintsByPriorityAndDate } from '../../utils/helpers';
 import '../citizen/CitizenDashboard.css';
 
+const REFRESH_INTERVAL_MS = 20000;
+
 export default function CitizenComplaints() {
     const { user } = useAuth();
     const [complaints, setComplaints] = useState([]);
@@ -15,14 +17,15 @@ export default function CitizenComplaints() {
     const [statusFilter, setStatusFilter] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('');
 
-    useEffect(() => {
-        loadComplaints();
-        const intervalId = window.setInterval(loadComplaints, 12000);
-        return () => window.clearInterval(intervalId);
-    }, [statusFilter, categoryFilter, user?.id]);
-
-    const loadComplaints = async () => {
-        setLoading(true);
+    const loadComplaints = useCallback(async ({ silent = false } = {}) => {
+        if (!user?.id) {
+            setComplaints([]);
+            setLoading(false);
+            return;
+        }
+        if (!silent) {
+            setLoading(true);
+        }
         try {
             const params = { reportedBy: user.id };
             if (statusFilter) params.status = statusFilter;
@@ -32,9 +35,36 @@ export default function CitizenComplaints() {
         } catch {
             /* ignore */
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
-    };
+    }, [categoryFilter, statusFilter, user?.id]);
+
+    useEffect(() => {
+        void loadComplaints();
+
+        const onWindowFocus = () => {
+            void loadComplaints({ silent: true });
+        };
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                void loadComplaints({ silent: true });
+            }
+        };
+        const intervalId = window.setInterval(() => {
+            void loadComplaints({ silent: true });
+        }, REFRESH_INTERVAL_MS);
+
+        window.addEventListener('focus', onWindowFocus);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', onWindowFocus);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, [loadComplaints]);
 
     const categories = [...new Set(complaints.map((c) => c.category))];
     const sortedComplaints = sortComplaintsByPriorityAndDate(complaints);

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 
 router = APIRouter(tags=["monitoring"])
 
@@ -32,3 +32,36 @@ async def pending_count(request: Request) -> dict:
     db = request.app.state.mongodb
     count = await db.count_pending_complaints()
     return {"pendingCount": count}
+
+
+@router.get("/sensitive-locations")
+async def sensitive_locations(
+    request: Request,
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict:
+    db = request.app.state.mongodb
+    collection = db.sensitive_locations
+    if collection is None:
+        return {"count": 0, "items": []}
+
+    cursor = collection.find(
+        {},
+        projection={
+            "_id": 1,
+            "name": 1,
+            "type": 1,
+            "category": 1,
+            "priorityWeight": 1,
+            "radiusMeters": 1,
+            "location": 1,
+            "isActive": 1,
+            "updatedAt": 1,
+        },
+    ).sort("priorityWeight", -1).limit(int(limit))
+
+    items = []
+    async for item in cursor:
+        item["_id"] = str(item.get("_id"))
+        items.append(item)
+
+    return {"count": len(items), "items": items}

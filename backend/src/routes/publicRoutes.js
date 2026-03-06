@@ -6,5 +6,6 @@ const router = express.Router();
 router.post('/contact', publicController.sendContactMessage);
 router.get('/app-config', publicController.getAppConfig);
 router.get('/sensitive-locations', publicController.getSensitiveLocations);
+router.get('/developers', publicController.getDevelopers);
 
 module.exports = router;
