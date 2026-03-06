@@ -128,8 +128,7 @@ const getAssignedOffice = (item: ComplaintRecord): string => {
 
 const getPriorityReason = (item: ComplaintRecord): string =>
   item.priority?.reasonSentence ||
-  item.priority?.reason ||
-  "Priority explanation is not available yet.";
+  `Priority is set to ${getPriorityLabel(item.priority?.level).toLowerCase()} based on report details.`;
 
 const hasText = (value?: string | null): value is string =>
   typeof value === "string" && value.trim().length > 0;

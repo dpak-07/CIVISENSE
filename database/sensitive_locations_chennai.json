@@ -1378,5 +1378,641 @@
         13.054014
       ]
     }
+  },
+  {
+    "name": "Loyola College Nungambakkam",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.23377,
+        13.06299
+      ]
+    }
+  },
+  {
+    "name": "Stella Maris College Alwarpet",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.25231,
+        13.04324
+      ]
+    }
+  },
+  {
+    "name": "Womens Christian College Chetpet",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.23791,
+        13.0739
+      ]
+    }
+  },
+  {
+    "name": "Ethiraj College for Women Egmore",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.25398,
+        13.07425
+      ]
+    }
+  },
+  {
+    "name": "Presidency College Chennai",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.28434,
+        13.06732
+      ]
+    }
+  },
+  {
+    "name": "University of Madras Chepauk",
+    "type": "university",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.28308,
+        13.06369
+      ]
+    }
+  },
+  {
+    "name": "Anna University Guindy",
+    "type": "university",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2344,
+        13.0104
+      ]
+    }
+  },
+  {
+    "name": "College of Engineering Guindy",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2339,
+        13.0126
+      ]
+    }
+  },
+  {
+    "name": "Indian Institute of Technology Madras",
+    "type": "university",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.233,
+        12.9915
+      ]
+    }
+  },
+  {
+    "name": "Madras Christian College Tambaram",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1217,
+        12.9254
+      ]
+    }
+  },
+  {
+    "name": "Madras Institute of Technology Chromepet",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1493,
+        12.9495
+      ]
+    }
+  },
+  {
+    "name": "DG Vaishnav College Arumbakkam",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2131,
+        13.0716
+      ]
+    }
+  },
+  {
+    "name": "Guru Nanak College Velachery",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2234,
+        12.9872
+      ]
+    }
+  },
+  {
+    "name": "The New College Royapettah",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2626,
+        13.0522
+      ]
+    }
+  },
+  {
+    "name": "Pachaiyappas College Chetpet",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2238,
+        13.0848
+      ]
+    }
+  },
+  {
+    "name": "MOP Vaishnav College for Women Nungambakkam",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.247,
+        13.0516
+      ]
+    }
+  },
+  {
+    "name": "Quaid-E-Millath Government College for Women",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2699,
+        13.0568
+      ]
+    }
+  },
+  {
+    "name": "Meenakshi College for Women Kodambakkam",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2249,
+        13.0507
+      ]
+    }
+  },
+  {
+    "name": "SRM Easwari Engineering College Ramapuram",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1928,
+        13.0371
+      ]
+    }
+  },
+  {
+    "name": "Asan Memorial College of Arts and Science Jaladampet",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2149,
+        12.9174
+      ]
+    }
+  },
+  {
+    "name": "SDNB Vaishnav College for Women Chromepet",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.149,
+        12.9518
+      ]
+    }
+  },
+  {
+    "name": "Vaels Institute of Science and Technology Pallavaram",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1514,
+        12.9658
+      ]
+    }
+  },
+  {
+    "name": "DRBCCC Hindu College Pattabiram",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.0625,
+        13.1237
+      ]
+    }
+  },
+  {
+    "name": "Tamil Nadu Dr Ambedkar Law University Perungudi",
+    "type": "university",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2448,
+        12.9768
+      ]
+    }
+  },
+  {
+    "name": "Tamil Nadu Music and Fine Arts University Adyar",
+    "type": "university",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2578,
+        13.015
+      ]
+    }
+  },
+  {
+    "name": "Saveetha Dental College Velappanchavadi",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1328,
+        13.0737
+      ]
+    }
+  },
+  {
+    "name": "Jerusalem College of Engineering Pallikaranai",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2135,
+        12.9379
+      ]
+    }
+  },
+  {
+    "name": "Prince Shri Venkateshwara Arts and Science College Gowrivakkam",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1779,
+        12.9239
+      ]
+    }
+  },
+  {
+    "name": "Apollo Clinic Anna Nagar",
+    "type": "clinic",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2096,
+        13.0894
+      ]
+    }
+  },
+  {
+    "name": "Apollo Clinic Nungambakkam",
+    "type": "clinic",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2405,
+        13.0608
+      ]
+    }
+  },
+  {
+    "name": "Apollo Clinic Velachery",
+    "type": "clinic",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2181,
+        12.976
+      ]
+    }
+  },
+  {
+    "name": "Apollo Clinic T Nagar",
+    "type": "clinic",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2327,
+        13.0412
+      ]
+    }
+  },
+  {
+    "name": "Apollo Clinic Porur",
+    "type": "clinic",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1821,
+        13.0384
+      ]
+    }
+  },
+  {
+    "name": "Apollo Clinic OMR Kandanchavadi",
+    "type": "clinic",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2402,
+        12.9687
+      ]
+    }
+  },
+  {
+    "name": "Be Well Hospital Anna Nagar",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2075,
+        13.0912
+      ]
+    }
+  },
+  {
+    "name": "Be Well Hospital T Nagar",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2298,
+        13.0418
+      ]
+    }
+  },
+  {
+    "name": "Dr Mehtas Hospitals Chetpet",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2425,
+        13.0745
+      ]
+    }
+  },
+  {
+    "name": "Rela Hospital Chromepet",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1159,
+        12.9303
+      ]
+    }
+  },
+  {
+    "name": "Dr Kamakshi Memorial Hospital Pallikaranai",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2071,
+        12.9479
+      ]
+    }
+  },
+  {
+    "name": "Medway Hospital Kodambakkam",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2268,
+        13.0522
+      ]
+    }
+  },
+  {
+    "name": "Sri Balaji Hospital Guindy",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1948,
+        13.0086
+      ]
+    }
+  },
+  {
+    "name": "Hindu Mission Hospital Tambaram",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1123,
+        12.9244
+      ]
+    }
+  },
+  {
+    "name": "Parvathy Hospital Chromepet",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1409,
+        12.9534
+      ]
+    }
+  },
+  {
+    "name": "Apollo Speciality Hospitals OMR",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2512,
+        12.9752
+      ]
+    }
+  },
+  {
+    "name": "Prashanth Hospital Velachery",
+    "type": "hospital",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2209,
+        12.9825
+      ]
+    }
+  },
+  {
+    "name": "Vijaya Health Centre Vadapalani",
+    "type": "clinic",
+    "priorityWeight": 2,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2099,
+        13.0498
+      ]
+    }
+  },
+  {
+    "name": "DAV Girls Senior Secondary School Gopalapuram",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2503,
+        13.0499
+      ]
+    }
+  },
+  {
+    "name": "SBOA Matriculation Higher Secondary School Anna Nagar",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2068,
+        13.0917
+      ]
+    }
+  },
+  {
+    "name": "Maharishi Vidya Mandir Chetpet",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2388,
+        13.0733
+      ]
+    }
+  },
+  {
+    "name": "PSBB Millennium School Gerugambakkam",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1636,
+        13.0112
+      ]
+    }
+  },
+  {
+    "name": "Chinmaya Vidyalaya Virugambakkam",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.1989,
+        13.0534
+      ]
+    }
+  },
+  {
+    "name": "Kendriya Vidyalaya CLRI Adyar",
+    "type": "school",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.2495,
+        13.0109
+      ]
+    }
+  },
+  {
+    "name": "Velammal Engineering College Surapet",
+    "type": "college",
+    "priorityWeight": 3,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.192006,
+        13.150022
+      ]
+    }
   }
 ]
