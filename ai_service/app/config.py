@@ -43,6 +43,15 @@ class Settings(BaseSettings):
     hf_clip_model_name: str = Field("openai/clip-vit-base-patch32", alias="HF_CLIP_MODEL_NAME")
     hf_clip_score_weight: float = Field(3.0, alias="HF_CLIP_SCORE_WEIGHT")
     hf_clip_min_confidence: float = Field(0.28, alias="HF_CLIP_MIN_CONFIDENCE")
+    civic_classifier_enabled: bool = Field(True, alias="CIVIC_CLASSIFIER_ENABLED")
+    civic_classifier_model_path: str | None = Field(None, alias="CIVIC_CLASSIFIER_MODEL_PATH")
+    civic_classifier_state_file: str = Field(
+        "training_data/train_state.json",
+        alias="CIVIC_CLASSIFIER_STATE_FILE",
+    )
+    civic_classifier_image_size: int = Field(224, alias="CIVIC_CLASSIFIER_IMAGE_SIZE")
+    civic_classifier_score_weight: float = Field(4.2, alias="CIVIC_CLASSIFIER_SCORE_WEIGHT")
+    civic_classifier_min_confidence: float = Field(0.5, alias="CIVIC_CLASSIFIER_MIN_CONFIDENCE")
     reason_nlp_enabled: bool = Field(True, alias="REASON_NLP_ENABLED")
     hf_reason_model_name: str = Field("google/flan-t5-small", alias="HF_REASON_MODEL_NAME")
     hf_reason_max_new_tokens: int = Field(72, alias="HF_REASON_MAX_NEW_TOKENS")

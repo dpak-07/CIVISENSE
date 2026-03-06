@@ -1,5 +1,6 @@
 import asyncio
 import io
+import json
 import logging
 import math
 import re
@@ -17,6 +18,7 @@ from transformers import (
     CLIPModel,
     CLIPProcessor,
 )
+from ultralytics import YOLO
 
 from app.config import Settings
 
@@ -304,6 +306,7 @@ class IssueExtractionResult:
     matched_keywords: dict[str, list[str]]
     score_by_category: dict[str, float]
     clip_scores: dict[str, float]
+    classifier_scores: dict[str, float]
 
 
 class ComplaintImageValidationService:
@@ -314,6 +317,8 @@ class ComplaintImageValidationService:
         self._clip_processor: CLIPProcessor | None = None
         self._clip_model: CLIPModel | None = None
         self._clip_prompt_category_pairs: list[tuple[str, str]] = []
+        self._civic_classifier: YOLO | None = None
+        self._civic_classifier_model_path: str | None = None
 
     async def load_model(self) -> None:
         await asyncio.to_thread(self._load_model_sync)
@@ -322,18 +327,15 @@ class ComplaintImageValidationService:
         self._load_model_sync()
 
     def _load_model_sync(self) -> None:
-        if (
+        core_models_loaded = (
             self._processor is not None
             and self._model is not None
             and self._clip_processor is not None
             and self._clip_model is not None
-        ):
+        )
+        if core_models_loaded and (not self.settings.civic_classifier_enabled or self._civic_classifier is not None):
             return
 
-        logger.info(
-            "Loading BLIP image captioning model '%s' on CPU",
-            self.settings.hf_caption_model_name,
-        )
         torch.set_num_threads(max(1, int(self.settings.cpu_threads)))
         try:
             torch.set_num_interop_threads(1)
@@ -341,68 +343,183 @@ class ComplaintImageValidationService:
             # PyTorch allows setting this only once per process.
             pass
 
-        self._processor = BlipProcessor.from_pretrained(self.settings.hf_caption_model_name)
-        self._model = BlipForConditionalGeneration.from_pretrained(self.settings.hf_caption_model_name)
-        self._model.to("cpu")
-        self._model.eval()
-        logger.info("BLIP image captioning model loaded")
+        if not core_models_loaded:
+            logger.info(
+                "Loading BLIP image captioning model '%s' on CPU",
+                self.settings.hf_caption_model_name,
+            )
+            self._processor = BlipProcessor.from_pretrained(self.settings.hf_caption_model_name)
+            self._model = BlipForConditionalGeneration.from_pretrained(self.settings.hf_caption_model_name)
+            self._model.to("cpu")
+            self._model.eval()
+            logger.info("BLIP image captioning model loaded")
 
-        logger.info(
-            "Loading CLIP zero-shot model '%s' on CPU",
-            self.settings.hf_clip_model_name,
+            logger.info(
+                "Loading CLIP zero-shot model '%s' on CPU",
+                self.settings.hf_clip_model_name,
+            )
+            self._clip_processor = CLIPProcessor.from_pretrained(self.settings.hf_clip_model_name)
+            self._clip_model = CLIPModel.from_pretrained(self.settings.hf_clip_model_name)
+            self._clip_model.to("cpu")
+            self._clip_model.eval()
+            civic_pairs = [
+                (category, prompt)
+                for category in SUPPORTED_CATEGORIES
+                for prompt in CATEGORY_CLIP_PROMPTS.get(category, ())
+            ]
+            non_civic_pairs = [(NON_CIVIC_CLIP_CATEGORY, prompt) for prompt in NON_CIVIC_CLIP_PROMPTS]
+            self._clip_prompt_category_pairs = civic_pairs + non_civic_pairs
+            logger.info("CLIP zero-shot model loaded")
+
+        self._load_civic_classifier_sync()
+
+    def _load_civic_classifier_sync(self) -> None:
+        if not self.settings.civic_classifier_enabled or self._civic_classifier is not None:
+            return
+
+        weights_path = self._discover_civic_classifier_weights()
+        if weights_path is None:
+            logger.info("No fine-tuned civic classifier weights found. Using stock BLIP/CLIP validation only.")
+            return
+
+        try:
+            logger.info("Loading fine-tuned civic classifier '%s' on CPU", weights_path)
+            classifier = YOLO(str(weights_path))
+            classifier.to("cpu")
+            self._civic_classifier = classifier
+            self._civic_classifier_model_path = str(weights_path)
+            logger.info("Fine-tuned civic classifier loaded")
+        except Exception as exc:
+            logger.warning("Failed to load fine-tuned civic classifier '%s': %s", weights_path, exc)
+            self._civic_classifier = None
+            self._civic_classifier_model_path = None
+
+    def _discover_civic_classifier_weights(self) -> Path | None:
+        explicit_model_path = self._resolve_project_path(self.settings.civic_classifier_model_path)
+        if explicit_model_path is not None and explicit_model_path.is_file():
+            return explicit_model_path
+
+        active_model_path = self._resolve_project_path("training_data/active_civic_classifier.pt")
+        if active_model_path is not None and active_model_path.is_file():
+            return active_model_path
+
+        state_path = self._resolve_project_path(self.settings.civic_classifier_state_file)
+        if state_path is not None and state_path.is_file():
+            try:
+                payload = json.loads(state_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning("Could not read civic classifier state file '%s': %s", state_path, exc)
+            else:
+                for key in ("activeWeightsPath", "lastWeightsPath"):
+                    candidate = self._resolve_project_path(payload.get(key))
+                    if candidate is not None and candidate.is_file():
+                        return candidate
+
+        training_runs_dir = self._resolve_project_path("training_runs")
+        if training_runs_dir is None or not training_runs_dir.is_dir():
+            return None
+
+        candidates = sorted(
+            training_runs_dir.glob("*/weights/*.pt"),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
         )
-        self._clip_processor = CLIPProcessor.from_pretrained(self.settings.hf_clip_model_name)
-        self._clip_model = CLIPModel.from_pretrained(self.settings.hf_clip_model_name)
-        self._clip_model.to("cpu")
-        self._clip_model.eval()
-        civic_pairs = [
-            (category, prompt)
-            for category in SUPPORTED_CATEGORIES
-            for prompt in CATEGORY_CLIP_PROMPTS.get(category, ())
-        ]
-        non_civic_pairs = [(NON_CIVIC_CLIP_CATEGORY, prompt) for prompt in NON_CIVIC_CLIP_PROMPTS]
-        self._clip_prompt_category_pairs = civic_pairs + non_civic_pairs
-        logger.info("CLIP zero-shot model loaded")
+        return candidates[0] if candidates else None
+
+    @staticmethod
+    def _project_root() -> Path:
+        return Path(__file__).resolve().parents[2]
+
+    def _resolve_project_path(self, raw_path: str | None) -> Path | None:
+        value = str(raw_path or "").strip()
+        if not value:
+            return None
+        path = Path(value)
+        if not path.is_absolute():
+            path = self._project_root() / path
+        return path.resolve()
+
+    def _model_variant(self) -> str:
+        if self._civic_classifier is not None:
+            return "fine_tuned_civic_classifier_blip_clip_yolov8n_mobilenetv2"
+        return "stock_pretrained_yolov8n_mobilenetv2_blip_clip"
+
+    def _model_note(self) -> str:
+        if self._civic_classifier is not None:
+            model_name = Path(self._civic_classifier_model_path).name if self._civic_classifier_model_path else "best.pt"
+            return (
+                "Note: This AI result used the fine-tuned civic classifier ensemble "
+                f"('{model_name}') together with BLIP and CLIP validation."
+            )
+        return self.settings.ai_model_disclaimer
 
     def analyze_image(self, image_path: str) -> dict[str, Any]:
         logger.info("Analyzing image source=%s", image_path)
         image = self._load_image_from_source(image_path)
         caption = self._generate_caption(image)
         clip_scores, clip_non_civic_score = self._classify_with_clip(image)
+        classifier_scores = self._classify_with_civic_classifier(image)
         clip_top_issue, clip_top_conf = self._top_clip_category(clip_scores)
+        classifier_top_issue, classifier_top_conf = self._top_clip_category(classifier_scores)
         logger.info(
-            "Generated caption source=%s caption='%s' clip_top=%s(%.4f) non_civic=%.4f",
+            (
+                "Generated caption source=%s caption='%s' clip_top=%s(%.4f) "
+                "classifier_top=%s(%.4f) non_civic=%.4f"
+            ),
             image_path,
             caption,
             clip_top_issue,
             clip_top_conf,
+            classifier_top_issue,
+            classifier_top_conf,
             clip_non_civic_score,
         )
         return {
             "source": image_path,
             "caption": caption,
             "clip_scores": clip_scores,
+            "classifier_scores": classifier_scores,
+            "classifier_top_issue": classifier_top_issue,
+            "classifier_top_confidence": round(classifier_top_conf, 4),
             "clip_non_civic_score": round(clip_non_civic_score, 4),
+            "custom_classifier_active": self._civic_classifier is not None,
+            "custom_classifier_model_path": self._civic_classifier_model_path,
+            "model_variant": self._model_variant(),
+            "model_note": self._model_note(),
         }
 
     def analyze_pil_image(self, image: Image.Image, source: str = "memory") -> dict[str, Any]:
         logger.info("Analyzing in-memory image source=%s", source)
         caption = self._generate_caption(image)
         clip_scores, clip_non_civic_score = self._classify_with_clip(image)
+        classifier_scores = self._classify_with_civic_classifier(image)
         clip_top_issue, clip_top_conf = self._top_clip_category(clip_scores)
+        classifier_top_issue, classifier_top_conf = self._top_clip_category(classifier_scores)
         logger.info(
-            "Generated caption source=%s caption='%s' clip_top=%s(%.4f) non_civic=%.4f",
+            (
+                "Generated caption source=%s caption='%s' clip_top=%s(%.4f) "
+                "classifier_top=%s(%.4f) non_civic=%.4f"
+            ),
             source,
             caption,
             clip_top_issue,
             clip_top_conf,
+            classifier_top_issue,
+            classifier_top_conf,
             clip_non_civic_score,
         )
         return {
             "source": source,
             "caption": caption,
             "clip_scores": clip_scores,
+            "classifier_scores": classifier_scores,
+            "classifier_top_issue": classifier_top_issue,
+            "classifier_top_confidence": round(classifier_top_conf, 4),
             "clip_non_civic_score": round(clip_non_civic_score, 4),
+            "custom_classifier_active": self._civic_classifier is not None,
+            "custom_classifier_model_path": self._civic_classifier_model_path,
+            "model_variant": self._model_variant(),
+            "model_note": self._model_note(),
         }
 
     def extract_issue(
@@ -410,6 +527,7 @@ class ComplaintImageValidationService:
         caption: str,
         clip_scores: dict[str, float] | None = None,
         clip_non_civic_score: float = 0.0,
+        classifier_scores: dict[str, float] | None = None,
     ) -> IssueExtractionResult:
         normalized_caption = self._normalize_text(caption)
         matched_keywords: dict[str, list[str]] = {}
@@ -428,11 +546,16 @@ class ComplaintImageValidationService:
             matched_keywords[category] = hits
             score_by_category[category] = score
 
-        normalized_clip_scores = self._normalize_clip_scores(clip_scores)
+        normalized_clip_scores = self._normalize_category_scores(clip_scores)
         clip_weight = max(0.0, float(self.settings.hf_clip_score_weight))
         for category, probability in normalized_clip_scores.items():
             # Blend CLIP signal as score contribution so it can rescue weak captions.
             score_by_category[category] = score_by_category.get(category, 0.0) + (probability * clip_weight)
+
+        normalized_classifier_scores = self._normalize_category_scores(classifier_scores)
+        classifier_weight = max(0.0, float(self.settings.civic_classifier_score_weight))
+        for category, probability in normalized_classifier_scores.items():
+            score_by_category[category] = score_by_category.get(category, 0.0) + (probability * classifier_weight)
 
         top_category = "unknown"
         top_score = 0.0
@@ -442,6 +565,7 @@ class ComplaintImageValidationService:
                 top_score = score
 
         top_clip_category, top_clip_confidence = self._top_clip_category(normalized_clip_scores)
+        top_classifier_category, top_classifier_confidence = self._top_clip_category(normalized_classifier_scores)
         has_hose_term = self._contains_phrase(normalized_caption, "hose")
         has_water_leak_context = self._count_term_hits(normalized_caption, WATER_LEAK_CONTEXT_TERMS) > 0
         if top_clip_category == "water_leak" and has_hose_term and not has_water_leak_context:
@@ -467,6 +591,7 @@ class ComplaintImageValidationService:
                 matched_keywords=matched_keywords,
                 score_by_category=score_by_category,
                 clip_scores=normalized_clip_scores,
+                classifier_scores=normalized_classifier_scores,
             )
 
         if not has_keyword_signal and (non_civic_score >= 0.42 or non_civic_hits >= 2):
@@ -476,6 +601,7 @@ class ComplaintImageValidationService:
                 matched_keywords=matched_keywords,
                 score_by_category=score_by_category,
                 clip_scores=normalized_clip_scores,
+                classifier_scores=normalized_classifier_scores,
             )
 
         if indoor_hits >= 1 and civic_context_hits == 0 and not has_keyword_signal:
@@ -485,10 +611,13 @@ class ComplaintImageValidationService:
                 matched_keywords=matched_keywords,
                 score_by_category=score_by_category,
                 clip_scores=normalized_clip_scores,
+                classifier_scores=normalized_classifier_scores,
             )
 
-        if all(not hits for hits in matched_keywords.values()) and top_clip_confidence < float(
-            self.settings.hf_clip_min_confidence
+        if (
+            all(not hits for hits in matched_keywords.values())
+            and top_clip_confidence < float(self.settings.hf_clip_min_confidence)
+            and top_classifier_confidence < float(self.settings.civic_classifier_min_confidence)
         ):
             return IssueExtractionResult(
                 detected_issue="unknown",
@@ -496,6 +625,7 @@ class ComplaintImageValidationService:
                 matched_keywords=matched_keywords,
                 score_by_category=score_by_category,
                 clip_scores=normalized_clip_scores,
+                classifier_scores=normalized_classifier_scores,
             )
 
         if all(not hits for hits in matched_keywords.values()):
@@ -503,20 +633,72 @@ class ComplaintImageValidationService:
                 top_category,
                 float(self.settings.hf_clip_min_confidence),
             )
-            if top_clip_confidence < required_clip_conf:
+            has_classifier_support = top_classifier_category == top_category and (
+                top_classifier_confidence >= float(self.settings.civic_classifier_min_confidence)
+            )
+            if top_clip_confidence < required_clip_conf and not has_classifier_support:
                 return IssueExtractionResult(
                     detected_issue="unknown",
                     confidence=0.0,
                     matched_keywords=matched_keywords,
                     score_by_category=score_by_category,
                     clip_scores=normalized_clip_scores,
+                    classifier_scores=normalized_classifier_scores,
                 )
+
+        ranked_scores = sorted((float(score) for score in score_by_category.values() if score > 0.0), reverse=True)
+        second_score = ranked_scores[1] if len(ranked_scores) > 1 else 0.0
+        score_margin = max(0.0, top_score - second_score)
+        supporting_signal_count = 0
+        if matched_keywords.get(top_category):
+            supporting_signal_count += 1
+        if top_clip_category == top_category and top_clip_confidence >= CATEGORY_MIN_CLIP_CONFIDENCE.get(
+            top_category,
+            float(self.settings.hf_clip_min_confidence),
+        ):
+            supporting_signal_count += 1
+        if top_classifier_category == top_category and top_classifier_confidence >= float(
+            self.settings.civic_classifier_min_confidence
+        ):
+            supporting_signal_count += 1
+
+        strong_cross_source_conflict = (
+            not matched_keywords.get(top_category)
+            and top_clip_category not in {"", "unknown"}
+            and top_classifier_category not in {"", "unknown"}
+            and top_clip_category != top_classifier_category
+            and top_clip_confidence >= float(self.settings.hf_clip_min_confidence)
+            and top_classifier_confidence >= float(self.settings.civic_classifier_min_confidence)
+        )
+        if strong_cross_source_conflict and score_margin < 0.9:
+            return IssueExtractionResult(
+                detected_issue="unknown",
+                confidence=0.0,
+                matched_keywords=matched_keywords,
+                score_by_category=score_by_category,
+                clip_scores=normalized_clip_scores,
+                classifier_scores=normalized_classifier_scores,
+            )
+
+        if supporting_signal_count <= 1 and not matched_keywords.get(top_category) and score_margin < 0.45:
+            return IssueExtractionResult(
+                detected_issue="unknown",
+                confidence=0.0,
+                matched_keywords=matched_keywords,
+                score_by_category=score_by_category,
+                clip_scores=normalized_clip_scores,
+                classifier_scores=normalized_classifier_scores,
+            )
 
         confidence = self._compute_confidence(
             top_category=top_category,
             score_by_category=score_by_category,
             clip_top_confidence=top_clip_confidence,
+            classifier_top_confidence=top_classifier_confidence,
             top_keyword_hits=len(matched_keywords.get(top_category, [])),
+            supporting_signal_count=supporting_signal_count,
+            score_margin=score_margin,
+            has_source_conflict=strong_cross_source_conflict,
         )
         return IssueExtractionResult(
             detected_issue=top_category,
@@ -524,6 +706,7 @@ class ComplaintImageValidationService:
             matched_keywords=matched_keywords,
             score_by_category=score_by_category,
             clip_scores=normalized_clip_scores,
+            classifier_scores=normalized_classifier_scores,
         )
 
     def validate_category(self, detected_issue: str, reported_category: str) -> bool:
@@ -537,6 +720,7 @@ class ComplaintImageValidationService:
         caption: str,
         *,
         clip_scores: dict[str, float] | None = None,
+        classifier_scores: dict[str, float] | None = None,
         clip_non_civic_score: float = 0.0,
         match_type: str | None = None,
     ) -> str:
@@ -545,8 +729,16 @@ class ComplaintImageValidationService:
         resolved_match_type = (match_type or self._determine_match_type(detected, reported)).strip().lower()
         caption_text = caption.strip() if isinstance(caption, str) else ""
         caption_snippet = caption_text if len(caption_text) <= 180 else f"{caption_text[:177]}..."
-        clip_top_issue, clip_top_confidence = self._top_clip_category(self._normalize_clip_scores(clip_scores))
+        clip_top_issue, clip_top_confidence = self._top_clip_category(self._normalize_category_scores(clip_scores))
+        classifier_top_issue, classifier_top_confidence = self._top_clip_category(
+            self._normalize_category_scores(classifier_scores)
+        )
         clip_evidence = f" CLIP top signal: {clip_top_issue} ({clip_top_confidence:.2f})."
+        classifier_evidence = ""
+        if classifier_top_confidence > 0.0:
+            classifier_evidence = (
+                f" Fine-tuned civic classifier: {classifier_top_issue} ({classifier_top_confidence:.2f})."
+            )
         non_civic_evidence = f" Non-civic scene score: {max(0.0, min(1.0, float(clip_non_civic_score or 0.0))):.2f}."
 
         if not caption_snippet:
@@ -555,7 +747,7 @@ class ComplaintImageValidationService:
         if detected == "unknown":
             return (
                 "The model could not map the image to a supported civic issue category. "
-                f"Generated caption: '{caption_snippet}'.{clip_evidence}{non_civic_evidence}"
+                f"Generated caption: '{caption_snippet}'.{clip_evidence}{classifier_evidence}{non_civic_evidence}"
             )
 
         if not reported:
@@ -566,19 +758,20 @@ class ComplaintImageValidationService:
         if resolved_match_type == "exact":
             return (
                 f"The detected issue matches the reported category ('{reported.replace('_', ' ')}'). "
-                f"Generated caption: '{caption_snippet}'.{clip_evidence}"
+                f"Generated caption: '{caption_snippet}'.{clip_evidence}{classifier_evidence}"
             )
 
         if resolved_match_type == "related":
             return (
                 f"The detected issue '{detected.replace('_', ' ')}' is closely related to the reported "
                 f"category '{reported.replace('_', ' ')}', so this is treated as a valid related match. "
-                f"Generated caption: '{caption_snippet}'.{clip_evidence}{non_civic_evidence}"
+                f"Generated caption: '{caption_snippet}'.{clip_evidence}{classifier_evidence}{non_civic_evidence}"
             )
 
         return (
             f"The image suggests '{detected.replace('_', ' ')}' while the complaint was reported as "
-            f"'{reported.replace('_', ' ')}'. Generated caption: '{caption_snippet}'.{clip_evidence}{non_civic_evidence}"
+            f"'{reported.replace('_', ' ')}'. Generated caption: '{caption_snippet}'."
+            f"{clip_evidence}{classifier_evidence}{non_civic_evidence}"
         )
 
     async def validate_image_category(
@@ -616,12 +809,14 @@ class ComplaintImageValidationService:
     def _validate_sync(self, image_path: str, reported_category: str) -> dict[str, Any]:
         analysis = self.analyze_image(image_path)
         caption = str(analysis.get("caption") or "")
-        clip_scores = self._normalize_clip_scores(analysis.get("clip_scores"))
+        clip_scores = self._normalize_category_scores(analysis.get("clip_scores"))
+        classifier_scores = self._normalize_category_scores(analysis.get("classifier_scores"))
         clip_non_civic_score = float(analysis.get("clip_non_civic_score") or 0.0)
         extraction = self.extract_issue(
             caption,
             clip_scores=clip_scores,
             clip_non_civic_score=clip_non_civic_score,
+            classifier_scores=classifier_scores,
         )
 
         normalized_reported = self._normalize_category(reported_category)
@@ -630,6 +825,7 @@ class ComplaintImageValidationService:
                 reported_category=normalized_reported,
                 caption=caption,
                 clip_scores=extraction.clip_scores,
+                classifier_scores=extraction.classifier_scores,
                 clip_non_civic_score=clip_non_civic_score,
             )
 
@@ -640,16 +836,18 @@ class ComplaintImageValidationService:
             normalized_reported,
             caption,
             clip_scores=extraction.clip_scores,
+            classifier_scores=extraction.classifier_scores,
             clip_non_civic_score=clip_non_civic_score,
             match_type=match_type,
         )
         keyword_hits = extraction.matched_keywords.get(extraction.detected_issue, [])
         clip_top_issue, clip_top_confidence = self._top_clip_category(extraction.clip_scores)
+        classifier_top_issue, classifier_top_confidence = self._top_clip_category(extraction.classifier_scores)
 
         logger.info(
             (
                 "Validation complete source=%s detected=%s reported=%s valid=%s "
-                "confidence=%.4f match_type=%s clip_top=%s(%.4f) non_civic=%.4f"
+                "confidence=%.4f match_type=%s clip_top=%s(%.4f) classifier_top=%s(%.4f) non_civic=%.4f"
             ),
             image_path,
             extraction.detected_issue,
@@ -659,6 +857,8 @@ class ComplaintImageValidationService:
             match_type,
             clip_top_issue,
             clip_top_confidence,
+            classifier_top_issue,
+            classifier_top_confidence,
             clip_non_civic_score,
         )
 
@@ -674,7 +874,14 @@ class ComplaintImageValidationService:
             "clip_scores": extraction.clip_scores,
             "clip_top_issue": clip_top_issue,
             "clip_top_confidence": round(clip_top_confidence, 4),
+            "classifier_scores": extraction.classifier_scores,
+            "classifier_top_issue": classifier_top_issue,
+            "classifier_top_confidence": round(classifier_top_confidence, 4),
             "clip_non_civic_score": round(clip_non_civic_score, 4),
+            "custom_classifier_active": self._civic_classifier is not None,
+            "custom_classifier_model_path": self._civic_classifier_model_path,
+            "model_variant": self._model_variant(),
+            "model_note": self._model_note(),
             "status": "ok",
         }
 
@@ -686,12 +893,14 @@ class ComplaintImageValidationService:
     ) -> dict[str, Any]:
         analysis = self.analyze_pil_image(image=image, source=source)
         caption = str(analysis.get("caption") or "")
-        clip_scores = self._normalize_clip_scores(analysis.get("clip_scores"))
+        clip_scores = self._normalize_category_scores(analysis.get("clip_scores"))
+        classifier_scores = self._normalize_category_scores(analysis.get("classifier_scores"))
         clip_non_civic_score = float(analysis.get("clip_non_civic_score") or 0.0)
         extraction = self.extract_issue(
             caption,
             clip_scores=clip_scores,
             clip_non_civic_score=clip_non_civic_score,
+            classifier_scores=classifier_scores,
         )
 
         normalized_reported = self._normalize_category(reported_category)
@@ -700,6 +909,7 @@ class ComplaintImageValidationService:
                 reported_category=normalized_reported,
                 caption=caption,
                 clip_scores=extraction.clip_scores,
+                classifier_scores=extraction.classifier_scores,
                 clip_non_civic_score=clip_non_civic_score,
             )
 
@@ -710,16 +920,18 @@ class ComplaintImageValidationService:
             normalized_reported,
             caption,
             clip_scores=extraction.clip_scores,
+            classifier_scores=extraction.classifier_scores,
             clip_non_civic_score=clip_non_civic_score,
             match_type=match_type,
         )
         keyword_hits = extraction.matched_keywords.get(extraction.detected_issue, [])
         clip_top_issue, clip_top_confidence = self._top_clip_category(extraction.clip_scores)
+        classifier_top_issue, classifier_top_confidence = self._top_clip_category(extraction.classifier_scores)
 
         logger.info(
             (
                 "Validation complete source=%s detected=%s reported=%s valid=%s "
-                "confidence=%.4f match_type=%s clip_top=%s(%.4f) non_civic=%.4f"
+                "confidence=%.4f match_type=%s clip_top=%s(%.4f) classifier_top=%s(%.4f) non_civic=%.4f"
             ),
             source,
             extraction.detected_issue,
@@ -729,6 +941,8 @@ class ComplaintImageValidationService:
             match_type,
             clip_top_issue,
             clip_top_confidence,
+            classifier_top_issue,
+            classifier_top_confidence,
             clip_non_civic_score,
         )
 
@@ -744,7 +958,14 @@ class ComplaintImageValidationService:
             "clip_scores": extraction.clip_scores,
             "clip_top_issue": clip_top_issue,
             "clip_top_confidence": round(clip_top_confidence, 4),
+            "classifier_scores": extraction.classifier_scores,
+            "classifier_top_issue": classifier_top_issue,
+            "classifier_top_confidence": round(classifier_top_confidence, 4),
             "clip_non_civic_score": round(clip_non_civic_score, 4),
+            "custom_classifier_active": self._civic_classifier is not None,
+            "custom_classifier_model_path": self._civic_classifier_model_path,
+            "model_variant": self._model_variant(),
+            "model_note": self._model_note(),
             "status": "ok",
         }
 
@@ -852,12 +1073,64 @@ class ComplaintImageValidationService:
         non_civic_score = (non_civic_total / all_total) if all_total > 0.0 else 0.0
         return normalized_civic, max(0.0, min(1.0, non_civic_score))
 
+    def _classify_with_civic_classifier(self, image: Image.Image) -> dict[str, float]:
+        if self._civic_classifier is None:
+            return {}
+
+        prepared = image.convert("RGB")
+        try:
+            results = self._civic_classifier.predict(
+                source=prepared,
+                imgsz=self.settings.civic_classifier_image_size,
+                device="cpu",
+                verbose=False,
+            )
+        except Exception as exc:
+            logger.warning("Fine-tuned civic classifier inference failed: %s", exc)
+            return {}
+
+        if not results:
+            return {}
+
+        result = results[0]
+        probs = getattr(result, "probs", None)
+        if probs is None or getattr(probs, "data", None) is None:
+            return {}
+
+        names = getattr(result, "names", None) or getattr(self._civic_classifier, "names", {}) or {}
+        raw_scores = probs.data.detach().cpu().tolist()
+        aggregated: dict[str, float] = {}
+        for idx, score in enumerate(raw_scores):
+            if isinstance(names, dict):
+                label = names.get(idx, str(idx))
+            elif isinstance(names, (list, tuple)) and 0 <= idx < len(names):
+                label = names[idx]
+            else:
+                label = str(idx)
+            category = self._normalize_category(label)
+            if category not in SUPPORTED_CATEGORIES:
+                continue
+            aggregated[category] = max(aggregated.get(category, 0.0), float(score))
+
+        total = sum(aggregated.values())
+        if total <= 0.0:
+            return {}
+
+        return {
+            category: max(0.0, min(1.0, float(score / total)))
+            for category, score in aggregated.items()
+        }
+
     def _compute_confidence(
         self,
         top_category: str,
         score_by_category: dict[str, float],
         clip_top_confidence: float = 0.0,
+        classifier_top_confidence: float = 0.0,
         top_keyword_hits: int = 0,
+        supporting_signal_count: int = 0,
+        score_margin: float = 0.0,
+        has_source_conflict: bool = False,
     ) -> float:
         top_score = float(score_by_category.get(top_category, 0.0))
         if top_score <= 0.0:
@@ -874,20 +1147,30 @@ class ComplaintImageValidationService:
 
         strength = min(1.0, top_score / 3.5)
         keyword_support = min(1.0, max(0.0, float(top_keyword_hits)) / 2.0)
+        classifier_support = max(0.0, min(1.0, float(classifier_top_confidence)))
+        agreement_support = min(1.0, max(0.0, float(supporting_signal_count)) / 3.0)
+        margin_support = min(1.0, max(0.0, float(score_margin)) / 2.0)
         combined = (
-            (softmax_top * 0.45)
-            + (strength * 0.20)
-            + (max(0.0, min(1.0, clip_top_confidence)) * 0.20)
-            + (keyword_support * 0.15)
+            (softmax_top * 0.28)
+            + (strength * 0.16)
+            + (max(0.0, min(1.0, clip_top_confidence)) * 0.16)
+            + (classifier_support * 0.18)
+            + (keyword_support * 0.12)
+            + (agreement_support * 0.06)
+            + (margin_support * 0.04)
         )
 
         # Penalize clip-only decisions with no caption keyword support.
-        if top_keyword_hits <= 0:
+        if top_keyword_hits <= 0 and classifier_top_confidence <= 0.0:
             combined *= 0.78
+        elif top_keyword_hits <= 0:
+            combined *= 0.9
+        if has_source_conflict:
+            combined *= 0.72
         return max(0.0, min(1.0, combined))
 
     @staticmethod
-    def _normalize_clip_scores(raw_scores: Any) -> dict[str, float]:
+    def _normalize_category_scores(raw_scores: Any) -> dict[str, float]:
         if not isinstance(raw_scores, dict):
             return {}
 
@@ -902,6 +1185,10 @@ class ComplaintImageValidationService:
                 continue
             normalized[category] = max(0.0, min(1.0, numeric))
         return normalized
+
+    @staticmethod
+    def _normalize_clip_scores(raw_scores: Any) -> dict[str, float]:
+        return ComplaintImageValidationService._normalize_category_scores(raw_scores)
 
     @staticmethod
     def _top_clip_category(clip_scores: dict[str, float]) -> tuple[str, float]:
@@ -980,7 +1267,14 @@ class ComplaintImageValidationService:
             "clip_scores": {},
             "clip_top_issue": "unknown",
             "clip_top_confidence": 0.0,
+            "classifier_scores": {},
+            "classifier_top_issue": "unknown",
+            "classifier_top_confidence": 0.0,
             "clip_non_civic_score": 0.0,
+            "custom_classifier_active": self._civic_classifier is not None,
+            "custom_classifier_model_path": self._civic_classifier_model_path,
+            "model_variant": self._model_variant(),
+            "model_note": self._model_note(),
             "status": "failed",
         }
 
@@ -990,9 +1284,11 @@ class ComplaintImageValidationService:
         reported_category: str,
         caption: str,
         clip_scores: dict[str, float],
+        classifier_scores: dict[str, float],
         clip_non_civic_score: float,
     ) -> dict[str, Any]:
         clip_top_issue, clip_top_confidence = self._top_clip_category(clip_scores)
+        classifier_top_issue, classifier_top_confidence = self._top_clip_category(classifier_scores)
         return {
             "detected_issue": "unknown",
             "reported_category": reported_category,
@@ -1008,6 +1304,13 @@ class ComplaintImageValidationService:
             "clip_scores": clip_scores,
             "clip_top_issue": clip_top_issue,
             "clip_top_confidence": round(clip_top_confidence, 4),
+            "classifier_scores": classifier_scores,
+            "classifier_top_issue": classifier_top_issue,
+            "classifier_top_confidence": round(classifier_top_confidence, 4),
             "clip_non_civic_score": round(max(0.0, min(1.0, float(clip_non_civic_score or 0.0))), 4),
+            "custom_classifier_active": self._civic_classifier is not None,
+            "custom_classifier_model_path": self._civic_classifier_model_path,
+            "model_variant": self._model_variant(),
+            "model_note": self._model_note(),
             "status": "unsupported_category",
         }
