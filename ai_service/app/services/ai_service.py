@@ -65,6 +65,13 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "water filled pothole",
         "puddle on road",
         "puddle",
+        "sunken road",
+        "road crater",
+        "cracked pavement",
+        "broken road patch",
+        "damaged pavement",
+        "hole in road",
+        "collapsed road patch",
     ),
     "garbage": (
         "garbage",
@@ -90,6 +97,20 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "overflowing dustbin",
         "roadside trash",
         "street garbage",
+        "dirty bathroom",
+        "dirty washroom",
+        "dirty toilet area",
+        "toilet waste",
+        "waste near toilet",
+        "trash near toilet",
+        "trash near sink",
+        "waste near sink",
+        "used tissue",
+        "tissue waste",
+        "plastic wrapper",
+        "discarded wrapper",
+        "discarded plastic",
+        "dirty corner",
     ),
     "drainage": (
         "drain",
@@ -99,6 +120,13 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "blocked drain",
         "clogged drain",
         "manhole overflow",
+        "open drain",
+        "stagnant drain water",
+        "dirty drain water",
+        "drain cover missing",
+        "gutter blockage",
+        "sewage water",
+        "wastewater near drain",
     ),
     "water_leak": (
         "water leak",
@@ -118,6 +146,13 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "burst pipe",
         "water overflowing",
         "leakage",
+        "leaking tap",
+        "broken tap",
+        "leaking faucet",
+        "burst water pipe",
+        "water dripping",
+        "wet floor near pipe",
+        "water pooling from pipe",
     ),
     "streetlight": (
         "street light",
@@ -130,6 +165,13 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "dark street",
         "light not working",
         "fused street light",
+        "street lamp",
+        "lamp pole",
+        "damaged lamp post",
+        "electric pole light",
+        "broken street lamp",
+        "dark road",
+        "pole light not working",
     ),
     "road_damage": (
         "damaged road",
@@ -143,6 +185,12 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "uneven road",
         "broken pavement",
         "road surface crack",
+        "damaged pavement",
+        "collapsed pavement",
+        "sunken road",
+        "broken concrete road",
+        "cracked road surface",
+        "damaged road patch",
     ),
     "traffic_sign": (
         "traffic sign",
@@ -155,6 +203,12 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "signal post",
         "traffic pole",
         "fallen sign",
+        "sign post",
+        "sign pole",
+        "tilted signboard",
+        "broken traffic sign",
+        "damaged sign pole",
+        "faded traffic sign",
     ),
 }
 
@@ -163,6 +217,8 @@ CATEGORY_CLIP_PROMPTS: dict[str, tuple[str, ...]] = {
         "a photo of a pothole in the road",
         "a damaged asphalt road with a pothole",
         "a street with a deep road hole",
+        "a sunken patch in the middle of a road",
+        "a broken road surface with a hole and cracked asphalt",
     ),
     "garbage": (
         "a photo of garbage piled on a street",
@@ -170,36 +226,50 @@ CATEGORY_CLIP_PROMPTS: dict[str, tuple[str, ...]] = {
         "a waste pile in a public area",
         "overflowing garbage bins on roadside",
         "litter and waste bags dumped in public street",
+        "a dirty bathroom corner with trash and waste",
+        "plastic waste and litter near a toilet or sink",
+        "a washroom area with discarded trash and wrappers",
+        "garbage dumped in a dirty indoor corner",
     ),
     "drainage": (
         "a blocked drainage channel on a road",
         "a sewer overflow near a street",
         "a clogged drain causing waterlogging",
         "open drain with stagnant dirty water",
+        "a roadside drain blocked with dirty water",
+        "a manhole or gutter overflowing on a street",
     ),
     "water_leak": (
         "a leaking water pipe on a street",
         "water leaking from a pipe or hose",
         "water spill due to pipe leakage",
         "burst pipeline causing water flow on road",
+        "a tap or pipe leaking water near a wall",
+        "clean water spilling from a broken pipe or valve",
     ),
     "streetlight": (
         "a broken streetlight pole near road",
         "a street lamp post not working",
         "a damaged lamp post in public street",
         "a dark road due to failed streetlight",
+        "a street light pole with broken lamp fixture",
+        "a roadside electric lamp post that is damaged",
     ),
     "road_damage": (
         "a photo of damaged road surface",
         "a cracked and broken asphalt road",
         "a road with heavy surface damage",
         "a sunken road patch with broken pavement",
+        "an uneven damaged pavement on a street",
+        "a collapsed patch of road surface",
     ),
     "traffic_sign": (
         "a damaged traffic sign board on roadside",
         "a bent or broken road sign pole",
         "a fallen traffic sign in public street",
         "a faded warning signboard near junction",
+        "a tilted signboard attached to a roadside pole",
+        "a damaged stop sign or warning sign on a street",
     ),
 }
 
@@ -238,10 +308,10 @@ NON_CIVIC_TERMS: set[str] = {
 NON_CIVIC_CLIP_PROMPTS: tuple[str, ...] = (
     "an indoor scene with kitchen utensils and food",
     "a laptop or computer on a desk indoors",
-    "a household object photo not related to civic infrastructure",
-    "an indoor room with furniture and electronics",
-    "an indoor bathroom or washroom scene",
-    "a private home interior not related to public roads or civic assets",
+    "a household object photo not related to civic infrastructure or waste",
+    "an indoor room with furniture and electronics and no civic issue",
+    "a clean indoor bathroom or washroom scene with no waste or civic problem",
+    "a private home interior not related to public roads, public assets, or dumped waste",
 )
 
 INDOOR_SCENE_TERMS: set[str] = {
@@ -280,12 +350,283 @@ WATER_LEAK_CONTEXT_TERMS: set[str] = {
     "leak",
     "leaking",
     "pipe",
+    "pipeline",
+    "tap",
+    "faucet",
+    "valve",
     "burst",
     "broken pipe",
     "wet",
     "spill",
     "overflow",
     "flood",
+    "dripping",
+    "damp wall",
+    "wet floor",
+}
+
+GARBAGE_CONTEXT_TERMS: set[str] = {
+    "garbage",
+    "trash",
+    "waste",
+    "litter",
+    "dirty bathroom",
+    "dirty washroom",
+    "dirty toilet area",
+    "trash bag",
+    "garbage bag",
+    "plastic bag",
+    "plastic wrapper",
+    "wrapper",
+    "discarded wrapper",
+    "used tissue",
+    "tissue waste",
+    "discarded plastic",
+    "dirty corner",
+    "messy corner",
+    "refuse",
+    "rubbish",
+}
+
+GARBAGE_FIXTURE_TERMS: set[str] = {
+    "bathroom",
+    "washroom",
+    "toilet",
+    "sink",
+}
+
+ROAD_SURFACE_TERMS: set[str] = {
+    "road",
+    "street",
+    "asphalt",
+    "pavement",
+    "lane",
+    "road surface",
+    "road patch",
+    "concrete road",
+    "footpath",
+}
+
+POTHOLE_CONTEXT_TERMS: set[str] = {
+    "pothole",
+    "road hole",
+    "hole in road",
+    "road crack",
+    "asphalt crack",
+    "pavement hole",
+    "water filled pothole",
+    "sunken road",
+    "road crater",
+    "broken road patch",
+}
+
+ROAD_DAMAGE_CONTEXT_TERMS: set[str] = {
+    "road damage",
+    "damaged road",
+    "broken asphalt",
+    "asphalt broken",
+    "road surface damage",
+    "road crack",
+    "uneven road",
+    "broken pavement",
+    "collapsed road",
+    "collapsed pavement",
+    "sunken road",
+    "cracked road surface",
+}
+
+DRAINAGE_CONTEXT_TERMS: set[str] = {
+    "drain",
+    "drainage",
+    "sewer",
+    "blocked drain",
+    "clogged drain",
+    "open drain",
+    "drainage blockage",
+    "stagnant drain water",
+    "dirty drain water",
+    "gutter blockage",
+    "manhole overflow",
+    "sewage water",
+    "wastewater",
+}
+
+DRAINAGE_FIXTURE_TERMS: set[str] = {
+    "drain",
+    "gutter",
+    "sewer",
+    "manhole",
+    "channel",
+    "drainage",
+    "culvert",
+}
+
+WATER_LEAK_FIXTURE_TERMS: set[str] = {
+    "pipe",
+    "hose",
+    "tap",
+    "faucet",
+    "valve",
+    "pipeline",
+    "wall",
+    "floor",
+}
+
+STREETLIGHT_CONTEXT_TERMS: set[str] = {
+    "streetlight",
+    "street light",
+    "street lamp",
+    "lamp post",
+    "lamp pole",
+    "light pole",
+    "broken light",
+    "broken streetlight",
+    "light not working",
+    "dark street",
+    "dark road",
+    "damaged lamp post",
+    "electric pole light",
+}
+
+STREETLIGHT_FIXTURE_TERMS: set[str] = {
+    "streetlight",
+    "street light",
+    "street lamp",
+    "lamp post",
+    "lamp pole",
+    "light pole",
+    "pole",
+    "lamp",
+    "street",
+    "road",
+}
+
+TRAFFIC_SIGN_CONTEXT_TERMS: set[str] = {
+    "traffic sign",
+    "road sign",
+    "sign board",
+    "signboard",
+    "stop sign",
+    "warning sign",
+    "signal post",
+    "traffic pole",
+    "fallen sign",
+    "bent sign board",
+    "broken traffic sign",
+    "damaged sign pole",
+    "tilted signboard",
+}
+
+TRAFFIC_SIGN_FIXTURE_TERMS: set[str] = {
+    "sign",
+    "sign board",
+    "signboard",
+    "pole",
+    "post",
+    "junction",
+    "road",
+    "street",
+}
+
+CATEGORY_SIGNAL_PROFILES: dict[str, dict[str, Any]] = {
+    "pothole": {
+        "context_terms": POTHOLE_CONTEXT_TERMS,
+        "support_terms": ROAD_SURFACE_TERMS,
+        "context_hit_min": 1,
+        "support_min_hits": 1,
+        "hybrid_context_min": 1,
+        "clip_threshold": 0.53,
+        "classifier_threshold": 0.40,
+        "hybrid_threshold": 0.48,
+        "boost": 1.10,
+        "non_civic_multiplier": 0.32,
+        "non_civic_floor": 0.08,
+        "keyword_bonus": 2,
+    },
+    "garbage": {
+        "context_terms": GARBAGE_CONTEXT_TERMS,
+        "support_terms": GARBAGE_FIXTURE_TERMS,
+        "context_hit_min": 1,
+        "support_min_hits": 2,
+        "hybrid_context_min": 1,
+        "clip_threshold": 0.52,
+        "classifier_threshold": 0.40,
+        "hybrid_threshold": 0.48,
+        "boost": 1.35,
+        "non_civic_multiplier": 0.40,
+        "non_civic_floor": 0.16,
+        "keyword_bonus": 2,
+    },
+    "drainage": {
+        "context_terms": DRAINAGE_CONTEXT_TERMS,
+        "support_terms": DRAINAGE_FIXTURE_TERMS,
+        "context_hit_min": 1,
+        "support_min_hits": 1,
+        "hybrid_context_min": 1,
+        "clip_threshold": 0.50,
+        "classifier_threshold": 0.38,
+        "hybrid_threshold": 0.46,
+        "boost": 1.12,
+        "non_civic_multiplier": 0.38,
+        "non_civic_floor": 0.12,
+        "keyword_bonus": 2,
+    },
+    "water_leak": {
+        "context_terms": WATER_LEAK_CONTEXT_TERMS,
+        "support_terms": WATER_LEAK_FIXTURE_TERMS,
+        "context_hit_min": 2,
+        "support_min_hits": 1,
+        "hybrid_context_min": 1,
+        "clip_threshold": 0.60,
+        "classifier_threshold": 0.44,
+        "hybrid_threshold": 0.56,
+        "boost": 0.95,
+        "non_civic_multiplier": 0.48,
+        "non_civic_floor": 0.14,
+        "keyword_bonus": 1,
+    },
+    "streetlight": {
+        "context_terms": STREETLIGHT_CONTEXT_TERMS,
+        "support_terms": STREETLIGHT_FIXTURE_TERMS,
+        "context_hit_min": 1,
+        "support_min_hits": 1,
+        "hybrid_context_min": 1,
+        "clip_threshold": 0.50,
+        "classifier_threshold": 0.38,
+        "hybrid_threshold": 0.46,
+        "boost": 1.10,
+        "non_civic_multiplier": 0.30,
+        "non_civic_floor": 0.10,
+        "keyword_bonus": 2,
+    },
+    "road_damage": {
+        "context_terms": ROAD_DAMAGE_CONTEXT_TERMS,
+        "support_terms": ROAD_SURFACE_TERMS,
+        "context_hit_min": 1,
+        "support_min_hits": 1,
+        "hybrid_context_min": 1,
+        "clip_threshold": 0.50,
+        "classifier_threshold": 0.38,
+        "hybrid_threshold": 0.46,
+        "boost": 1.05,
+        "non_civic_multiplier": 0.34,
+        "non_civic_floor": 0.08,
+        "keyword_bonus": 2,
+    },
+    "traffic_sign": {
+        "context_terms": TRAFFIC_SIGN_CONTEXT_TERMS,
+        "support_terms": TRAFFIC_SIGN_FIXTURE_TERMS,
+        "context_hit_min": 1,
+        "support_min_hits": 1,
+        "hybrid_context_min": 1,
+        "clip_threshold": 0.52,
+        "classifier_threshold": 0.40,
+        "hybrid_threshold": 0.48,
+        "boost": 1.08,
+        "non_civic_multiplier": 0.32,
+        "non_civic_floor": 0.10,
+        "keyword_bonus": 2,
+    },
 }
 
 CATEGORY_MIN_CLIP_CONFIDENCE: dict[str, float] = {
@@ -457,8 +798,14 @@ class ComplaintImageValidationService:
         logger.info("Analyzing image source=%s", image_path)
         image = self._load_image_from_source(image_path)
         caption = self._generate_caption(image)
-        clip_scores, clip_non_civic_score = self._classify_with_clip(image)
+        clip_scores, raw_clip_non_civic_score = self._classify_with_clip(image)
         classifier_scores = self._classify_with_civic_classifier(image)
+        clip_non_civic_score = self._calibrate_non_civic_score(
+            caption=caption,
+            clip_scores=clip_scores,
+            classifier_scores=classifier_scores,
+            raw_non_civic_score=raw_clip_non_civic_score,
+        )
         clip_top_issue, clip_top_conf = self._top_clip_category(clip_scores)
         classifier_top_issue, classifier_top_conf = self._top_clip_category(classifier_scores)
         logger.info(
@@ -491,8 +838,14 @@ class ComplaintImageValidationService:
     def analyze_pil_image(self, image: Image.Image, source: str = "memory") -> dict[str, Any]:
         logger.info("Analyzing in-memory image source=%s", source)
         caption = self._generate_caption(image)
-        clip_scores, clip_non_civic_score = self._classify_with_clip(image)
+        clip_scores, raw_clip_non_civic_score = self._classify_with_clip(image)
         classifier_scores = self._classify_with_civic_classifier(image)
+        clip_non_civic_score = self._calibrate_non_civic_score(
+            caption=caption,
+            clip_scores=clip_scores,
+            classifier_scores=classifier_scores,
+            raw_non_civic_score=raw_clip_non_civic_score,
+        )
         clip_top_issue, clip_top_conf = self._top_clip_category(clip_scores)
         classifier_top_issue, classifier_top_conf = self._top_clip_category(classifier_scores)
         logger.info(
@@ -547,15 +900,28 @@ class ComplaintImageValidationService:
             score_by_category[category] = score
 
         normalized_clip_scores = self._normalize_category_scores(clip_scores)
+        top_clip_category, top_clip_confidence = self._top_clip_category(normalized_clip_scores)
         clip_weight = max(0.0, float(self.settings.hf_clip_score_weight))
         for category, probability in normalized_clip_scores.items():
             # Blend CLIP signal as score contribution so it can rescue weak captions.
             score_by_category[category] = score_by_category.get(category, 0.0) + (probability * clip_weight)
 
         normalized_classifier_scores = self._normalize_category_scores(classifier_scores)
+        top_classifier_category, top_classifier_confidence = self._top_clip_category(normalized_classifier_scores)
         classifier_weight = max(0.0, float(self.settings.civic_classifier_score_weight))
         for category, probability in normalized_classifier_scores.items():
             score_by_category[category] = score_by_category.get(category, 0.0) + (probability * classifier_weight)
+
+        strong_scene_signals = self._collect_strong_scene_signals(
+            normalized_caption=normalized_caption,
+            clip_scores=normalized_clip_scores,
+            classifier_scores=normalized_classifier_scores,
+            matched_keywords=matched_keywords,
+        )
+        for category, has_signal in strong_scene_signals.items():
+            if not has_signal:
+                continue
+            score_by_category[category] = score_by_category.get(category, 0.0) + self._scene_signal_boost(category)
 
         top_category = "unknown"
         top_score = 0.0
@@ -564,8 +930,6 @@ class ComplaintImageValidationService:
                 top_category = category
                 top_score = score
 
-        top_clip_category, top_clip_confidence = self._top_clip_category(normalized_clip_scores)
-        top_classifier_category, top_classifier_confidence = self._top_clip_category(normalized_classifier_scores)
         has_hose_term = self._contains_phrase(normalized_caption, "hose")
         has_water_leak_context = self._count_term_hits(normalized_caption, WATER_LEAK_CONTEXT_TERMS) > 0
         if top_clip_category == "water_leak" and has_hose_term and not has_water_leak_context:
@@ -580,6 +944,7 @@ class ComplaintImageValidationService:
 
         non_civic_score = max(0.0, min(1.0, float(clip_non_civic_score or 0.0)))
         has_keyword_signal = any(bool(hits) for hits in matched_keywords.values())
+        has_contextual_signal = has_keyword_signal or any(strong_scene_signals.values())
         non_civic_hits = self._count_term_hits(normalized_caption, NON_CIVIC_TERMS)
         indoor_hits = self._count_term_hits(normalized_caption, INDOOR_SCENE_TERMS)
         civic_context_hits = self._count_term_hits(normalized_caption, CIVIC_CONTEXT_TERMS)
@@ -594,7 +959,7 @@ class ComplaintImageValidationService:
                 classifier_scores=normalized_classifier_scores,
             )
 
-        if not has_keyword_signal and (non_civic_score >= 0.42 or non_civic_hits >= 2):
+        if not has_contextual_signal and (non_civic_score >= 0.42 or non_civic_hits >= 2):
             return IssueExtractionResult(
                 detected_issue="unknown",
                 confidence=0.0,
@@ -604,7 +969,7 @@ class ComplaintImageValidationService:
                 classifier_scores=normalized_classifier_scores,
             )
 
-        if indoor_hits >= 1 and civic_context_hits == 0 and not has_keyword_signal:
+        if indoor_hits >= 1 and civic_context_hits == 0 and not has_contextual_signal:
             return IssueExtractionResult(
                 detected_issue="unknown",
                 confidence=0.0,
@@ -652,6 +1017,8 @@ class ComplaintImageValidationService:
         supporting_signal_count = 0
         if matched_keywords.get(top_category):
             supporting_signal_count += 1
+        if strong_scene_signals.get(top_category):
+            supporting_signal_count += 1
         if top_clip_category == top_category and top_clip_confidence >= CATEGORY_MIN_CLIP_CONFIDENCE.get(
             top_category,
             float(self.settings.hf_clip_min_confidence),
@@ -680,7 +1047,12 @@ class ComplaintImageValidationService:
                 classifier_scores=normalized_classifier_scores,
             )
 
-        if supporting_signal_count <= 1 and not matched_keywords.get(top_category) and score_margin < 0.45:
+        if (
+            supporting_signal_count <= 1
+            and not matched_keywords.get(top_category)
+            and not strong_scene_signals.get(top_category)
+            and score_margin < 0.45
+        ):
             return IssueExtractionResult(
                 detected_issue="unknown",
                 confidence=0.0,
@@ -695,7 +1067,10 @@ class ComplaintImageValidationService:
             score_by_category=score_by_category,
             clip_top_confidence=top_clip_confidence,
             classifier_top_confidence=top_classifier_confidence,
-            top_keyword_hits=len(matched_keywords.get(top_category, [])),
+            top_keyword_hits=(
+                len(matched_keywords.get(top_category, []))
+                + self._scene_signal_keyword_bonus(top_category, strong_scene_signals.get(top_category, False))
+            ),
             supporting_signal_count=supporting_signal_count,
             score_margin=score_margin,
             has_source_conflict=strong_cross_source_conflict,
@@ -1120,6 +1495,103 @@ class ComplaintImageValidationService:
             category: max(0.0, min(1.0, float(score / total)))
             for category, score in aggregated.items()
         }
+
+    def _calibrate_non_civic_score(
+        self,
+        *,
+        caption: str,
+        clip_scores: dict[str, float],
+        classifier_scores: dict[str, float],
+        raw_non_civic_score: float,
+    ) -> float:
+        normalized_caption = self._normalize_text(caption)
+        calibrated = max(0.0, min(1.0, float(raw_non_civic_score or 0.0)))
+        strong_scene_signals = self._collect_strong_scene_signals(
+            normalized_caption=normalized_caption,
+            clip_scores=clip_scores,
+            classifier_scores=classifier_scores,
+            matched_keywords={},
+        )
+        for category, has_signal in strong_scene_signals.items():
+            if not has_signal:
+                continue
+            profile = CATEGORY_SIGNAL_PROFILES.get(category, {})
+            multiplier = float(profile.get("non_civic_multiplier", 1.0))
+            floor = float(profile.get("non_civic_floor", 0.0))
+            calibrated = min(calibrated, max(floor, calibrated * multiplier))
+        return round(calibrated, 4)
+
+    def _collect_strong_scene_signals(
+        self,
+        *,
+        normalized_caption: str,
+        clip_scores: dict[str, float],
+        classifier_scores: dict[str, float],
+        matched_keywords: dict[str, list[str]] | None,
+    ) -> dict[str, bool]:
+        return {
+            category: self._has_strong_category_scene_signal(
+                category=category,
+                normalized_caption=normalized_caption,
+                clip_scores=clip_scores,
+                classifier_scores=classifier_scores,
+                matched_hits=(matched_keywords or {}).get(category, []),
+            )
+            for category in SUPPORTED_CATEGORIES
+        }
+
+    def _has_strong_category_scene_signal(
+        self,
+        *,
+        category: str,
+        normalized_caption: str,
+        clip_scores: dict[str, float],
+        classifier_scores: dict[str, float],
+        matched_hits: list[str] | tuple[str, ...],
+    ) -> bool:
+        profile = CATEGORY_SIGNAL_PROFILES.get(category)
+        if not profile:
+            return False
+
+        clip_value = float(clip_scores.get(category) or 0.0)
+        classifier_value = float(classifier_scores.get(category) or 0.0)
+        clip_top_issue, clip_top_confidence = self._top_clip_category(clip_scores)
+        classifier_top_issue, classifier_top_confidence = self._top_clip_category(classifier_scores)
+        context_terms = profile.get("context_terms") or set()
+        support_terms = profile.get("support_terms") or set()
+        context_hits = self._count_term_hits(normalized_caption, context_terms)
+        support_hits = self._count_term_hits(normalized_caption, support_terms)
+
+        explicit_hint = bool(matched_hits) or context_hits >= int(profile.get("context_hit_min", 1))
+        clip_support = clip_top_issue == category and max(clip_value, clip_top_confidence) >= float(
+            profile.get("clip_threshold", 0.5)
+        )
+        classifier_support = (
+            classifier_top_issue == category
+            and max(classifier_value, classifier_top_confidence) >= float(profile.get("classifier_threshold", 0.4))
+        )
+        hybrid_support = (
+            clip_value >= float(profile.get("hybrid_threshold", 0.45))
+            and support_hits >= int(profile.get("support_min_hits", 1))
+            and context_hits >= int(profile.get("hybrid_context_min", 1))
+        )
+
+        if not (clip_support or classifier_support or hybrid_support):
+            return False
+
+        return explicit_hint or support_hits >= int(profile.get("support_min_hits", 1))
+
+    @staticmethod
+    def _scene_signal_boost(category: str) -> float:
+        profile = CATEGORY_SIGNAL_PROFILES.get(category, {})
+        return float(profile.get("boost", 0.0))
+
+    @staticmethod
+    def _scene_signal_keyword_bonus(category: str, has_signal: bool) -> int:
+        if not has_signal:
+            return 0
+        profile = CATEGORY_SIGNAL_PROFILES.get(category, {})
+        return int(profile.get("keyword_bonus", 0))
 
     def _compute_confidence(
         self,
