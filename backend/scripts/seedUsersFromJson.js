@@ -20,6 +20,15 @@ const readJsonArray = (filePath) => {
 };
 
 const normalizeText = (value) => (typeof value === 'string' ? value.trim() : '');
+const isValidObjectId = (value) => /^[a-f0-9]{24}$/i.test(String(value || '').trim());
+const extractSeedId = (entry) => {
+  const candidate = entry?.id || entry?._id;
+  if (!candidate) {
+    return null;
+  }
+  const trimmed = String(candidate).trim();
+  return isValidObjectId(trimmed) ? trimmed : null;
+};
 
 const resolveMongoUri = () => {
   const candidates = [
@@ -44,6 +53,7 @@ const resolveMongoUri = () => {
 const loadUserSeedData = () => {
   const adminFile = resolveFilePath('database/main_admin.json');
   const municipalFile = resolveFilePath('database/municipal_users.json');
+  const citizenFile = resolveFilePath('database/citizen_users.json');
 
   if (!fs.existsSync(adminFile)) {
     throw new Error(`Missing file: ${adminFile}`);
@@ -54,13 +64,16 @@ const loadUserSeedData = () => {
 
   const admins = readJsonArray(adminFile);
   const municipalUsers = readJsonArray(municipalFile);
+  const citizenUsers = fs.existsSync(citizenFile) ? readJsonArray(citizenFile) : [];
   return {
     admins,
-    municipalUsers
+    municipalUsers,
+    citizenUsers
   };
 };
 
 const buildUserPayload = async ({ entry, municipalOfficeId }) => {
+  const seedId = extractSeedId(entry);
   const role = normalizeText(entry.role) || 'officer';
   const rawEmail = normalizeText(entry.email);
   const normalizedRawEmail = normalizeEmail(rawEmail);
@@ -96,13 +109,22 @@ const buildUserPayload = async ({ entry, municipalOfficeId }) => {
       municipalOfficeId: municipalOfficeId || null,
       refreshTokenHash: null
     },
-    legacyEmail: role === 'officer' ? normalizedRawEmail : null
+    legacyEmail: role === 'officer' ? normalizedRawEmail : null,
+    seedId
   };
+};
+
+const buildUpsertUpdate = ({ payload, seedId }) => {
+  const update = { $set: payload };
+  if (seedId) {
+    update.$setOnInsert = { _id: seedId };
+  }
+  return update;
 };
 
 const main = async () => {
   const mongoUri = resolveMongoUri();
-  const { admins, municipalUsers } = loadUserSeedData();
+  const { admins, municipalUsers, citizenUsers } = loadUserSeedData();
 
   await mongoose.connect(mongoUri);
 
@@ -119,10 +141,20 @@ const main = async () => {
   let skipped = 0;
 
   for (const entry of admins) {
-    const { payload } = await buildUserPayload({ entry, municipalOfficeId: null });
+    const { payload, seedId } = await buildUserPayload({ entry, municipalOfficeId: null });
     await User.findOneAndUpdate(
       { email: payload.email },
-      { $set: payload },
+      buildUpsertUpdate({ payload, seedId }),
+      { upsert: true, new: true, runValidators: true }
+    );
+    upserted += 1;
+  }
+
+  for (const entry of citizenUsers) {
+    const { payload, seedId } = await buildUserPayload({ entry, municipalOfficeId: null });
+    await User.findOneAndUpdate(
+      { email: payload.email },
+      buildUpsertUpdate({ payload, seedId }),
       { upsert: true, new: true, runValidators: true }
     );
     upserted += 1;
@@ -136,7 +168,7 @@ const main = async () => {
       continue;
     }
 
-    const { payload, legacyEmail } = await buildUserPayload({ entry, municipalOfficeId });
+    const { payload, legacyEmail, seedId } = await buildUserPayload({ entry, municipalOfficeId });
 
     const candidateEmails = [payload.email];
     if (legacyEmail && legacyEmail !== payload.email) {
@@ -157,7 +189,7 @@ const main = async () => {
 
     await User.findOneAndUpdate(
       { email: payload.email },
-      { $set: payload },
+      buildUpsertUpdate({ payload, seedId }),
       { upsert: true, new: true, runValidators: true }
     );
     upserted += 1;
