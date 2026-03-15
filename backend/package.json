@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed:users": "node scripts/seedUsersFromJson.js",
+    "seed:complaints": "node scripts/seedComplaintsFromJson.js",
     "seed:developers": "node scripts/seedDevelopersFromJson.js",
     "devs": "node scripts/seedDevelopersFromJson.js"
   },
