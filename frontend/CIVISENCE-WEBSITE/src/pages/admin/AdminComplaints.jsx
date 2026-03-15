@@ -31,22 +31,41 @@ const UPDATABLE_STATUSES = new Set(['reported', 'unassigned', 'assigned', 'in_pr
 const DEFAULT_RESOLUTION_REMARK = 'Issue resolved by administration.';
 const REFRESH_INTERVAL_MS = 20000;
 
+const toCoordinates = (complaint) => {
+    const coordinates = complaint?.location?.coordinates;
+    if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+        return null;
+    }
+    const [longitude, latitude] = coordinates;
+    if (typeof longitude !== 'number' || typeof latitude !== 'number') {
+        return null;
+    }
+    return { longitude, latitude };
+};
+
 const toStatusText = (status) =>
     (status || 'reported').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 const toCoordinatesLabel = (complaint) => {
-    const coordinates = complaint?.location?.coordinates;
-    if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+    const coordinates = toCoordinates(complaint);
+    if (!coordinates) {
         return 'Location not available';
     }
-    const [longitude, latitude] = coordinates;
-    return `${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`;
+    return `${Number(coordinates.latitude).toFixed(5)}, ${Number(coordinates.longitude).toFixed(5)}`;
 };
 
 const getPriorityReason = (complaint) =>
     complaint?.priority?.reasonSentence ||
     complaint?.priority?.reason ||
     'Priority reason not available';
+
+const toMapsUrl = (complaint) => {
+    const coordinates = toCoordinates(complaint);
+    if (!coordinates) {
+        return '';
+    }
+    return `https://www.google.com/maps?q=${coordinates.latitude},${coordinates.longitude}`;
+};
 
 const toPriorityClass = (priorityLevel) => {
     const normalized = String(priorityLevel || 'low').toLowerCase();
@@ -93,6 +112,7 @@ export default function AdminComplaints() {
     const [actionModalInput, setActionModalInput] = useState('');
     const [imagePreviewUrl, setImagePreviewUrl] = useState('');
     const [imagePreviewTitle, setImagePreviewTitle] = useState('');
+    const [mapMessage, setMapMessage] = useState('');
 
     const loadComplaints = useCallback(async ({ silent = false } = {}) => {
         if (!silent) {
@@ -146,6 +166,7 @@ export default function AdminComplaints() {
         setLoadingDetails(true);
         setReviewError('');
         setMisuseMessage('');
+        setMapMessage('');
         try {
             if (isDemoSession()) {
                 setSelectedComplaint(complaint);
@@ -175,6 +196,7 @@ export default function AdminComplaints() {
         setActionModalInput('');
         setImagePreviewUrl('');
         setImagePreviewTitle('');
+        setMapMessage('');
     };
 
     const openImagePreview = (imageUrl, title = 'Complaint Image') => {
@@ -186,6 +208,36 @@ export default function AdminComplaints() {
     const closeImagePreview = () => {
         setImagePreviewUrl('');
         setImagePreviewTitle('');
+    };
+
+    const handleCopyMapLink = async () => {
+        if (!selectedComplaint) return;
+        const mapUrl = toMapsUrl(selectedComplaint);
+        if (!mapUrl) {
+            setMapMessage('Map link unavailable for this complaint.');
+            return;
+        }
+
+        try {
+            if (navigator?.clipboard?.writeText) {
+                await navigator.clipboard.writeText(mapUrl);
+                setMapMessage('Map link copied to clipboard.');
+                return;
+            }
+
+            const textarea = document.createElement('textarea');
+            textarea.value = mapUrl;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            const copied = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setMapMessage(copied ? 'Map link copied to clipboard.' : 'Copy failed.');
+        } catch {
+            setMapMessage('Copy failed.');
+        }
     };
 
     const updateComplaintInState = (updatedComplaint) => {
@@ -344,6 +396,7 @@ export default function AdminComplaints() {
         selectedComplaint?.aiMeta?.aiGeneratedOutputPath ||
         '';
     const aiModelNote = selectedComplaint?.aiMeta?.modelNote || '';
+    const mapUrl = selectedComplaint ? toMapsUrl(selectedComplaint) : '';
 
     return (
         <DashboardLayout>
@@ -475,9 +528,37 @@ export default function AdminComplaints() {
                                         <span className="admin-review__meta-label">Assigned Office</span>
                                         <p className="admin-review__meta-value">{selectedComplaint.assignedMunicipalOffice?.name || selectedComplaint.assignedOfficeType || 'Pending'}</p>
                                     </div>
-                                    <div className="admin-review__meta-card">
+                                    <div className="admin-review__meta-card admin-review__meta-card--location">
                                         <span className="admin-review__meta-label">Location</span>
                                         <p className="admin-review__meta-value">{toCoordinatesLabel(selectedComplaint)}</p>
+                                        <div className="admin-review__map-actions">
+                                            <a
+                                                className={`btn btn-ghost btn-sm admin-review__map-btn${mapUrl ? '' : ' is-disabled'}`}
+                                                href={mapUrl || '#'}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                onClick={(event) => {
+                                                    if (!mapUrl) {
+                                                        event.preventDefault();
+                                                    }
+                                                }}
+                                                aria-disabled={!mapUrl}
+                                                tabIndex={mapUrl ? 0 : -1}
+                                            >
+                                                Open in Maps
+                                            </a>
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-sm admin-review__map-btn"
+                                                onClick={handleCopyMapLink}
+                                                disabled={!mapUrl}
+                                            >
+                                                Copy Map Link
+                                            </button>
+                                        </div>
+                                        {mapMessage ? (
+                                            <p className="admin-review__map-message">{mapMessage}</p>
+                                        ) : null}
                                     </div>
                                     <div className="admin-review__meta-card admin-review__meta-card--reason">
                                         <span className="admin-review__meta-label">Priority Reason</span>
