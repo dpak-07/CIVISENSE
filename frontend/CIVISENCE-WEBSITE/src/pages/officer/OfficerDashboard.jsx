@@ -369,6 +369,13 @@ export default function OfficerDashboard() {
     const assigned = complaints.filter((c) => c.status === 'assigned').length;
     const inProgress = complaints.filter((c) => c.status === 'in_progress').length;
     const resolved = complaints.filter((c) => c.status === 'resolved').length;
+    const highPriority = complaints.filter((c) => ['high', 'critical'].includes(c?.priority?.level)).length;
+    const now = Date.now();
+    const overdueCount = complaints.filter((c) => {
+        if (!['assigned', 'in_progress'].includes(c.status)) return false;
+        const updatedAt = new Date(c.updatedAt || c.createdAt || Date.now()).getTime();
+        return now - updatedAt > 48 * 60 * 60 * 1000;
+    }).length;
     const sortedComplaints = useMemo(
         () => sortComplaintsByPriorityAndDate(complaints),
         [complaints]
@@ -386,7 +393,7 @@ export default function OfficerDashboard() {
             <div className="page-header">
                 <div>
                     <h1>Officer Dashboard</h1>
-                    <p>Manage and resolve complaints assigned to your department</p>
+                    <p>Track your queue, resolve issues faster, and keep citizens informed.</p>
                 </div>
             </div>
 
@@ -396,6 +403,61 @@ export default function OfficerDashboard() {
                 <StatsCard icon={<HiOutlineExclamationTriangle />} label="In Progress" value={inProgress} color="info" />
                 <StatsCard icon={<HiOutlineCheckCircle />} label="Resolved" value={resolved} color="success" />
             </div>
+
+            <section className="mb-6 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-700">Today's focus</p>
+                            <h2 className="mt-2 text-2xl font-bold text-slate-950">Priority queue snapshot</h2>
+                        </div>
+                        <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-sky-700">
+                            Live
+                        </span>
+                    </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">High priority</p>
+                            <p className="mt-2 text-3xl font-extrabold text-slate-950">{highPriority}</p>
+                            <p className="mt-1 text-sm text-slate-500">Critical and high urgency complaints.</p>
+                        </div>
+                        <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Overdue</p>
+                            <p className="mt-2 text-3xl font-extrabold text-slate-950">{overdueCount}</p>
+                            <p className="mt-1 text-sm text-slate-500">Assigned or in-progress longer than 48 hours.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-xl text-sky-700">
+                            <HiOutlineBellAlert />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-950">Quick filters</h2>
+                            <p className="text-sm text-slate-500">Jump to the most important queues.</p>
+                        </div>
+                    </div>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setStatusFilter('')}>
+                            All
+                        </button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setStatusFilter('assigned')}>
+                            Assigned
+                        </button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setStatusFilter('in_progress')}>
+                            In progress
+                        </button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setStatusFilter('resolved')}>
+                            Resolved
+                        </button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setStatusFilter('reported')}>
+                            Reported
+                        </button>
+                    </div>
+                </div>
+            </section>
 
             <div className="filters-bar">
                 <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -755,3 +817,4 @@ export default function OfficerDashboard() {
         </DashboardLayout>
     );
 }
+

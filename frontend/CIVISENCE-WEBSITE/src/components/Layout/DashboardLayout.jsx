@@ -15,6 +15,7 @@ import {
 } from 'react-icons/hi2';
 import { getNotifications, markAsRead } from '../../api/notifications';
 import CiviSenseLogo from '../branding/CiviSenseLogo';
+import ScrollProgressBar from '../ScrollProgressBar';
 import { useAuth } from '../../context/AuthContext';
 import { formatRoleLabel, formatTimeAgo } from '../../utils/helpers';
 
@@ -183,9 +184,10 @@ export default function DashboardLayout({ children }) {
     );
 
     return (
-        <div className="min-h-screen">
-            <div className="mx-auto flex min-h-screen w-full max-w-[1700px]">
-                <aside className="hidden w-[290px] shrink-0 border-r border-white/60 bg-white/72 p-6 backdrop-blur-2xl xl:flex xl:flex-col">
+        <div className="min-h-screen overflow-hidden">
+            <ScrollProgressBar />
+            <div className="mx-auto flex h-screen w-full max-w-[1700px] overflow-hidden">
+                <aside className="hidden h-screen w-[290px] shrink-0 border-r border-white/60 bg-white/72 p-6 backdrop-blur-2xl xl:flex xl:flex-col xl:overflow-y-auto xl:sticky xl:top-0">
                     <button
                         type="button"
                         className="flex items-center gap-3 text-left"
@@ -270,7 +272,7 @@ export default function DashboardLayout({ children }) {
                     </div>
                 ) : null}
 
-                <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex min-w-0 flex-1 flex-col h-screen overflow-hidden">
                     <header className="sticky top-0 z-40 border-b border-white/60 bg-white/72 backdrop-blur-2xl">
                         <div className="container flex flex-col gap-4 py-4">
                             <div className="flex items-center justify-between gap-4">
@@ -401,7 +403,7 @@ export default function DashboardLayout({ children }) {
                         </div>
                     </header>
 
-                    <main className="container flex-1 py-6 sm:py-8">
+                    <main className="container flex-1 overflow-y-auto py-6 sm:py-8">
                         <div className="mb-6 rounded-3xl border border-sky-100 bg-[linear-gradient(135deg,rgba(14,165,233,0.08),rgba(15,118,110,0.1))] px-5 py-4 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.4)]">
                             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                                 <div>

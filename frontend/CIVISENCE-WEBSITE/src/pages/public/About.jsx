@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import {
     HiOutlineArrowPath,
+    HiOutlineBellAlert,
     HiOutlineBuildingOffice,
     HiOutlineChartBar,
     HiOutlineCpuChip,
@@ -53,6 +54,29 @@ const operatingModel = [
     }
 ];
 
+const deploymentHighlights = [
+    {
+        icon: HiOutlineShieldCheck,
+        title: 'Secure role-based access',
+        description: 'Separate citizen, officer, and admin permissions with clear accountability.'
+    },
+    {
+        icon: HiOutlineSparkles,
+        title: 'AI priority assistance',
+        description: 'Reduce manual triage by highlighting urgency and likely duplicates.'
+    },
+    {
+        icon: HiOutlineBellAlert,
+        title: 'Escalation visibility',
+        description: 'Surface aging complaints and bottlenecks before they become public issues.'
+    },
+    {
+        icon: HiOutlineChartBar,
+        title: 'Operational reporting',
+        description: 'Track resolution speed, backlog health, and office response patterns.'
+    }
+];
+
 const principles = [
     'Transparent updates for citizens and administrators',
     'Role-based tools that match real municipal work',
@@ -77,11 +101,11 @@ export default function About() {
                                 About CiviSense
                             </span>
                             <h1 className="max-w-3xl text-balance text-5xl font-bold text-slate-950 sm:text-6xl">
-                                A civic intelligence platform designed for real city operations.
+                                The civic operations platform designed for real city response.
                             </h1>
                             <p className="max-w-2xl text-lg leading-8 text-slate-600">
-                                CiviSense exists to close the gap between citizen issue reporting and municipal action.
-                                Instead of disconnected forms, unclear routing, and hidden progress, the platform brings a shared operating picture to everyone involved.
+                                CiviSense closes the gap between citizen issue reporting and municipal action.
+                                Instead of disconnected forms, unclear routing, and hidden progress, the platform delivers a shared operating picture to everyone involved.
                             </p>
                             <p className="max-w-2xl text-base leading-8 text-slate-600">
                                 The web experience supports citizen tracking, officer workflows, and administrative oversight, while the mobile app helps collect issue evidence quickly in the field.
@@ -166,6 +190,37 @@ export default function About() {
 
                             <div className="grid gap-4 lg:grid-cols-4">
                                 {operatingModel.map((item) => {
+                                    const Icon = item.icon;
+                                    return (
+                                        <article key={item.title} className="rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-2xl text-sky-700">
+                                                <Icon />
+                                            </div>
+                                            <h3 className="mt-5 text-2xl font-bold text-slate-950">{item.title}</h3>
+                                            <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+                                        </article>
+                                    );
+                                })}
+                            </div>
+                        </motion.div>
+                    </div>
+                </section>
+
+                <section className="py-12">
+                    <div className="container">
+                        <motion.div variants={sectionVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }}>
+                            <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                                <div>
+                                    <span className="section-tag">Deployment ready</span>
+                                    <h2 className="mt-4 text-4xl font-bold text-slate-950">Built for production rollouts</h2>
+                                </div>
+                                <p className="max-w-2xl text-base leading-7 text-slate-600">
+                                    Everything needed to support multi-office coordination, transparency, and accountable reporting.
+                                </p>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                {deploymentHighlights.map((item) => {
                                     const Icon = item.icon;
                                     return (
                                         <article key={item.title} className="rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">

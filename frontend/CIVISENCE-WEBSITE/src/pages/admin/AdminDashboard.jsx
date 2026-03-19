@@ -135,15 +135,55 @@ export default function AdminDashboard() {
     const overloadedCount = officeCapacityData.filter((office) => office.usagePct >= 90).length;
     const resolutionRate = totalReports ? Math.round((resolvedReports / totalReports) * 100) : 0;
     const lastSnapshotText = metrics?.snapshotAt ? new Date(metrics.snapshotAt).toLocaleString() : 'Live';
+    const resolutionHealth = resolutionRate >= 80 ? 'Healthy' : resolutionRate >= 60 ? 'Watch' : 'At risk';
+    const attentionItems = [
+        {
+            label: 'Open backlog',
+            value: formatCompactNumber(backlogCount),
+            tone: backlogCount > 50 ? 'bg-rose-100 text-rose-700' : backlogCount > 15 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700',
+            note: 'Complaints awaiting resolution or closure.'
+        },
+        {
+            label: 'High priority queue',
+            value: formatCompactNumber(highPriorityCount),
+            tone: highPriorityCount > 10 ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700',
+            note: 'Critical and high urgency reports.'
+        },
+        {
+            label: 'Offices under pressure',
+            value: overloadedCount,
+            tone: overloadedCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700',
+            note: 'Offices above 90% of capacity.'
+        },
+        {
+            label: 'Resolution health',
+            value: `${resolutionRate}%`,
+            tone: resolutionRate >= 80 ? 'bg-emerald-100 text-emerald-700' : resolutionRate >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700',
+            note: `${resolutionHealth} performance trend.`
+        }
+    ];
+    const recommendationNotes = [
+        highPriorityCount > 0
+            ? `Review ${highPriorityCount} high or critical complaints for faster escalation.`
+            : 'No high-priority backlog right now.',
+        overloadedCount > 0
+            ? `Rebalance workload across ${overloadedCount} overloaded office(s).`
+            : 'Office capacity looks balanced today.',
+        backlogCount > 0
+            ? `Backlog sits at ${formatCompactNumber(backlogCount)}. Consider reassignment or added shifts.`
+            : 'Backlog is clear. Maintain current workflow cadence.'
+    ];
 
     return (
         <DashboardLayout>
             <section className="mb-6 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
                 <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.45)] lg:p-8">
-                    <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-700">Admin dashboard</p>
-                    <h1 className="mt-3 text-4xl font-bold text-slate-950 lg:text-5xl">View complaints, office workload, and response progress.</h1>
+                    <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-700">Admin command center</p>
+                    <h1 className="mt-3 text-4xl font-bold text-slate-950 lg:text-5xl">
+                        Real-time oversight for complaints, offices, and response performance.
+                    </h1>
                     <p className="mt-4 max-w-3xl text-sm leading-8 text-slate-600">
-                        This page shows the current complaint load, office capacity, and overall response progress across the system.
+                        Track backlog, office capacity, and resolution speed with a single operational view.
                     </p>
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -162,7 +202,7 @@ export default function AdminDashboard() {
                             <p className="mt-2 text-3xl font-extrabold text-slate-950">{overloadedCount}</p>
                             <p className="mt-1 text-sm text-slate-500">Office(s) above 90% workload usage</p>
                         </div>
-                    </div>
+            </div>
                 </div>
 
                 <div className="rounded-[2rem] border border-slate-200 bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(14,116,144,0.9))] p-6 text-white shadow-[0_26px_80px_-42px_rgba(15,23,42,0.7)]">
@@ -174,7 +214,7 @@ export default function AdminDashboard() {
                         <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">
                             Live
                         </span>
-                    </div>
+            </div>
                     <div className="mt-6 space-y-4">
                         <div className="rounded-3xl bg-white/10 p-4">
                             <p className="text-5xl font-extrabold text-white">{totalReports}</p>
@@ -191,7 +231,7 @@ export default function AdminDashboard() {
                             </div>
                         </div>
                         <p className="text-sm text-slate-200">Last snapshot: {lastSnapshotText}</p>
-                    </div>
+            </div>
                 </div>
             </section>
 
@@ -203,6 +243,52 @@ export default function AdminDashboard() {
                 <StatsCard icon={<HiOutlineUserGroup />} label="Users" value={totalUsers} color="primary" />
                 <StatsCard icon={<HiOutlineSparkles />} label="Avg Resolution" value={`${avgResolutionHours}h`} color="warning" />
             </div>
+
+            <section className="mb-6 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-700">Operational priorities</p>
+                            <h2 className="mt-2 text-2xl font-bold text-slate-950">Today's focus areas</h2>
+                        </div>
+                        <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-sky-700">
+                            Live
+                        </span>
+            </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        {attentionItems.map((item) => (
+                            <div key={item.label} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">{item.label}</p>
+                                    <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] ${item.tone}`}>
+                                        {item.value}
+                                    </span>
+                                </div>
+                                <p className="mt-2 text-sm text-slate-600">{item.note}</p>
+                            </div>
+                        ))}
+            </div>
+                </div>
+
+                <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-xl text-sky-700">
+                            <HiOutlineSparkles />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-950">Recommended actions</h2>
+                            <p className="text-sm text-slate-500">A quick checklist based on live metrics.</p>
+                        </div>
+            </div>
+                    <div className="mt-5 space-y-3">
+                        {recommendationNotes.map((note) => (
+                            <div key={note} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                                {note}
+                            </div>
+                        ))}
+            </div>
+                </div>
+            </section>
 
             <section className="mb-6 grid gap-5 xl:grid-cols-2">
                 {statusData.length > 0 ? (
@@ -236,7 +322,7 @@ export default function AdminDashboard() {
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
-                    </div>
+            </div>
                 ) : null}
 
                 {officeCapacityData.length > 0 ? (
@@ -262,7 +348,7 @@ export default function AdminDashboard() {
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
-                    </div>
+            </div>
                 ) : null}
             </section>
 
@@ -321,3 +407,9 @@ export default function AdminDashboard() {
         </DashboardLayout>
     );
 }
+
+
+
+
+
+

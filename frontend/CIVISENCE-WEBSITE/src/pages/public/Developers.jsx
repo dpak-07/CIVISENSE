@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useScroll, useTransform } from 'framer-motion';
 import {
     HiOutlineChevronLeft,
     HiOutlineChevronRight,
@@ -10,6 +10,7 @@ import { FaGithub, FaGlobe, FaLinkedin } from 'react-icons/fa';
 import PublicLayout from '../../components/Layout/PublicLayout';
 import { getPublicDevelopers } from '../../api/public';
 import { getErrorMessage } from '../../utils/helpers';
+import './Developers.css';
 
 const AUTO_ROTATE_MS = 7000;
 
@@ -135,6 +136,10 @@ export default function Developers() {
     const [direction, setDirection] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const { scrollY } = useScroll();
+    const heroDrift = useTransform(scrollY, [0, 800], [0, -120]);
+    const orbDrift = useTransform(scrollY, [0, 900], [0, 160]);
+    const orbRotate = useTransform(scrollY, [0, 900], [0, 6]);
 
     useEffect(() => {
         const loadProfiles = async () => {
@@ -240,7 +245,26 @@ export default function Developers() {
     return (
         <PublicLayout>
             <div className="overflow-hidden">
-                <section className="py-14 lg:py-20">
+                <motion.section
+                    className="dev-hero py-14 lg:py-20"
+                    initial={{ opacity: 0, y: 24 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.35 }}
+                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                >
+                    <motion.div
+                        className="dev-hero__orbs"
+                        style={{ y: heroDrift }}
+                    >
+                        <motion.span
+                            className="dev-orb dev-orb--one"
+                            style={{ y: orbDrift, rotate: orbRotate }}
+                        />
+                        <motion.span
+                            className="dev-orb dev-orb--two"
+                            style={{ y: orbDrift, rotate: orbRotate }}
+                        />
+                    </motion.div>
                     <div className="container space-y-6">
                         <span className="section-tag">
                             <HiOutlineSparkles />
@@ -264,9 +288,22 @@ export default function Developers() {
                             </div>
                         ) : null}
                     </div>
-                </section>
+                    <motion.div
+                        className="dev-scroll-cue"
+                        animate={{ y: [0, 8, 0], opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                        Scroll
+                    </motion.div>
+                </motion.section>
 
-                <section className="pb-12">
+                <motion.section
+                    className="pb-12"
+                    initial={{ opacity: 0, y: 28 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.25 }}
+                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                >
                     <div className="container">
                         <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                             <div>
@@ -278,7 +315,11 @@ export default function Developers() {
                             ) : null}
                         </div>
 
-                        <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_28px_90px_-42px_rgba(15,23,42,0.5)] lg:p-8">
+                        <motion.div
+                            className="dev-panel rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_28px_90px_-42px_rgba(15,23,42,0.5)] lg:p-8"
+                            whileHover={{ y: -4 }}
+                            transition={{ duration: 0.35, ease: 'easeOut' }}
+                        >
                             <AnimatePresence custom={direction} mode="wait">
                                 <motion.article
                                     key={activeDeveloper.id}
@@ -398,11 +439,17 @@ export default function Developers() {
                                     ))}
                                 </div>
                             </div>
-                        </div>
+                        </motion.div>
                     </div>
-                </section>
+                </motion.section>
 
-                <section className="py-12">
+                <motion.section
+                    className="py-12"
+                    initial={{ opacity: 0, y: 28 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.2 }}
+                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                >
                     <div className="container">
                         <div className="mb-8">
                             <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-700">Contribution highlights</p>
@@ -411,9 +458,11 @@ export default function Developers() {
 
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                             {teamProfiles.map((developer) => (
-                                <article
+                                <motion.article
                                     key={`highlight-${developer.id}`}
-                                    className="rounded-3xl border border-slate-200 bg-white/85 p-5 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]"
+                                    className="dev-card rounded-3xl border border-slate-200 bg-white/85 p-5 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]"
+                                    whileHover={{ y: -6, scale: 1.02 }}
+                                    transition={{ duration: 0.35, ease: 'easeOut' }}
                                 >
                                     <h3 className="text-2xl font-bold text-slate-950">{developer.name}</h3>
                                     <p className="mt-2 text-sm font-semibold text-sky-700">{developer.role}</p>
@@ -427,24 +476,34 @@ export default function Developers() {
                                             </span>
                                         ))}
                                     </div>
-                                </article>
+                                </motion.article>
                             ))}
                         </div>
                     </div>
-                </section>
+                </motion.section>
 
-                <section className="pb-16 pt-12">
+                <motion.section
+                    className="pb-16 pt-12"
+                    initial={{ opacity: 0, y: 28 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.25 }}
+                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                >
                     <div className="container">
-                        <div className="rounded-[2rem] border border-slate-200 bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(14,116,144,0.9))] px-6 py-10 text-white shadow-[0_32px_100px_-44px_rgba(15,23,42,0.8)] lg:px-10">
+                        <motion.div
+                            className="dev-mentor rounded-[2rem] border border-slate-200 bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(14,116,144,0.9))] px-6 py-10 text-white shadow-[0_32px_100px_-44px_rgba(15,23,42,0.8)] lg:px-10"
+                            whileHover={{ y: -4 }}
+                            transition={{ duration: 0.35, ease: 'easeOut' }}
+                        >
                             <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-200">Project guide / mentor</p>
                             <h2 className="mt-3 text-4xl font-bold text-white">{mentorProfile?.name || fallbackMentor.name}</h2>
                             <p className="mt-3 text-lg font-semibold text-cyan-100">{mentorProfile?.role || fallbackMentor.role}</p>
                             <p className="mt-4 max-w-3xl text-base leading-8 text-slate-200">
                                 {mentorProfile?.description || fallbackMentor.description}
                             </p>
-                        </div>
+                        </motion.div>
                     </div>
-                </section>
+                </motion.section>
             </div>
         </PublicLayout>
     );
