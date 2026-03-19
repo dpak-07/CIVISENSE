@@ -19,6 +19,7 @@ import Register from './pages/auth/Register';
 import CitizenDashboard from './pages/citizen/CitizenDashboard';
 import CitizenComplaints from './pages/citizen/CitizenComplaints';
 import ComplaintDetail from './pages/citizen/ComplaintDetail';
+import NewComplaint from './pages/citizen/NewComplaint';
 
 // Officer pages
 import OfficerDashboard from './pages/officer/OfficerDashboard';
@@ -31,6 +32,7 @@ import AdminOffices from './pages/admin/AdminOffices';
 import AdminZones from './pages/admin/AdminZones';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
 import DevTools from './pages/admin/DevTools';
+import Logs from './pages/logs/Logs';
 
 export default function App() {
     const [showSplash, setShowSplash] = useState(true);
@@ -63,6 +65,7 @@ export default function App() {
 
                         {/* Citizen */}
                         <Route path="/citizen" element={<ProtectedRoute allowedRoles={['citizen']}><CitizenDashboard /></ProtectedRoute>} />
+                        <Route path="/citizen/report" element={<ProtectedRoute allowedRoles={['citizen']}><NewComplaint /></ProtectedRoute>} />
                         <Route path="/citizen/complaints" element={<ProtectedRoute allowedRoles={['citizen']}><CitizenComplaints /></ProtectedRoute>} />
                         <Route path="/citizen/complaint/:id" element={<ProtectedRoute allowedRoles={['citizen', 'admin', 'super_admin']}><ComplaintDetail /></ProtectedRoute>} />
 
@@ -79,6 +82,7 @@ export default function App() {
                         <Route path="/admin/zones" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminZones /></ProtectedRoute>} />
                         <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminAnalytics /></ProtectedRoute>} />
                         <Route path="/devs" element={<ProtectedRoute allowedRoles={['super_admin']}><DevTools /></ProtectedRoute>} />
+                        <Route path="/logs" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><Logs /></ProtectedRoute>} />
 
                         {/* Catch-all */}
                         <Route path="*" element={<Navigate to="/" replace />} />

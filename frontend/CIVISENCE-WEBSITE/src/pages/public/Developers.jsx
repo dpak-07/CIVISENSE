@@ -10,7 +10,6 @@ import { FaGithub, FaGlobe, FaLinkedin } from 'react-icons/fa';
 import PublicLayout from '../../components/Layout/PublicLayout';
 import { getPublicDevelopers } from '../../api/public';
 import { getErrorMessage } from '../../utils/helpers';
-import './Developers.css';
 
 const AUTO_ROTATE_MS = 7000;
 
@@ -84,7 +83,7 @@ const fallbackMentor = {
 const profileVariants = {
     enter: (direction) => ({
         opacity: 0,
-        x: direction > 0 ? 32 : -32
+        x: direction > 0 ? 36 : -36
     }),
     center: {
         opacity: 1,
@@ -92,13 +91,8 @@ const profileVariants = {
     },
     exit: (direction) => ({
         opacity: 0,
-        x: direction > 0 ? -32 : 32
+        x: direction > 0 ? -36 : 36
     })
-};
-
-const sectionVariant = {
-    hidden: { opacity: 0, y: 14 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.38, ease: 'easeOut' } }
 };
 
 const toStringList = (value) => {
@@ -232,7 +226,11 @@ export default function Developers() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label={label}
-                className={`dev-page__social ${disabled ? 'dev-page__social--disabled' : ''}`}
+                className={`flex h-11 w-11 items-center justify-center rounded-full border text-lg transition ${
+                    disabled
+                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-sky-200 hover:text-sky-700'
+                }`}
             >
                 <Icon />
             </a>
@@ -241,50 +239,46 @@ export default function Developers() {
 
     return (
         <PublicLayout>
-            <div className="dev-page">
-                <section className="dev-page__hero">
-                    <div className="dev-page__orb dev-page__orb--left" />
-                    <div className="dev-page__orb dev-page__orb--right" />
-
-                    <div className="container">
-                        <motion.div
-                            initial={{ opacity: 0, y: 14 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4 }}
-                            className="dev-page__hero-inner"
-                        >
-                            <span className="section-tag">
-                                <HiOutlineSparkles />
-                                CiviSense Developer Team
-                            </span>
-                            <h1>The Team Behind CiviSense</h1>
-                            <p>
-                                Engineers, researchers, and designers working together to build an AI-powered civic
-                                intelligence platform for transparent and faster issue resolution.
-                            </p>
-                            {loading ? <p className="dev-page__status">Loading developer profiles...</p> : null}
-                            {!loading && error ? (
-                                <p className="dev-page__status dev-page__status--warn">Showing fallback profile data: {error}</p>
-                            ) : null}
-                        </motion.div>
+            <div className="overflow-hidden">
+                <section className="py-14 lg:py-20">
+                    <div className="container space-y-6">
+                        <span className="section-tag">
+                            <HiOutlineSparkles />
+                            CiviSense developer team
+                        </span>
+                        <h1 className="max-w-4xl text-balance text-5xl font-bold text-slate-950 sm:text-6xl">
+                            The people shaping the product, research, and experience behind CiviSense.
+                        </h1>
+                        <p className="max-w-3xl text-lg leading-8 text-slate-600">
+                            Engineers, researchers, and designers working together to build an AI-powered civic reporting
+                            and municipal operations platform.
+                        </p>
+                        {loading ? (
+                            <div className="rounded-3xl border border-sky-100 bg-sky-50 px-5 py-4 text-sm font-semibold text-sky-700">
+                                Loading developer profiles...
+                            </div>
+                        ) : null}
+                        {!loading && error ? (
+                            <div className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-700">
+                                Showing fallback profile data: {error}
+                            </div>
+                        ) : null}
                     </div>
                 </section>
 
-                <section className="dev-page__showcase">
+                <section className="pb-12">
                     <div className="container">
-                        <div className="dev-page__heading-row">
+                        <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                             <div>
-                                <p className="dev-page__eyebrow">Interactive Team Showcase</p>
-                                <h2>One Developer Card at a Time</h2>
+                                <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-700">Interactive showcase</p>
+                                <h2 className="mt-3 text-4xl font-bold text-slate-950">Meet the team one profile at a time</h2>
                             </div>
                             {hasMultipleProfiles ? (
-                                <p className="dev-page__rotate-note">
-                                    Auto-rotates every {AUTO_ROTATE_MS / 1000} seconds
-                                </p>
+                                <p className="text-sm text-slate-500">Auto-rotates every {AUTO_ROTATE_MS / 1000} seconds</p>
                             ) : null}
                         </div>
 
-                        <div className="dev-page__profile-shell">
+                        <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_28px_90px_-42px_rgba(15,23,42,0.5)] lg:p-8">
                             <AnimatePresence custom={direction} mode="wait">
                                 <motion.article
                                     key={activeDeveloper.id}
@@ -294,150 +288,161 @@ export default function Developers() {
                                     animate="center"
                                     exit="exit"
                                     transition={{ duration: 0.28, ease: 'easeInOut' }}
-                                    className="dev-page__profile"
+                                    className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]"
                                 >
-                                    <div className="dev-page__photo-panel">
-                                        <div className="dev-page__photo-frame">
+                                    <div className="rounded-[2rem] bg-[linear-gradient(145deg,rgba(15,23,42,0.96),rgba(14,116,144,0.88))] p-6 text-white shadow-[0_30px_90px_-40px_rgba(15,23,42,0.8)]">
+                                        <div className="flex h-full min-h-[300px] items-center justify-center rounded-[1.5rem] border border-white/10 bg-white/10 p-6 backdrop-blur">
                                             {activeDeveloper.photoUrl ? (
                                                 <img
                                                     src={activeDeveloper.photoUrl}
                                                     alt={activeDeveloper.name}
-                                                    className="dev-page__photo"
+                                                    className="h-full max-h-[360px] w-full rounded-[1.5rem] object-cover"
                                                 />
                                             ) : (
-                                                <div className="dev-page__photo-empty">
-                                                    <span className="dev-page__photo-icon">
+                                                <div className="flex flex-col items-center gap-4 text-center">
+                                                    <span className="text-7xl text-sky-200">
                                                         <HiOutlineUserCircle />
                                                     </span>
-                                                    <p>Photo will be updated soon</p>
-                                                    <small>{activeDeveloper.name}</small>
+                                                    <div>
+                                                        <p className="text-lg font-bold text-white">Photo will be updated soon</p>
+                                                        <p className="mt-2 text-sm text-slate-200">{activeDeveloper.name}</p>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
 
-                                    <div className="dev-page__content">
-                                        <p className="dev-page__role">{activeDeveloper.role}</p>
-                                        <h3>{activeDeveloper.name}</h3>
-                                        <p className="dev-page__description">{activeDeveloper.description}</p>
+                                    <div className="space-y-5">
+                                        <div>
+                                            <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-700">{activeDeveloper.role}</p>
+                                            <h3 className="mt-3 text-4xl font-bold text-slate-950">{activeDeveloper.name}</h3>
+                                            <p className="mt-4 text-base leading-8 text-slate-600">{activeDeveloper.description}</p>
+                                        </div>
 
                                         {activeDeveloper.skills.length > 0 ? (
-                                            <div className="dev-page__skills">
-                                                {activeDeveloper.skills.map((skill) => (
-                                                    <span key={`${activeDeveloper.id}-${skill}`}>{skill}</span>
-                                                ))}
+                                            <div>
+                                                <p className="text-sm font-bold uppercase tracking-[0.22em] text-slate-400">Core skills</p>
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {activeDeveloper.skills.map((skill) => (
+                                                        <span
+                                                            key={`${activeDeveloper.id}-${skill}`}
+                                                            className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700"
+                                                        >
+                                                            {skill}
+                                                        </span>
+                                                    ))}
+                                                </div>
                                             </div>
                                         ) : null}
 
-                                        <div className="dev-page__socials">
-                                            {renderSocialLink(
-                                                activeDeveloper.socials.github,
-                                                `${activeDeveloper.name} GitHub`,
-                                                FaGithub
-                                            )}
-                                            {renderSocialLink(
-                                                activeDeveloper.socials.linkedin,
-                                                `${activeDeveloper.name} LinkedIn`,
-                                                FaLinkedin
-                                            )}
-                                            {renderSocialLink(
-                                                activeDeveloper.socials.portfolio,
-                                                `${activeDeveloper.name} Portfolio`,
-                                                FaGlobe
-                                            )}
+                                        <div>
+                                            <p className="text-sm font-bold uppercase tracking-[0.22em] text-slate-400">Highlights</p>
+                                            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                                {(activeDeveloper.highlights.length ? activeDeveloper.highlights : ['Highlights will be updated soon.']).map((highlight) => (
+                                                    <div
+                                                        key={`${activeDeveloper.id}-${highlight}`}
+                                                        className="rounded-3xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-700"
+                                                    >
+                                                        {highlight}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            {renderSocialLink(activeDeveloper.socials.github, `${activeDeveloper.name} GitHub`, FaGithub)}
+                                            {renderSocialLink(activeDeveloper.socials.linkedin, `${activeDeveloper.name} LinkedIn`, FaLinkedin)}
+                                            {renderSocialLink(activeDeveloper.socials.portfolio, `${activeDeveloper.name} Portfolio`, FaGlobe)}
                                         </div>
                                     </div>
                                 </motion.article>
                             </AnimatePresence>
-                        </div>
 
-                        <div className="dev-page__controls">
-                            <button
-                                type="button"
-                                onClick={goToPrev}
-                                disabled={!hasMultipleProfiles}
-                                className="dev-page__nav-btn"
-                                aria-label="Previous developer"
-                            >
-                                <HiOutlineChevronLeft />
-                            </button>
-
-                            <div className="dev-page__dots">
-                                {teamProfiles.map((developer, index) => (
+                            <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="flex items-center gap-3">
                                     <button
-                                        key={developer.id}
                                         type="button"
-                                        onClick={() => goToIndex(index)}
-                                        className={`dev-page__dot ${index === activeIndex ? 'active' : ''}`}
-                                        aria-label={`Show ${developer.name}`}
+                                        onClick={goToPrev}
+                                        disabled={!hasMultipleProfiles}
+                                        className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-sky-200 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                        aria-label="Previous developer"
                                     >
-                                        {developer.name}
+                                        <HiOutlineChevronLeft />
                                     </button>
-                                ))}
-                            </div>
+                                    <button
+                                        type="button"
+                                        onClick={goToNext}
+                                        disabled={!hasMultipleProfiles}
+                                        className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-sky-200 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                        aria-label="Next developer"
+                                    >
+                                        <HiOutlineChevronRight />
+                                    </button>
+                                </div>
 
-                            <button
-                                type="button"
-                                onClick={goToNext}
-                                disabled={!hasMultipleProfiles}
-                                className="dev-page__nav-btn"
-                                aria-label="Next developer"
-                            >
-                                <HiOutlineChevronRight />
-                            </button>
+                                <div className="flex flex-wrap gap-2">
+                                    {teamProfiles.map((developer, index) => (
+                                        <button
+                                            key={developer.id}
+                                            type="button"
+                                            onClick={() => goToIndex(index)}
+                                            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                                                index === activeIndex
+                                                    ? 'bg-slate-950 text-white'
+                                                    : 'border border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:text-sky-700'
+                                            }`}
+                                            aria-label={`Show ${developer.name}`}
+                                        >
+                                            {developer.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
 
-                <section className="dev-page__highlights">
+                <section className="py-12">
                     <div className="container">
-                        <div className="section-header">
-                            <span className="section-tag">Contribution Highlights</span>
-                            <h2>Team Work Areas</h2>
+                        <div className="mb-8">
+                            <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-700">Contribution highlights</p>
+                            <h2 className="mt-3 text-4xl font-bold text-slate-950">Team work areas</h2>
                         </div>
 
-                        <div className="dev-page__highlight-grid">
-                            {teamProfiles.map((developer, developerIndex) => (
-                                <motion.article
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            {teamProfiles.map((developer) => (
+                                <article
                                     key={`highlight-${developer.id}`}
-                                    variants={sectionVariant}
-                                    initial="hidden"
-                                    whileInView="visible"
-                                    viewport={{ once: true, amount: 0.25 }}
-                                    transition={{ delay: developerIndex * 0.05 }}
-                                    className="dev-page__highlight-card"
+                                    className="rounded-3xl border border-slate-200 bg-white/85 p-5 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]"
                                 >
-                                    <h3>{developer.name}</h3>
-                                    <p className="dev-page__highlight-role">{developer.role}</p>
-                                    <div className="dev-page__highlight-tags">
-                                        {developer.highlights.length > 0 ? (
-                                            developer.highlights.map((highlight) => (
-                                                <span key={`${developer.id}-${highlight}`}>{highlight}</span>
-                                            ))
-                                        ) : (
-                                            <span>Highlights will be updated soon.</span>
-                                        )}
+                                    <h3 className="text-2xl font-bold text-slate-950">{developer.name}</h3>
+                                    <p className="mt-2 text-sm font-semibold text-sky-700">{developer.role}</p>
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {(developer.highlights.length ? developer.highlights : ['Highlights will be updated soon.']).map((highlight) => (
+                                            <span
+                                                key={`${developer.id}-${highlight}`}
+                                                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600"
+                                            >
+                                                {highlight}
+                                            </span>
+                                        ))}
                                     </div>
-                                </motion.article>
+                                </article>
                             ))}
                         </div>
                     </div>
                 </section>
 
-                <section className="dev-page__mentor">
+                <section className="pb-16 pt-12">
                     <div className="container">
-                        <motion.article
-                            variants={sectionVariant}
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true, amount: 0.3 }}
-                            className="dev-page__mentor-card"
-                        >
-                            <p className="dev-page__eyebrow">Project Guide / Mentor</p>
-                            <h2>{mentorProfile?.name || fallbackMentor.name}</h2>
-                            <p className="dev-page__mentor-role">{mentorProfile?.role || fallbackMentor.role}</p>
-                            <p className="dev-page__mentor-desc">{mentorProfile?.description || fallbackMentor.description}</p>
-                        </motion.article>
+                        <div className="rounded-[2rem] border border-slate-200 bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(14,116,144,0.9))] px-6 py-10 text-white shadow-[0_32px_100px_-44px_rgba(15,23,42,0.8)] lg:px-10">
+                            <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-200">Project guide / mentor</p>
+                            <h2 className="mt-3 text-4xl font-bold text-white">{mentorProfile?.name || fallbackMentor.name}</h2>
+                            <p className="mt-3 text-lg font-semibold text-cyan-100">{mentorProfile?.role || fallbackMentor.role}</p>
+                            <p className="mt-4 max-w-3xl text-base leading-8 text-slate-200">
+                                {mentorProfile?.description || fallbackMentor.description}
+                            </p>
+                        </div>
                     </div>
                 </section>
             </div>

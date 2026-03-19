@@ -11,7 +11,7 @@ const { ROLES } = require('../constants/roles');
 const { detectDuplicate } = require('./duplicateDetectionService');
 const { autoRouteComplaint } = require('./geoRoutingService');
 const { incrementWorkload, decrementWorkload } = require('./workloadService');
-const { sendNotification } = require('./notification.service');
+const { sendNotification, sendNotificationToOffice } = require('./notification.service');
 const {
   COMPLAINT_STATUS,
   COMPLAINT_STATUS_VALUES,
@@ -57,6 +57,17 @@ const buildAssignmentNotificationMessage = (assignedOfficeName) => {
 
   return 'Your complaint has been assigned to a municipal office.';
 };
+
+const toStatusText = (status) =>
+  String(status || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+const buildOfficeAssignmentMessage = ({ complaintTitle, assignedOfficeName }) => {
+  const officeText = assignedOfficeName ? ` to ${assignedOfficeName}` : ' to your office';
+  return `A new complaint "${complaintTitle}" has been assigned${officeText}.`;
+};
+
+const buildOfficeStatusMessage = ({ complaintTitle, status }) =>
+  `Complaint "${complaintTitle}" updated to ${toStatusText(status)}.`;
 
 const resolveLocationPayload = ({ location, longitude, latitude }) => {
   if (location) {
@@ -208,6 +219,15 @@ const createComplaint = async (payload, reportedBy, options = {}) => {
         buildAssignmentNotificationMessage(assignedOfficeName),
         duplicateComplaint._id
       );
+      await sendNotificationToOffice({
+        officeId: duplicateComplaint.assignedMunicipalOffice,
+        title: 'New complaint assigned',
+        message: buildOfficeAssignmentMessage({
+          complaintTitle: duplicateComplaint.title,
+          assignedOfficeName
+        }),
+        complaintId: duplicateComplaint._id
+      });
     }
 
     return {
@@ -267,6 +287,15 @@ const createComplaint = async (payload, reportedBy, options = {}) => {
       buildAssignmentNotificationMessage(assignedOfficeName),
       complaint._id
     );
+    await sendNotificationToOffice({
+      officeId: complaint.assignedMunicipalOffice,
+      title: 'New complaint assigned',
+      message: buildOfficeAssignmentMessage({
+        complaintTitle: complaint.title,
+        assignedOfficeName
+      }),
+      complaintId: complaint._id
+    });
   }
 
   return {
@@ -278,6 +307,8 @@ const createComplaint = async (payload, reportedBy, options = {}) => {
 
 const getComplaints = async (filters, requester = null) => {
   const query = {};
+  const scope = String(filters.scope || '').toLowerCase();
+  const allowAllScope = scope === 'all';
 
   if (filters.status) {
     query.status = filters.status;
@@ -295,7 +326,7 @@ const getComplaints = async (filters, requester = null) => {
     query['duplicateInfo.isDuplicate'] = filters.isDuplicate === 'true';
   }
 
-  if (requester?.role === ROLES.CITIZEN && !query.reportedBy) {
+  if (requester?.role === ROLES.CITIZEN && !query.reportedBy && !allowAllScope) {
     query.reportedBy = requester.id;
   }
 
@@ -461,6 +492,27 @@ const updateComplaintStatus = async ({
       }),
       complaint._id
     );
+  }
+
+  if (complaint.assignedMunicipalOffice) {
+    const assignedOfficeName = await resolveAssignedOfficeName(complaint.assignedMunicipalOffice);
+    const officeTitle =
+      status === COMPLAINT_STATUS.ASSIGNED ? 'New complaint assigned' : 'Complaint updated';
+    const officeMessage =
+      status === COMPLAINT_STATUS.ASSIGNED
+        ? buildOfficeAssignmentMessage({
+          complaintTitle: complaint.title,
+          assignedOfficeName
+        })
+        : buildOfficeStatusMessage({ complaintTitle: complaint.title, status });
+
+    await sendNotificationToOffice({
+      officeId: complaint.assignedMunicipalOffice,
+      title: officeTitle,
+      message: officeMessage,
+      complaintId: complaint._id,
+      excludeUserId: updatedBy || null
+    });
   }
 
   return Complaint.findById(complaint._id).populate(complaintPopulate).lean();

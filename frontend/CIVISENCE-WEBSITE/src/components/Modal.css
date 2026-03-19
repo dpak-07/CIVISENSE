@@ -77,7 +77,7 @@
 
 .modal--review .modal__body {
     padding: 8px;
-    overflow: hidden;
+    overflow-y: auto;
 }
 
 .modal--image-preview {

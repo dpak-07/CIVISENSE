@@ -1,43 +1,42 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
+} from 'recharts';
+import {
+    HiOutlineBuildingOffice,
+    HiOutlineCheckCircle,
+    HiOutlineDocumentText,
+    HiOutlineExclamationTriangle,
+    HiOutlineSparkles,
+    HiOutlineUserGroup
+} from 'react-icons/hi2';
 import DashboardLayout from '../../components/Layout/DashboardLayout';
 import StatsCard from '../../components/StatsCard';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { getDashboardMetrics } from '../../api/admin';
 import { getOffices } from '../../api/offices';
-import { getErrorMessage } from '../../utils/helpers';
+import { formatCompactNumber, getErrorMessage } from '../../utils/helpers';
 import { isDemoSession } from '../../utils/authStorage';
 import { DEMO_ADMIN_METRICS, DEMO_OFFICES } from '../../constants/demoData';
-import '../citizen/CitizenDashboard.css';
-import './AdminDashboard.css';
-import {
-    HiOutlineDocumentText,
-    HiOutlineCheckCircle,
-    HiOutlineBuildingOffice,
-    HiOutlineExclamationTriangle,
-    HiOutlineUserGroup,
-    HiOutlineSparkles
-} from 'react-icons/hi2';
-import {
-    PieChart,
-    Pie,
-    Cell,
-    ResponsiveContainer,
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend
-} from 'recharts';
 
-const CHART_COLORS = ['#0f62fe', '#16d5d5', '#10b981', '#f59e0b', '#ef4444', '#22c0ff'];
+const CHART_COLORS = ['#0f6dff', '#14b8a6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'];
 const REFRESH_INTERVAL_MS = 20000;
 
 const toShortOfficeName = (name = '') => {
     if (name.length <= 18) return name;
     return `${name.slice(0, 16)}..`;
 };
+
 const prettyLabel = (value) => String(value || '').replace(/_/g, ' ');
 
 export default function AdminDashboard() {
@@ -52,10 +51,7 @@ export default function AdminDashboard() {
             setLoading(true);
         }
         try {
-            const [metricsRes, officesRes] = await Promise.all([
-                getDashboardMetrics(),
-                getOffices()
-            ]);
+            const [metricsRes, officesRes] = await Promise.all([getDashboardMetrics(), getOffices()]);
             if (!isMountedRef.current) return;
             setMetrics(metricsRes.data.data);
             setOffices(officesRes.data.data || []);
@@ -131,115 +127,193 @@ export default function AdminDashboard() {
 
     const totalReports = metrics?.totalReports || metrics?.totalComplaints || 0;
     const resolvedReports = metrics?.resolvedReports || metrics?.resolvedComplaints || 0;
-    const highPriorityCount =
-        (metrics?.priorityBreakdown?.critical || 0) + (metrics?.priorityBreakdown?.high || 0);
-    const lastSnapshotText = metrics?.snapshotAt
-        ? new Date(metrics.snapshotAt).toLocaleString()
-        : 'live';
+    const highPriorityCount = (metrics?.priorityBreakdown?.critical || 0) + (metrics?.priorityBreakdown?.high || 0);
+    const totalUsers = metrics?.totalUsers || 0;
+    const totalOffices = metrics?.totalOffices || offices.length || 0;
+    const avgResolutionHours = Number(metrics?.avgResolutionHours || 0).toFixed(1);
+    const backlogCount = Math.max(totalReports - resolvedReports, 0);
+    const overloadedCount = officeCapacityData.filter((office) => office.usagePct >= 90).length;
+    const resolutionRate = totalReports ? Math.round((resolvedReports / totalReports) * 100) : 0;
+    const lastSnapshotText = metrics?.snapshotAt ? new Date(metrics.snapshotAt).toLocaleString() : 'Live';
 
     return (
         <DashboardLayout>
-            <div className="page-header">
-                <div>
-                    <h1>Admin Dashboard</h1>
-                    <p>
-                        Office capacity board, global complaint status, and resolution tracking.
-                        <span className="admin-dashboard__subhead"> Last snapshot: {lastSnapshotText}</span>
+            <section className="mb-6 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+                <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.45)] lg:p-8">
+                    <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-700">Admin dashboard</p>
+                    <h1 className="mt-3 text-4xl font-bold text-slate-950 lg:text-5xl">View complaints, office workload, and response progress.</h1>
+                    <p className="mt-4 max-w-3xl text-sm leading-8 text-slate-600">
+                        This page shows the current complaint load, office capacity, and overall response progress across the system.
                     </p>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Backlog</p>
+                            <p className="mt-2 text-3xl font-extrabold text-slate-950">{formatCompactNumber(backlogCount)}</p>
+                            <p className="mt-1 text-sm text-slate-500">Complaints still open or unresolved</p>
+                        </div>
+                        <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Resolution rate</p>
+                            <p className="mt-2 text-3xl font-extrabold text-slate-950">{resolutionRate}%</p>
+                            <p className="mt-1 text-sm text-slate-500">Share of complaints already resolved</p>
+                        </div>
+                        <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Capacity pressure</p>
+                            <p className="mt-2 text-3xl font-extrabold text-slate-950">{overloadedCount}</p>
+                            <p className="mt-1 text-sm text-slate-500">Office(s) above 90% workload usage</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
+
+                <div className="rounded-[2rem] border border-slate-200 bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(14,116,144,0.9))] p-6 text-white shadow-[0_26px_80px_-42px_rgba(15,23,42,0.7)]">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-200">Current summary</p>
+                            <h2 className="mt-3 text-3xl font-bold text-white">Complaint overview</h2>
+                        </div>
+                        <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">
+                            Live
+                        </span>
+                    </div>
+                    <div className="mt-6 space-y-4">
+                        <div className="rounded-3xl bg-white/10 p-4">
+                            <p className="text-5xl font-extrabold text-white">{totalReports}</p>
+                            <p className="mt-2 text-sm text-slate-200">Total complaints in the platform</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-2xl bg-white/10 p-4">
+                                <p className="text-2xl font-extrabold text-white">{highPriorityCount}</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">High + critical</p>
+                            </div>
+                            <div className="rounded-2xl bg-white/10 p-4">
+                                <p className="text-2xl font-extrabold text-white">{avgResolutionHours}h</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">Average resolution</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-slate-200">Last snapshot: {lastSnapshotText}</p>
+                    </div>
+                </div>
+            </section>
 
             <div className="stats-grid">
                 <StatsCard icon={<HiOutlineDocumentText />} label="Total Reports" value={totalReports} color="primary" />
                 <StatsCard icon={<HiOutlineCheckCircle />} label="Resolved Reports" value={resolvedReports} color="success" />
                 <StatsCard icon={<HiOutlineExclamationTriangle />} label="High + Critical" value={highPriorityCount} color="danger" />
-                <StatsCard icon={<HiOutlineBuildingOffice />} label="Offices" value={metrics?.totalOffices || offices.length || 0} color="info" />
-                <StatsCard icon={<HiOutlineUserGroup />} label="Users" value={metrics?.totalUsers || 0} color="primary" />
-                <StatsCard icon={<HiOutlineSparkles />} label="Avg Resolution" value={`${Number(metrics?.avgResolutionHours || 0).toFixed(1)}h`} color="warning" />
+                <StatsCard icon={<HiOutlineBuildingOffice />} label="Offices" value={totalOffices} color="info" />
+                <StatsCard icon={<HiOutlineUserGroup />} label="Users" value={totalUsers} color="primary" />
+                <StatsCard icon={<HiOutlineSparkles />} label="Avg Resolution" value={`${avgResolutionHours}h`} color="warning" />
             </div>
 
-            <div className="charts-grid">
-                {statusData.length > 0 && (
-                    <div className="chart-card card">
-                        <h3>Global Status Breakdown</h3>
-                        <p className="admin-dashboard__chart-meta">All complaint states across the platform.</p>
-                        <ResponsiveContainer width="100%" height={260}>
-                            <PieChart>
-                                <Pie
-                                    data={statusData}
-                                    cx="50%"
-                                    cy="44%"
-                                    innerRadius={60}
-                                    outerRadius={84}
-                                    dataKey="value"
-                                    label={false}
-                                    labelLine={false}
-                                >
-                                    {statusData.map((_, i) => (
-                                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                                <Legend
-                                    formatter={(value) => prettyLabel(value)}
-                                    verticalAlign="bottom"
-                                    iconType="circle"
-                                    wrapperStyle={{ fontSize: '12px', lineHeight: 1.6 }}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
+            <section className="mb-6 grid gap-5 xl:grid-cols-2">
+                {statusData.length > 0 ? (
+                    <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                        <h2 className="text-2xl font-bold text-slate-950">Complaint status chart</h2>
+                        <p className="mt-2 text-sm text-slate-500">Current complaint distribution by status.</p>
+                        <div className="mt-6 h-[320px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={statusData}
+                                        cx="50%"
+                                        cy="44%"
+                                        innerRadius={64}
+                                        outerRadius={94}
+                                        dataKey="value"
+                                        label={false}
+                                        labelLine={false}
+                                    >
+                                        {statusData.map((_, index) => (
+                                            <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                    <Legend
+                                        formatter={(value) => prettyLabel(value)}
+                                        verticalAlign="bottom"
+                                        iconType="circle"
+                                        wrapperStyle={{ fontSize: '12px', lineHeight: 1.6 }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
-                )}
+                ) : null}
 
-                {officeCapacityData.length > 0 && (
-                    <div className="chart-card card">
-                        <h3>Top Office Capacity Usage</h3>
-                        <p className="admin-dashboard__chart-meta">Highest load ratio offices (workload/capacity).</p>
-                        <ResponsiveContainer width="100%" height={260}>
-                            <BarChart data={officeCapacityData.slice(0, 8)} margin={{ top: 8, right: 12, left: -12, bottom: 24 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                                <XAxis dataKey="shortName" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-                                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
-                                <Tooltip
-                                    formatter={(value, key) => [value, key === 'usagePct' ? 'Usage %' : 'Value']}
-                                    contentStyle={{
-                                        background: 'var(--bg-card)',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: 8,
-                                        color: 'var(--text-primary)'
-                                    }}
-                                />
-                                <Bar dataKey="usagePct" fill="#0f62fe" radius={[5, 5, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                {officeCapacityData.length > 0 ? (
+                    <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                        <h2 className="text-2xl font-bold text-slate-950">Office workload chart</h2>
+                        <p className="mt-2 text-sm text-slate-500">Offices with the highest complaint load compared to available capacity.</p>
+                        <div className="mt-6 h-[320px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={officeCapacityData.slice(0, 8)} margin={{ top: 8, right: 12, left: -12, bottom: 24 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
+                                    <XAxis dataKey="shortName" tick={{ fill: '#64748b', fontSize: 11 }} />
+                                    <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
+                                    <Tooltip
+                                        formatter={(value, key) => [value, key === 'usagePct' ? 'Usage %' : 'Value']}
+                                        contentStyle={{
+                                            background: '#ffffff',
+                                            border: '1px solid rgba(148,163,184,0.25)',
+                                            borderRadius: '16px',
+                                            color: '#0f172a'
+                                        }}
+                                    />
+                                    <Bar dataKey="usagePct" fill="#0f6dff" radius={[8, 8, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
-                )}
-            </div>
+                ) : null}
+            </section>
 
-            <div className="section-title">
-                <h2>Office Capacity Board</h2>
-            </div>
+            <section className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-3xl font-bold text-slate-950">Office workload details</h2>
+                    <p className="mt-2 text-sm text-slate-500">Current complaint load for each office.</p>
+                </div>
+            </section>
 
-            <div className="office-capacity-grid">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {officeCapacityData.slice(0, 12).map((office) => (
-                    <article key={office.id} className="office-capacity-card card">
-                        <div className="office-capacity-card__head">
-                            <h4>{office.name}</h4>
-                            <span className={`office-capacity-card__status ${office.active ? 'active' : 'inactive'}`}>
+                    <article
+                        key={office.id}
+                        className="rounded-[2rem] border border-slate-200 bg-white/90 p-5 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]"
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-950">{office.name}</h3>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    {office.workload} active workload / {office.maxCapacity || 0} capacity
+                                </p>
+                            </div>
+                            <span
+                                className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] ${
+                                    office.active
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : 'bg-slate-100 text-slate-500'
+                                }`}
+                            >
                                 {office.active ? 'Active' : 'Inactive'}
                             </span>
                         </div>
-                        <div className="office-capacity-card__meta">
-                            <span>{office.workload} / {office.maxCapacity} workload</span>
-                            <strong>{office.usagePct}%</strong>
-                        </div>
-                        <div className="office-capacity-card__progress">
-                            <div
-                                className={`office-capacity-card__progress-fill ${
-                                    office.usagePct >= 90 ? 'critical' : office.usagePct >= 70 ? 'warn' : 'normal'
-                                }`}
-                                style={{ width: `${Math.min(100, office.usagePct)}%` }}
-                            />
+
+                        <div className="mt-6">
+                            <div className="mb-2 flex items-center justify-between text-sm font-semibold text-slate-600">
+                                <span>Usage</span>
+                                <span>{office.usagePct}%</span>
+                            </div>
+                            <div className="h-3 rounded-full bg-slate-100">
+                                <div
+                                    className={`h-3 rounded-full ${
+                                        office.usagePct >= 90
+                                            ? 'bg-rose-500'
+                                            : office.usagePct >= 70
+                                            ? 'bg-amber-500'
+                                            : 'bg-emerald-500'
+                                    }`}
+                                    style={{ width: `${Math.min(100, office.usagePct)}%` }}
+                                />
+                            </div>
                         </div>
                     </article>
                 ))}
@@ -247,4 +321,3 @@ export default function AdminDashboard() {
         </DashboardLayout>
     );
 }
-

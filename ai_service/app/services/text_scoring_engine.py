@@ -33,6 +33,8 @@ MEDIUM_RISK = [
     "stagnant water",
     "broken cover",
     "road damaged",
+    "traffic sign damaged",
+    "signal pole broken",
 ]
 
 NORMAL_RISK = [
@@ -47,6 +49,8 @@ NORMAL_RISK = [
     "waste",
     "drain",
     "manhole",
+    "traffic sign",
+    "road sign",
 ]
 
 URGENCY_MARKERS = [
@@ -66,6 +70,7 @@ CATEGORY_HINTS: dict[str, list[str]] = {
     "drainage": ["drain", "sewer", "stagnant water", "waterlogging", "overflow"],
     "water_leak": ["leak", "pipe burst", "water leak", "water flow", "broken pipe"],
     "road_damage": ["road damage", "broken road", "crack", "asphalt", "surface damage"],
+    "traffic_sign": ["traffic sign", "road sign", "sign board", "signboard", "signal post", "warning sign"],
 }
 
 DEFAULT_STOP_WORDS = {

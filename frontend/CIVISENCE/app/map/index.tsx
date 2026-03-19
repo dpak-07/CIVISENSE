@@ -140,7 +140,7 @@ export default function CityMapWeb() {
     setLoading(true);
     try {
       const [complaintData, officeData] = await Promise.all([
-        getComplaints(),
+        getComplaints({ scope: "all" }),
         getMunicipalOffices(),
       ]);
 

@@ -15,10 +15,12 @@ from pymongo import ReturnDocument
 from app.config import Settings
 from app.core.runtime import RuntimeStats
 from app.db import MongoDB
+from app.services.ai_service import ComplaintImageValidationService
 from app.services.image_downloader import ImageDownloader
 from app.services.mobilenet_service import MobileNetClassification, MobileNetService
 from app.services.model_loader import Detection, YOLOModelService
 from app.services.priority_engine import PriorityEngine, PriorityResult
+from app.services.priority_reasoning_service import PriorityReasoningService
 from app.services.s3_uploader import S3Uploader
 from app.utils.cosine_similarity import cosine_similarity
 
@@ -38,6 +40,39 @@ GENERIC_TRAFFIC_TERMS = {
     "traffic",
     "street",
     "road",
+}
+
+SCENE_SUMMARY_COLOR_TERMS = {
+    "pink",
+    "green",
+    "blue",
+    "red",
+    "white",
+    "black",
+    "brown",
+    "yellow",
+    "orange",
+    "purple",
+    "grey",
+    "gray",
+}
+
+NON_CIVIC_REVIEW_TERMS = {
+    "laptop",
+    "laptops",
+    "computer",
+    "monitor",
+    "keyboard",
+    "chair",
+    "table",
+    "desk",
+    "room",
+    "bathroom",
+    "kitchen",
+    "sofa",
+    "bed",
+    "stove",
+    "screen",
 }
 
 SEMANTIC_PROFILES: dict[str, dict[str, set[str]]] = {
@@ -65,6 +100,18 @@ SEMANTIC_PROFILES: dict[str, dict[str, set[str]]] = {
         "positive": {"traffic light", "streetlight", "street lamp", "lamp post", "lamppost"},
         "negative": {"bedroom", "kitchen", "sofa", "laptop", "keyboard", "television"},
     },
+    "traffic_sign": {
+        "positive": {
+            "traffic sign",
+            "road sign",
+            "signboard",
+            "sign board",
+            "signal pole",
+            "warning sign",
+            "stop sign",
+        },
+        "negative": {"bedroom", "kitchen", "sofa", "laptop", "keyboard", "television"},
+    },
 }
 
 ANNOTATION_COLORS: list[tuple[int, int, int]] = [
@@ -75,6 +122,95 @@ ANNOTATION_COLORS: list[tuple[int, int, int]] = [
     (220, 38, 38),
     (124, 58, 237),
 ]
+
+MODEL_LABEL_HINTS: dict[str, set[str]] = {
+    "garbage": {
+        "garbage",
+        "trash",
+        "waste",
+        "litter",
+        "plastic bag",
+        "garbage bag",
+        "toilet tissue",
+        "diaper",
+        "dumpster",
+        "rubbish",
+        "bin",
+    },
+    "drainage": {
+        "drain",
+        "sewer",
+        "manhole",
+        "gutter",
+        "drainage",
+    },
+    "water_leak": {
+        "water leak",
+        "leak",
+        "leaking",
+        "pipe",
+        "hose",
+        "tap",
+        "faucet",
+        "water",
+        "spill",
+    },
+    "streetlight": {
+        "streetlight",
+        "street lamp",
+        "lamp post",
+        "lamppost",
+        "traffic light",
+    },
+    "traffic_sign": {
+        "traffic sign",
+        "road sign",
+        "signboard",
+        "sign board",
+        "warning sign",
+        "stop sign",
+        "signal post",
+        "traffic pole",
+    },
+    "pothole": {
+        "pothole",
+        "road hole",
+        "asphalt crack",
+        "pavement hole",
+    },
+    "road_damage": {
+        "road damage",
+        "damaged road",
+        "broken asphalt",
+        "road crack",
+        "asphalt",
+    },
+}
+
+RELATED_CATEGORY_GROUPS: tuple[set[str], ...] = (
+    {"pothole", "road_damage"},
+    {"drainage", "water_leak"},
+    {"streetlight", "traffic_sign"},
+)
+
+IMAGE_ISSUE_PRIORITY_WEIGHTS: dict[str, float] = {
+    "pothole": 0.9,
+    "garbage": 0.6,
+    "drainage": 1.0,
+    "water_leak": 1.0,
+    "streetlight": 0.7,
+    "road_damage": 0.9,
+    "traffic_sign": 0.75,
+}
+
+IMAGE_SCORE_MULTIPLIER = 2.8
+IMAGE_SCORE_MAX = 3.0
+IMAGE_ALIGNMENT_MATCH_BONUS = 0.25
+IMAGE_ALIGNMENT_HIGH_CONF_MISMATCH_PENALTY = -0.45
+IMAGE_ALIGNMENT_LOW_CONF_MISMATCH_PENALTY = -0.15
+IMAGE_MISMATCH_SIGNAL_FACTOR = 0.35
+IMAGE_MISMATCH_SIGNAL_MAX = 1.2
+IMAGE_MISMATCH_NON_CIVIC_THRESHOLD = 0.35
 
 
 @dataclass(frozen=True)
@@ -94,6 +230,7 @@ class ImageContext:
     image_fingerprint: str | None
     yolo_detections: list[Detection]
     mobilenet_result: MobileNetClassification | None
+    category_validation: dict[str, Any] | None
     semantic_category_match: bool | None
     semantic_fallback_used: bool
     semantic_note: str
@@ -106,6 +243,8 @@ class AIProcessor:
         mongodb: MongoDB,
         model_service: YOLOModelService,
         mobilenet_service: MobileNetService,
+        image_validation_service: ComplaintImageValidationService,
+        priority_reasoning_service: PriorityReasoningService | None,
         image_downloader: ImageDownloader,
         priority_engine: PriorityEngine,
         s3_uploader: S3Uploader,
@@ -115,6 +254,8 @@ class AIProcessor:
         self.mongodb = mongodb
         self.model_service = model_service
         self.mobilenet_service = mobilenet_service
+        self.image_validation_service = image_validation_service
+        self.priority_reasoning_service = priority_reasoning_service
         self.image_downloader = image_downloader
         self.priority_engine = priority_engine
         self.s3_uploader = s3_uploader
@@ -140,7 +281,7 @@ class AIProcessor:
                 embedding=image_context.embedding,
                 image_fingerprint=image_context.image_fingerprint,
             )
-            final_priority = self._apply_rules(
+            final_priority, image_priority_meta = self._apply_rules(
                 base_priority=base_priority,
                 duplicate_match=duplicate_match,
                 image_context=image_context,
@@ -155,6 +296,9 @@ class AIProcessor:
                 duplicate_match=duplicate_match,
                 image_context=image_context,
                 ai_output_meta=ai_output_meta,
+                base_priority=base_priority,
+                final_priority=final_priority,
+                image_priority_meta=image_priority_meta,
             )
 
             await self._mark_success(object_id, final_priority, ai_meta)
@@ -162,13 +306,19 @@ class AIProcessor:
             self.runtime_stats.retry_attempts.pop(str(object_id), None)
 
             logger.info(
-                "Processed complaint %s level=%s score=%.2f duplicate=%s similarity=%.4f semanticMatch=%s",
+                (
+                    "Processed complaint %s level=%s score=%.2f duplicate=%s similarity=%.4f "
+                    "semanticMatch=%s categoryValid=%s categoryConfidence=%.4f imageScore=%.2f"
+                ),
                 complaint_id,
                 final_priority.priority_level,
                 final_priority.priority_score,
                 duplicate_match.is_duplicate,
                 duplicate_match.similarity,
                 image_context.semantic_category_match,
+                (image_context.category_validation or {}).get("is_valid"),
+                float((image_context.category_validation or {}).get("confidence") or 0.0),
+                float(image_priority_meta.get("imageScoreApplied") or 0.0),
             )
         except Exception as exc:
             self.runtime_stats.processed_failed += 1
@@ -190,6 +340,8 @@ class AIProcessor:
 
     async def _analyze_image(self, complaint: dict[str, Any]) -> ImageContext:
         image_url = self._extract_image_url(complaint)
+        reported_category = str(complaint.get("category") or "").strip().lower()
+
         if not image_url:
             return ImageContext(
                 source_image=None,
@@ -197,6 +349,16 @@ class AIProcessor:
                 image_fingerprint=None,
                 yolo_detections=[],
                 mobilenet_result=None,
+                category_validation={
+                    "detected_issue": "unknown",
+                    "reported_category": reported_category,
+                    "is_valid": False,
+                    "confidence": 0.0,
+                    "reason": "No image was attached to this complaint.",
+                    "caption": None,
+                    "keyword_hits": [],
+                    "status": "skipped",
+                },
                 semantic_category_match=None,
                 semantic_fallback_used=False,
                 semantic_note="no_image",
@@ -218,10 +380,26 @@ class AIProcessor:
                 image_fingerprint=None,
                 yolo_detections=[],
                 mobilenet_result=None,
+                category_validation={
+                    "detected_issue": "unknown",
+                    "reported_category": reported_category,
+                    "is_valid": False,
+                    "confidence": 0.0,
+                    "reason": "Complaint image could not be downloaded for AI validation.",
+                    "caption": None,
+                    "keyword_hits": [],
+                    "status": "failed",
+                },
                 semantic_category_match=None,
                 semantic_fallback_used=False,
                 semantic_note="image_unavailable",
             )
+
+        category_validation = await self.image_validation_service.validate_pil_image_category(
+            image=image,
+            reported_category=reported_category,
+            source=image_url,
+        )
 
         fingerprint = self._compute_image_fingerprint(image)
 
@@ -253,6 +431,13 @@ class AIProcessor:
             )
             detections = []
 
+        category_validation = self._refine_category_validation_with_model_signals(
+            complaint=complaint,
+            category_validation=category_validation,
+            yolo_detections=detections,
+            mobilenet_result=mobilenet_result,
+        )
+
         semantic_match, semantic_note = self._validate_category_semantics(
             complaint=complaint,
             yolo_detections=detections,
@@ -265,6 +450,7 @@ class AIProcessor:
             image_fingerprint=fingerprint,
             yolo_detections=detections,
             mobilenet_result=mobilenet_result,
+            category_validation=category_validation,
             semantic_category_match=semantic_match,
             semantic_fallback_used=semantic_match is False,
             semantic_note=semantic_note,
@@ -372,12 +558,115 @@ class AIProcessor:
                     return url.strip()
         return None
 
+    def _refine_category_validation_with_model_signals(
+        self,
+        complaint: dict[str, Any],
+        category_validation: dict[str, Any] | None,
+        yolo_detections: list[Detection],
+        mobilenet_result: MobileNetClassification | None,
+    ) -> dict[str, Any] | None:
+        if not isinstance(category_validation, dict):
+            return category_validation
+
+        status = str(category_validation.get("status") or "").strip().lower()
+        if status != "ok":
+            return category_validation
+
+        detected_issue = self._normalize_category_token(category_validation.get("detected_issue"))
+        current_confidence = float(category_validation.get("confidence") or 0.0)
+
+        # Keep the caption-first result when it already produced a category.
+        if detected_issue and detected_issue != "unknown" and current_confidence > 0.0:
+            return category_validation
+
+        label_candidates: list[tuple[str, float]] = []
+        if mobilenet_result is not None:
+            label_candidates.append((self._normalize_phrase(mobilenet_result.label), 1.0))
+            for label in mobilenet_result.top_labels[:5]:
+                label_candidates.append((self._normalize_phrase(label), 0.65))
+
+        for detection in yolo_detections:
+            if detection.confidence < self.settings.yolo_min_confidence_for_severity:
+                continue
+            label_candidates.append(
+                (
+                    self._normalize_phrase(detection.label),
+                    0.6 + min(0.4, float(detection.confidence)),
+                )
+            )
+
+        if not label_candidates:
+            return category_validation
+
+        score_by_category: dict[str, float] = {category: 0.0 for category in MODEL_LABEL_HINTS.keys()}
+        hits_by_category: dict[str, set[str]] = {category: set() for category in MODEL_LABEL_HINTS.keys()}
+
+        for normalized_label, weight in label_candidates:
+            if not normalized_label:
+                continue
+            for category, hints in MODEL_LABEL_HINTS.items():
+                for hint in hints:
+                    normalized_hint = self._normalize_phrase(hint)
+                    if not normalized_hint:
+                        continue
+                    if normalized_hint in normalized_label:
+                        score_by_category[category] += weight
+                        hits_by_category[category].add(hint)
+
+        best_category = "unknown"
+        best_score = 0.0
+        for category, score in score_by_category.items():
+            if score > best_score:
+                best_category = category
+                best_score = score
+
+        if best_category == "unknown" or best_score < 1.1:
+            return category_validation
+
+        fallback_confidence = round(min(0.88, 0.42 + (best_score * 0.12)), 4)
+        reported_category = self._normalize_category_token(complaint.get("category"))
+        match_type = self._determine_category_match_type(best_category, reported_category)
+        is_valid = match_type in {"exact", "related"}
+        hits = sorted(hits_by_category.get(best_category, set()))
+
+        if match_type == "exact":
+            reason = (
+                "The detected issue matches the reported category. "
+                f"Fallback used model label signals ({', '.join(hits) if hits else 'none'})."
+            )
+        elif match_type == "related":
+            reason = (
+                f"The detected issue '{best_category}' is closely related to the reported category "
+                f"'{reported_category or 'unknown'}'. Fallback used model label signals "
+                f"({', '.join(hits) if hits else 'none'})."
+            )
+        else:
+            reason = (
+                f"The image label signals suggest '{best_category}' while the complaint was reported as "
+                f"'{reported_category or 'unknown'}'."
+            )
+
+        enriched = dict(category_validation)
+        enriched.update(
+            {
+                "detected_issue": best_category,
+                "reported_category": reported_category,
+                "is_valid": is_valid,
+                "match_type": match_type,
+                "confidence": max(current_confidence, fallback_confidence),
+                "reason": reason,
+                "keyword_hits": hits,
+                "fallback_source": "mobilenet_yolo_labels",
+            }
+        )
+        return enriched
+
     def _apply_rules(
         self,
         base_priority: PriorityResult,
         duplicate_match: DuplicateMatch,
         image_context: ImageContext,
-    ) -> PriorityResult:
+    ) -> tuple[PriorityResult, dict[str, Any]]:
         if duplicate_match.is_duplicate:
             duplicate_id = duplicate_match.matched_complaint_id or "unknown"
             duplicate_distance = (
@@ -387,7 +676,7 @@ class AIProcessor:
             )
             duplicate_similarity = f"{duplicate_match.similarity * 100:.2f}%"
             method = duplicate_match.method or "unknown method"
-            return PriorityResult(
+            result = PriorityResult(
                 base_score=base_priority.base_score,
                 geo_multiplier=base_priority.geo_multiplier,
                 geo_context=base_priority.geo_context,
@@ -409,6 +698,17 @@ class AIProcessor:
                     f"(similarity {duplicate_similarity}, {duplicate_distance})."
                 ),
             )
+            return result, {
+                "imageScoreApplied": 0.0,
+                "issueScore": 0.0,
+                "alignmentAdjustment": 0.0,
+                "detectedIssue": (image_context.category_validation or {}).get("detected_issue"),
+                "reportedCategory": (image_context.category_validation or {}).get("reported_category"),
+                "validationConfidence": float((image_context.category_validation or {}).get("confidence") or 0.0),
+                "isCategoryValid": (image_context.category_validation or {}).get("is_valid"),
+                "source": "duplicate_override",
+                "note": "Duplicate complaint override forced low priority",
+            }
 
         reason = base_priority.reason
         reason_sentence = base_priority.reason_sentence
@@ -418,24 +718,246 @@ class AIProcessor:
                 f"{reason_sentence} Image analysis suggests a mismatch with the category."
             )
 
-        return PriorityResult(
+        category_validation = image_context.category_validation or {}
+        image_priority_meta = self._compute_image_priority_score(
+            base_priority=base_priority,
+            category_validation=category_validation,
+        )
+        image_score_applied = float(image_priority_meta.get("imageScoreApplied") or 0.0)
+
+        validation_status = str(category_validation.get("status") or "").lower()
+        validation_is_valid = category_validation.get("is_valid")
+        match_type = str(category_validation.get("match_type") or "").strip().lower()
+        detected_issue = str(category_validation.get("detected_issue") or "unknown")
+        reported_category = str(category_validation.get("reported_category") or "unknown")
+        confidence = float(category_validation.get("confidence") or 0.0)
+        clip_non_civic_score = float(category_validation.get("clip_non_civic_score") or 0.0)
+        scene_summary = self._build_scene_summary(image_context=image_context, category_validation=category_validation)
+        manual_review_required = (
+            validation_status == "unsupported_category"
+            or (
+                validation_status == "ok"
+                and validation_is_valid is False
+                and match_type != "related"
+                and (
+                    confidence >= float(self.settings.category_validation_review_confidence)
+                    or (
+                        detected_issue == "unknown"
+                        and (
+                            clip_non_civic_score >= 0.45
+                            or self._scene_summary_requires_manual_review(scene_summary)
+                        )
+                    )
+                )
+            )
+        )
+
+        if validation_status == "unsupported_category":
+            reason = (
+                f"{reason}; AI category validation skipped because reported category is unsupported "
+                f"(reported_category={reported_category})"
+            )
+            reason_sentence = (
+                f"{reason_sentence} AI image validation skipped because '{reported_category.replace('_', ' ')}' "
+                "is not in the supported AI categories."
+            )
+        elif validation_status == "ok" and validation_is_valid is False:
+            if detected_issue == "unknown" and clip_non_civic_score >= 0.75:
+                reason = (
+                    f"{reason}; non-civic image likely uploaded "
+                    f"(detected_issue={detected_issue}; reported_category={reported_category}; "
+                    f"non_civic_score={clip_non_civic_score:.2f})"
+                )
+                reason_sentence = (
+                    f"{reason_sentence} Uploaded image appears unrelated to a civic issue "
+                    f"(non-civic score {clip_non_civic_score:.2f}), so image evidence was ignored."
+                )
+                if manual_review_required:
+                    reason_sentence = f"{reason_sentence} This complaint was flagged for manual review."
+            elif confidence >= float(self.settings.category_validation_review_confidence):
+                reason = (
+                    f"{reason}; image does not match reported issue "
+                    f"(detected_issue={detected_issue}; reported_category={reported_category}; confidence={confidence:.2f})"
+                )
+                reason_sentence = (
+                    f"{reason_sentence} AI image validation indicates '{detected_issue.replace('_', ' ')}' "
+                    f"instead of '{reported_category.replace('_', ' ')}'."
+                )
+                if manual_review_required:
+                    reason_sentence = f"{reason_sentence} This complaint was flagged for manual review."
+            else:
+                reason = (
+                    f"{reason}; possible category mismatch detected "
+                    f"(detected_issue={detected_issue}; reported_category={reported_category}; confidence={confidence:.2f})"
+                )
+                reason_sentence = (
+                    f"{reason_sentence} AI image validation suggests a possible category mismatch "
+                    f"with low confidence ({confidence:.2f})."
+                )
+        elif validation_status == "failed":
+            reason = f"{reason}; Image category validation failed"
+            reason_sentence = f"{reason_sentence} AI image validation could not complete."
+        elif validation_status == "ok" and validation_is_valid is True and match_type == "related":
+            reason = (
+                f"{reason}; related category match "
+                f"(detected_issue={detected_issue}; reported_category={reported_category}; confidence={confidence:.2f})"
+            )
+            reason_sentence = (
+                f"{reason_sentence} AI image validation found a related issue category "
+                f"('{detected_issue.replace('_', ' ')}' vs '{reported_category.replace('_', ' ')}')."
+            )
+
+        final_score = round(max(0.0, min(10.0, base_priority.priority_score + image_score_applied)), 2)
+        final_level = self._map_priority_level(final_score)
+        reason = (
+            f"{reason}; image_score={image_score_applied:+.2f} "
+            f"(issue_score={float(image_priority_meta.get('issueScore') or 0.0):.2f}; "
+            f"alignment_adjustment={float(image_priority_meta.get('alignmentAdjustment') or 0.0):+.2f}; "
+            f"detected_issue={image_priority_meta.get('detectedIssue') or 'unknown'}; "
+            f"reported_category={image_priority_meta.get('reportedCategory') or 'unknown'}; "
+            f"validation_confidence={float(image_priority_meta.get('validationConfidence') or 0.0):.2f}); "
+            f"final_with_image={final_score:.2f}; level={final_level.upper()}"
+        )
+        reason_sentence = (
+            f"{reason_sentence} Image evidence contributed {image_score_applied:+.2f} to priority "
+            f"(issue score {float(image_priority_meta.get('issueScore') or 0.0):.2f}, "
+            f"alignment adjustment {float(image_priority_meta.get('alignmentAdjustment') or 0.0):+.2f}), "
+            f"resulting in final score {final_score:.2f} ({final_level.upper()})."
+        )
+
+        if self.priority_reasoning_service is not None:
+            try:
+                reason_sentence = self.priority_reasoning_service.generate_reason(
+                    category=str(category_validation.get("reported_category") or "unknown"),
+                    detected_issue=str(category_validation.get("detected_issue") or "unknown"),
+                    match_type=match_type or "mismatch",
+                    confidence=float(category_validation.get("confidence") or 0.0),
+                    validation_status=validation_status or "unknown",
+                    non_civic_score=float(category_validation.get("clip_non_civic_score") or 0.0),
+                    manual_review_required=manual_review_required,
+                    scene_summary=scene_summary,
+                    base_score=float(base_priority.priority_score),
+                    image_score=float(image_score_applied),
+                    final_score=float(final_score),
+                    final_level=str(final_level),
+                )
+            except Exception as exc:
+                logger.warning("Priority NLP reason generation failed in AIProcessor: %s", exc)
+
+        result = PriorityResult(
             base_score=base_priority.base_score,
             geo_multiplier=base_priority.geo_multiplier,
             geo_context=base_priority.geo_context,
             time_score=base_priority.time_score,
             cluster_count=base_priority.cluster_count,
             cluster_boost=base_priority.cluster_boost,
-            priority_score=base_priority.priority_score,
-            priority_level=base_priority.priority_level,
+            priority_score=final_score,
+            priority_level=final_level,
             reason=reason,
             reason_sentence=reason_sentence,
         )
+        return result, image_priority_meta
+
+    def _compute_image_priority_score(
+        self,
+        base_priority: PriorityResult,
+        category_validation: dict[str, Any],
+    ) -> dict[str, Any]:
+        status = str(category_validation.get("status") or "").strip().lower()
+        detected_issue = self._normalize_category_token(category_validation.get("detected_issue"))
+        reported_category = self._normalize_category_token(category_validation.get("reported_category"))
+        validation_confidence = float(category_validation.get("confidence") or 0.0)
+        non_civic_score = float(category_validation.get("clip_non_civic_score") or 0.0)
+        is_category_valid = category_validation.get("is_valid")
+        match_type = str(category_validation.get("match_type") or "").strip().lower()
+
+        if status != "ok" or not detected_issue or detected_issue == "unknown":
+            if status == "unsupported_category":
+                note = "Image score not applied because the reported category is unsupported by AI validation"
+            else:
+                note = "Image score not applied due to missing/unknown image category signals"
+            return {
+                "imageScoreApplied": 0.0,
+                "issueScore": 0.0,
+                "alignmentAdjustment": 0.0,
+                "detectedIssue": detected_issue or "unknown",
+                "reportedCategory": reported_category or "unknown",
+                "validationConfidence": validation_confidence,
+                "nonCivicScore": round(non_civic_score, 4),
+                "isCategoryValid": is_category_valid,
+                "matchType": match_type or "mismatch",
+                "basePriorityScore": float(base_priority.priority_score),
+                "note": note,
+            }
+
+        issue_weight = float(IMAGE_ISSUE_PRIORITY_WEIGHTS.get(detected_issue, 0.6))
+        if match_type == "exact":
+            issue_score = min(IMAGE_SCORE_MAX, validation_confidence * issue_weight * IMAGE_SCORE_MULTIPLIER)
+            alignment_adjustment = IMAGE_ALIGNMENT_MATCH_BONUS
+        elif match_type == "related":
+            issue_score = min(
+                IMAGE_SCORE_MAX,
+                validation_confidence * issue_weight * IMAGE_SCORE_MULTIPLIER * 0.75,
+            )
+            alignment_adjustment = round(IMAGE_ALIGNMENT_MATCH_BONUS * 0.4, 2)
+        else:
+            if validation_confidence < float(self.settings.category_validation_review_confidence):
+                return {
+                    "imageScoreApplied": 0.0,
+                    "issueScore": 0.0,
+                    "alignmentAdjustment": 0.0,
+                    "issueWeight": issue_weight,
+                    "detectedIssue": detected_issue,
+                    "reportedCategory": reported_category or "unknown",
+                    "validationConfidence": round(validation_confidence, 4),
+                    "nonCivicScore": round(non_civic_score, 4),
+                    "isCategoryValid": is_category_valid,
+                    "matchType": match_type or "mismatch",
+                    "basePriorityScore": float(base_priority.priority_score),
+                    "note": "Low-confidence mismatch: image score not applied",
+                }
+
+            if non_civic_score >= IMAGE_MISMATCH_NON_CIVIC_THRESHOLD:
+                issue_score = 0.0
+            else:
+                issue_score = min(
+                    IMAGE_MISMATCH_SIGNAL_MAX,
+                    validation_confidence * issue_weight * IMAGE_SCORE_MULTIPLIER * IMAGE_MISMATCH_SIGNAL_FACTOR,
+                )
+            alignment_adjustment = IMAGE_ALIGNMENT_HIGH_CONF_MISMATCH_PENALTY
+
+        image_score_applied = round(max(0.0, issue_score + alignment_adjustment), 2)
+        return {
+            "imageScoreApplied": image_score_applied,
+            "issueScore": round(issue_score, 2),
+            "alignmentAdjustment": round(alignment_adjustment, 2),
+            "issueWeight": issue_weight,
+            "detectedIssue": detected_issue,
+            "reportedCategory": reported_category or "unknown",
+            "validationConfidence": round(validation_confidence, 4),
+            "nonCivicScore": round(non_civic_score, 4),
+            "isCategoryValid": is_category_valid,
+            "matchType": match_type or "mismatch",
+            "basePriorityScore": float(base_priority.priority_score),
+            "note": "Image score contribution calibrated using detected issue, confidence, mismatch penalty, and non-civic guard",
+        }
+
+    @staticmethod
+    def _map_priority_level(score: float) -> str:
+        if score < 3.0:
+            return "low"
+        if score <= 6.0:
+            return "medium"
+        return "high"
 
     def _build_ai_meta(
         self,
         duplicate_match: DuplicateMatch,
         image_context: ImageContext,
         ai_output_meta: dict[str, Any],
+        base_priority: PriorityResult,
+        final_priority: PriorityResult,
+        image_priority_meta: dict[str, Any],
     ) -> dict[str, Any]:
         top_yolo = sorted(image_context.yolo_detections, key=lambda d: d.confidence, reverse=True)[:3]
         mobilenet_top_labels: list[str] = []
@@ -445,6 +967,35 @@ class AIProcessor:
             mobilenet_top_labels = list(image_context.mobilenet_result.top_labels)
             mobilenet_label = image_context.mobilenet_result.label
             mobilenet_confidence = round(image_context.mobilenet_result.confidence, 4)
+
+        category_validation = image_context.category_validation or {}
+        validation_status = str(category_validation.get("status") or "").lower()
+        match_type = str(category_validation.get("match_type") or "").lower()
+        validation_confidence = float(category_validation.get("confidence") or 0.0)
+        non_civic_score = float(category_validation.get("clip_non_civic_score") or 0.0)
+        detected_issue = self._normalize_category_token(category_validation.get("detected_issue"))
+        scene_summary = self._build_scene_summary(
+            image_context=image_context,
+            category_validation=category_validation,
+        )
+        review_required = (
+            (
+                validation_status == "ok"
+                and category_validation.get("is_valid") is False
+                and match_type != "related"
+                and (
+                    validation_confidence >= float(self.settings.category_validation_review_confidence)
+                    or (
+                        detected_issue == "unknown"
+                        and (
+                            non_civic_score >= 0.45
+                            or self._scene_summary_requires_manual_review(scene_summary)
+                        )
+                    )
+                )
+            )
+            or validation_status == "unsupported_category"
+        )
 
         return {
             "processedAt": datetime.now(timezone.utc),
@@ -468,8 +1019,39 @@ class AIProcessor:
             "yoloCategoryMatch": image_context.semantic_category_match,
             "yoloFallbackUsed": image_context.semantic_fallback_used,
             "yoloNote": image_context.semantic_note,
-            "modelVariant": "stock_pretrained_yolov8n_mobilenetv2",
-            "modelNote": self.settings.ai_model_disclaimer,
+            "categoryValidation": category_validation,
+            "detectedIssue": category_validation.get("detected_issue"),
+            "reportedCategory": category_validation.get("reported_category"),
+            "isCategoryValid": category_validation.get("is_valid"),
+            "categoryValidationMatchType": category_validation.get("match_type"),
+            "categoryValidationConfidence": category_validation.get("confidence"),
+            "categoryValidationReason": category_validation.get("reason"),
+            "categoryValidationStatus": category_validation.get("status"),
+            "categoryCaption": category_validation.get("caption"),
+            "categoryValidationClipTopIssue": category_validation.get("clip_top_issue"),
+            "categoryValidationClipTopConfidence": category_validation.get("clip_top_confidence"),
+            "categoryValidationClassifierTopIssue": category_validation.get("classifier_top_issue"),
+            "categoryValidationClassifierTopConfidence": category_validation.get("classifier_top_confidence"),
+            "categoryValidationClassifierActive": category_validation.get("custom_classifier_active"),
+            "categoryValidationClassifierModelPath": category_validation.get("custom_classifier_model_path"),
+            "categoryValidationClipNonCivicScore": category_validation.get("clip_non_civic_score"),
+            "categoryValidationSceneSummary": scene_summary,
+            "reviewRequired": review_required,
+            "reviewReason": category_validation.get("reason") if review_required else None,
+            "imagePriorityScore": image_priority_meta.get("imageScoreApplied"),
+            "imagePriorityIssueScore": image_priority_meta.get("issueScore"),
+            "imagePriorityAlignmentAdjustment": image_priority_meta.get("alignmentAdjustment"),
+            "imagePriorityIssueWeight": image_priority_meta.get("issueWeight"),
+            "imagePriorityDetectedIssue": image_priority_meta.get("detectedIssue"),
+            "imagePriorityValidationConfidence": image_priority_meta.get("validationConfidence"),
+            "imagePriorityNonCivicScore": image_priority_meta.get("nonCivicScore"),
+            "imagePriorityMatchType": image_priority_meta.get("matchType"),
+            "imagePriorityBaseScore": round(float(base_priority.priority_score), 2),
+            "imagePriorityFinalScore": round(float(final_priority.priority_score), 2),
+            "imagePriorityLevel": final_priority.priority_level,
+            "imagePriorityNote": image_priority_meta.get("note"),
+            "modelVariant": category_validation.get("model_variant") or "stock_pretrained_yolov8n_mobilenetv2_blip_clip",
+            "modelNote": category_validation.get("model_note") or self.settings.ai_model_disclaimer,
             "aiOutputImageUrl": ai_output_meta.get("outputImageUrl"),
             "aiOutputImageKey": ai_output_meta.get("outputImageKey"),
             "aiOutputStatus": ai_output_meta.get("status"),
@@ -571,7 +1153,7 @@ class AIProcessor:
 
         draw_font = ImageFont.load_default()
         base_width, base_height = base.size
-        header_height = 86
+        header_height = 108
         footer_height = 44
         canvas = Image.new("RGB", (base_width, base_height + header_height + footer_height), (244, 247, 252))
         canvas.paste(base, (0, header_height))
@@ -588,6 +1170,25 @@ class AIProcessor:
             f"Category: {category} | Duplicate: {'Yes' if duplicate_match.is_duplicate else 'No'}"
         )
         draw.text((12, 46), self._clip_text(summary, 116), fill=(214, 233, 247), font=draw_font)
+
+        validation = image_context.category_validation or {}
+        detected_issue = self._clip_text(str(validation.get("detected_issue") or "unknown"), 20)
+        match_type = self._clip_text(str(validation.get("match_type") or "mismatch"), 14)
+        confidence = float(validation.get("confidence") or 0.0)
+        non_civic_score = float(validation.get("clip_non_civic_score") or 0.0)
+        ai_findings = (
+            f"AI Findings: detected={detected_issue} | match={match_type} | "
+            f"confidence={confidence:.2f} | non_civic={non_civic_score:.2f}"
+        )
+        draw.text((12, 64), self._clip_text(ai_findings, 116), fill=(199, 222, 243), font=draw_font)
+        caption_text = str(validation.get("caption") or "").strip()
+        if caption_text:
+            draw.text(
+                (12, 82),
+                self._clip_text(f"Caption: {caption_text}", 116),
+                fill=(178, 208, 232),
+                font=draw_font,
+            )
 
         sorted_detections = sorted(
             image_context.yolo_detections,
@@ -715,10 +1316,138 @@ class AIProcessor:
 
         return None, "insufficient_semantic_signal"
 
+    def _build_scene_summary(
+        self,
+        image_context: ImageContext,
+        category_validation: dict[str, Any],
+    ) -> str | None:
+        caption_summary = self._summarize_caption(category_validation.get("caption"))
+        if caption_summary:
+            return caption_summary
+
+        yolo_labels = [
+            detection.label
+            for detection in sorted(image_context.yolo_detections, key=lambda item: item.confidence, reverse=True)[:3]
+        ]
+        label_summary = self._summarize_labels(yolo_labels)
+        if label_summary:
+            return label_summary
+
+        mobilenet_result = image_context.mobilenet_result
+        if mobilenet_result is not None:
+            mobilenet_summary = self._summarize_labels(
+                [mobilenet_result.label, *mobilenet_result.top_labels[:2]]
+            )
+            if mobilenet_summary:
+                return mobilenet_summary
+
+        return None
+
+    def _summarize_caption(self, caption: Any) -> str | None:
+        text = self._normalize_phrase(str(caption or ""))
+        if not text:
+            return None
+
+        replacements = (
+            (r"\ba couple of\b", "two"),
+            (r"\bsitting on top of\b", "on"),
+            (r"\bon top of\b", "on"),
+            (r"\bside by side on\b", "on"),
+            (r"\bin front of\b", "near"),
+            (r"\bin the corner of\b", "in"),
+            (r"\bnext to\b", "near"),
+            (r"\battached to the side of\b", "on"),
+            (r"\battached to\b", "on"),
+            (r"\bhanging from\b", "on"),
+            (r"\busing\b", "with"),
+        )
+        for pattern, replacement in replacements:
+            text = re.sub(pattern, replacement, text)
+
+        text = re.sub(r"^(there is|there are)\s+", "", text)
+        text = re.sub(r"^(a|an|the)\s+(view|photo|picture)\s+of\s+", "", text)
+        text = re.sub(r"\b(is|are)\b", " ", text)
+
+        words = [
+            word
+            for word in text.split()
+            if word not in SCENE_SUMMARY_COLOR_TERMS
+        ]
+        text = " ".join(words)
+        text = re.sub(r"\s+", " ", text).strip(" .,;:")
+        text = re.sub(r"^(a|an|the)\s+", "", text)
+
+        if not text:
+            return None
+
+        if "laptops" in text and "table" in text:
+            return "two laptops on a table"
+        if ("laptop" in text or "computer" in text) and "table" in text:
+            return "laptop on a table"
+        if ("laptop" in text or "computer" in text) and "desk" in text:
+            return "computer on a desk"
+        if "room" in text and "chair" in text:
+            return "room with a chair"
+        if "bathroom" in text and "hose" in text:
+            return "hose in a bathroom"
+
+        words = text.split()
+        if len(words) > 9:
+            text = " ".join(words[:9])
+        return text.strip(" .,;:") or None
+
+    def _summarize_labels(self, labels: list[str]) -> str | None:
+        candidates: list[str] = []
+        for label in labels:
+            normalized = self._normalize_phrase(str(label or ""))
+            if not normalized or normalized in GENERIC_TRAFFIC_TERMS:
+                continue
+            candidates.append(normalized)
+
+        if not candidates:
+            return None
+
+        prioritized = [
+            candidate
+            for candidate in candidates
+            if any(term in candidate for term in NON_CIVIC_REVIEW_TERMS)
+        ]
+        return (prioritized[0] if prioritized else candidates[0]).strip() or None
+
+    @staticmethod
+    def _scene_summary_requires_manual_review(scene_summary: str | None) -> bool:
+        summary = str(scene_summary or "").strip().lower()
+        if not summary:
+            return False
+        return any(term in summary for term in NON_CIVIC_REVIEW_TERMS)
+
     @staticmethod
     def _normalize_phrase(text: str) -> str:
         cleaned = re.sub(r"[^a-z0-9\s]+", " ", text.lower())
         return " ".join(cleaned.split())
+
+    @staticmethod
+    def _normalize_category_token(value: Any) -> str:
+        text = str(value or "").strip().lower()
+        if not text:
+            return ""
+        text = text.replace("-", "_")
+        text = re.sub(r"\s+", "_", text)
+        text = re.sub(r"_+", "_", text).strip("_")
+        return text
+
+    def _determine_category_match_type(self, detected_issue: str, reported_category: str) -> str:
+        detected = self._normalize_category_token(detected_issue)
+        reported = self._normalize_category_token(reported_category)
+        if not detected or detected == "unknown" or not reported:
+            return "mismatch"
+        if detected == reported:
+            return "exact"
+
+        for group in RELATED_CATEGORY_GROUPS:
+            if detected in group and reported in group:
+                return "related"
+        return "mismatch"
 
     @staticmethod
     def _match_terms(terms: set[str], phrases: list[str]) -> set[str]:

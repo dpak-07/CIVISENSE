@@ -4,12 +4,17 @@ const env = require('./config/env');
 const logger = require('./config/logger');
 const { connectDatabase } = require('./config/database');
 const { startComplaintAiWatcher, stopComplaintAiWatcher } = require('./services/complaintAiWatcher.service');
+const {
+  startComplaintPriorityEscalation,
+  stopComplaintPriorityEscalation
+} = require('./services/complaintPriorityEscalation.service');
 
 let server;
 
 const startServer = async () => {
   await connectDatabase();
   await startComplaintAiWatcher();
+  startComplaintPriorityEscalation();
 
   server = http.createServer(app);
   server.listen(env.port, '0.0.0.0', () => {
@@ -20,6 +25,7 @@ const startServer = async () => {
 const shutdown = async (signal) => {
   logger.info(`Received ${signal}. Shutting down gracefully.`);
   await stopComplaintAiWatcher();
+  await stopComplaintPriorityEscalation();
 
   if (server) {
     server.close(() => {

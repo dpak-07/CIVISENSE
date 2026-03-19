@@ -1,0 +1,11 @@
+[
+  {
+    "id": "69958528e0c5220d972f2436",
+    "name": "Deepak",
+    "email": "deepak@gmail.com",
+    "password": "123456789",
+    "role": "citizen",
+    "language": "en",
+    "isActive": true
+  }
+]

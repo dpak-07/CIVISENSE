@@ -72,6 +72,7 @@ type ComplaintCardModel = {
 
 const CATEGORY_ICON_MAP: Record<string, IoniconName> = {
   pothole: "alert-circle",
+  road_damage: "warning",
   streetlight: "sunny",
   garbage: "trash",
   drainage: "water",
@@ -175,21 +176,14 @@ const toAssignedOfficeLabel = (complaint: ComplaintRecord): string => {
 
 const toDetailedPriorityReason = (complaint: ComplaintRecord): string => {
   const sentence = complaint.priority?.reasonSentence?.trim();
-  const technical = complaint.priority?.reason?.trim();
-
-  if (sentence && technical && sentence !== technical) {
-    return `${sentence}\n\nTechnical details: ${technical}`;
-  }
-
   if (sentence) {
     return sentence;
   }
 
-  if (technical) {
-    return technical;
-  }
+  const level = (complaint.priority?.level || "low").toString().trim().toLowerCase();
+  const levelLabel = level.charAt(0).toUpperCase() + level.slice(1);
 
-  return "No priority explanation yet";
+  return `Priority is set to ${levelLabel} based on report details.`;
 };
 
 const hasText = (value?: string | null): value is string =>

@@ -1,5 +1,5 @@
 export function formatDate(dateString) {
-    if (!dateString) return '—';
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-IN', {
         year: 'numeric',
         month: 'short',
@@ -8,7 +8,7 @@ export function formatDate(dateString) {
 }
 
 export function formatDateTime(dateString) {
-    if (!dateString) return '—';
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-IN', {
         year: 'numeric',
         month: 'short',
@@ -50,6 +50,19 @@ export function getRolePath(role) {
 export function capitalize(str) {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
+}
+
+export function formatRoleLabel(role) {
+    const normalized = String(role || '').replace(/_/g, ' ').trim();
+    if (!normalized) return 'User';
+    return normalized.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export function formatCompactNumber(value) {
+    return new Intl.NumberFormat('en-IN', {
+        notation: 'compact',
+        maximumFractionDigits: 1
+    }).format(Number(value || 0));
 }
 
 export const PRIORITY_ORDER = {

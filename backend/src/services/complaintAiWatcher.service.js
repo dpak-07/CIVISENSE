@@ -77,20 +77,7 @@ const resolveAssignedOfficeName = async (assignedMunicipalOffice) => {
 
 const buildPriorityMessage = ({ complaint, assignedOfficeName }) => {
   const reasonSentence = shorten(complaint?.priority?.reasonSentence, 380);
-  const technicalReason = shorten(complaint?.priority?.reason, 420);
-
-  const reasonParts = [];
-  if (reasonSentence) {
-    reasonParts.push(reasonSentence);
-  }
-  if (technicalReason && technicalReason !== reasonSentence) {
-    reasonParts.push(`Details: ${technicalReason}`);
-  }
-
-  const reasonText =
-    reasonParts.length > 0
-      ? reasonParts.join(' ')
-      : 'AI completed priority analysis for your complaint.';
+  const reasonText = reasonSentence || 'AI completed priority analysis for your complaint.';
 
   if (assignedOfficeName) {
     return `${reasonText} Assigned municipal office: ${assignedOfficeName}.`;

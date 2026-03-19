@@ -33,6 +33,7 @@ const env = {
     windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
     max: Number(process.env.RATE_LIMIT_MAX) || 200
   },
+  aiServiceBaseUrl: process.env.AI_SERVICE_BASE_URL || 'http://localhost:8000',
   aws: {
     region: process.env.AWS_REGION,
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,

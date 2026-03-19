@@ -105,6 +105,7 @@ export type ComplaintQuery = {
   status?: string;
   category?: string;
   isDuplicate?: boolean;
+  scope?: "all";
 };
 
 export type DeleteComplaintResult = {
@@ -332,6 +333,9 @@ export const getComplaints = async (
   }
   if (typeof query.isDuplicate === "boolean") {
     params.isDuplicate = query.isDuplicate ? "true" : "false";
+  }
+  if (query.scope) {
+    params.scope = query.scope;
   }
 
   const response = await apiClient.get<Envelope<ComplaintRecord[]>>("/complaints", {

@@ -1,17 +1,20 @@
 import logging
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 from app.api.routes.monitoring import router as monitoring_router
 from app.config import Settings, get_settings
 from app.core.runtime import RuntimeStats
 from app.db import MongoDB
 from app.logging_config import configure_logging
+from app.services.ai_service import ComplaintImageValidationService
 from app.services.ai_processor import AIProcessor
 from app.services.image_downloader import ImageDownloader
 from app.services.mobilenet_service import MobileNetService
 from app.services.model_loader import YOLOModelService
+from app.services.priority_reasoning_service import PriorityReasoningService
 from app.services.priority_engine import PriorityEngine
 from app.services.s3_uploader import S3Uploader
 from app.workers.change_stream_listener import ChangeStreamListener
@@ -33,6 +36,8 @@ async def lifespan(app: FastAPI):
     image_downloader = ImageDownloader(settings)
     model_service = YOLOModelService(settings)
     mobilenet_service = MobileNetService(settings)
+    image_validation_service = ComplaintImageValidationService(settings)
+    priority_reasoning_service = PriorityReasoningService(settings)
     s3_uploader = S3Uploader(settings)
     processing_queue = None
     change_stream_listener = None
@@ -45,6 +50,8 @@ async def lifespan(app: FastAPI):
         await image_downloader.start()
         await model_service.load()
         await mobilenet_service.load()
+        await image_validation_service.load_model()
+        await priority_reasoning_service.load_model()
 
         assert mongodb.complaints is not None
         assert mongodb.sensitive_locations is not None
@@ -54,6 +61,8 @@ async def lifespan(app: FastAPI):
             mongodb=mongodb,
             model_service=model_service,
             mobilenet_service=mobilenet_service,
+            image_validation_service=image_validation_service,
+            priority_reasoning_service=priority_reasoning_service,
             image_downloader=image_downloader,
             priority_engine=priority_engine,
             s3_uploader=s3_uploader,
@@ -106,5 +115,21 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+    logging.getLogger("ai.http").info(
+        "request",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+        },
+    )
+    return response
 
 app.include_router(monitoring_router)

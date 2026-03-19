@@ -2,6 +2,54 @@
 
 Independent FastAPI microservice for complaint AI prioritization.
 
+## Image Category Validation (BLIP + CLIP + Fine-Tuned Civic Classifier)
+
+The service now includes an explainable image-category validation layer:
+
+- Uses `Salesforce/blip-image-captioning-base` (HuggingFace, CPU inference).
+- Uses `openai/clip-vit-base-patch32` for zero-shot civic/non-civic scene scoring.
+- Optionally loads the latest fine-tuned civic classifier weights from `training_data/train_state.json`,
+  `training_data/active_civic_classifier.pt`, or a path configured in `.env`.
+- Generates a caption from complaint images (S3 URL or local path).
+- Ensembles caption keywords, CLIP scores, and the fine-tuned classifier across civic categories:
+  - `pothole`
+  - `garbage`
+  - `drainage`
+  - `water_leak`
+  - `streetlight`
+  - `road_damage`
+  - `traffic_sign`
+- Compares detected issue vs reported category.
+- Rejects ambiguous or clearly non-civic uploads more aggressively.
+- Stores structured output in `complaints.aiMeta.categoryValidation`.
+
+Validation JSON shape:
+
+```json
+{
+  "detected_issue": "pothole",
+  "reported_category": "garbage",
+  "is_valid": false,
+  "confidence": 0.87,
+  "reason": "The image suggests pothole while the complaint was reported as garbage.",
+  "caption": "large pothole in the middle of the road",
+  "keyword_hits": ["pothole", "road hole"],
+  "status": "ok"
+}
+```
+
+Environment variables:
+
+- `HF_CAPTION_MODEL_NAME` (default: `Salesforce/blip-image-captioning-base`)
+- `HF_CAPTION_MAX_NEW_TOKENS` (default: `32`)
+- `HF_CAPTION_NUM_BEAMS` (default: `3`)
+- `CIVIC_CLASSIFIER_ENABLED` (default: `true`)
+- `CIVIC_CLASSIFIER_MODEL_PATH` (optional explicit `.pt` weights path)
+- `CIVIC_CLASSIFIER_STATE_FILE` (default: `training_data/train_state.json`)
+- `CIVIC_CLASSIFIER_SCORE_WEIGHT` (default: `4.2`)
+- `CIVIC_CLASSIFIER_MIN_CONFIDENCE` (default: `0.5`)
+- `CATEGORY_VALIDATION_REVIEW_CONFIDENCE` (default: `0.6`)
+
 ## Setup
 
 1. Open terminal in `ai_service`.
@@ -37,6 +85,25 @@ For local standalone MongoDB, keep `MONGO_ALLOW_STANDALONE_FALLBACK=true` so a r
 uvicorn app.main:app --reload
 ```
 
+## Ready To Run
+
+Identify the issue in one image:
+```powershell
+python scripts/predict_issue.py --image "C:\path\to\issue.jpg" --reported-category pothole --pretty
+```
+
+Measure real accuracy on your labeled validation images:
+```powershell
+python scripts/evaluate_issue_accuracy.py --dataset-root training_data/classification/val --output-json reports/accuracy.json
+```
+
+Train and activate the fine-tuned civic classifier:
+```powershell
+python scripts/auto_train_from_s3.py --min-images-per-class 50 --min-total-images 300
+```
+
+After training finishes, inference will automatically use `training_data/active_civic_classifier.pt`.
+
 ## Strict MongoDB Update Contract
 
 This service updates only:
@@ -71,6 +138,8 @@ python scripts/auto_train_from_s3.py --weekly-sunday-midnight --min-images-per-c
 
 Important notes:
 - This script trains a **classification** model (`yolov8n-cls.pt`) using complaint category labels.
+- After a successful run, the selected weights are copied to `training_data/active_civic_classifier.pt`
+  and recorded in `training_data/train_state.json` so inference can pick them up automatically.
 - Complaint labels can be noisy; review/clean samples before using trained weights in production.
 - Training runs and state are stored under:
   - `training_runs/`

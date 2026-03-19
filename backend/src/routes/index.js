@@ -7,6 +7,7 @@ const notificationRoutes = require('./notificationRoutes');
 const userRoutes = require('./userRoutes');
 const publicRoutes = require('./publicRoutes');
 const sensitiveLocationRoutes = require('./sensitiveLocationRoutes');
+const logsRoutes = require('./logsRoutes');
 const publicController = require('../controllers/publicController');
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.use('/users', userRoutes);
 router.use('/public', publicRoutes);
 router.get('/developers', publicController.getDevelopers);
 router.use('/sensitive-locations', sensitiveLocationRoutes);
+router.use('/logs', logsRoutes);
 
 module.exports = router;

@@ -5,6 +5,8 @@ const rateLimit = require('express-rate-limit');
 const env = require('./config/env');
 const routes = require('./routes');
 const loggingMiddleware = require('./middlewares/loggingMiddleware');
+const requestMetricsMiddleware = require('./middlewares/requestMetricsMiddleware');
+const logsService = require('./services/logsService');
 const { notFoundHandler, errorHandler } = require('./middlewares/errorMiddleware');
 
 const app = express();
@@ -18,15 +20,21 @@ app.use(
     credentials: true
   })
 );
+app.use(requestMetricsMiddleware);
 app.use(
   rateLimit({
     windowMs: env.rateLimit.windowMs,
     max: env.rateLimit.max,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.path.startsWith('/api/logs'),
     message: {
       success: false,
       message: 'Too many requests. Please try again later.'
+    },
+    handler: (req, res, _next, options) => {
+      logsService.recordRateLimit({ req, message: options?.message?.message });
+      res.status(options.statusCode).json(options.message);
     }
   })
 );

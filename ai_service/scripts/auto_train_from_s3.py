@@ -32,6 +32,7 @@ DEFAULT_CATEGORIES = (
     "water_leak",
     "streetlight",
     "road_damage",
+    "traffic_sign",
 )
 
 
@@ -421,6 +422,14 @@ def run_training(config: TrainingConfig, counts: dict[str, int], signature: str)
     return selected
 
 
+def activate_trained_weights(config: TrainingConfig, weights_path: Path) -> Path:
+    active_path = config.dataset_root / "active_civic_classifier.pt"
+    active_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(weights_path, active_path)
+    logger.info("Activated fine-tuned civic classifier weights at %s", active_path)
+    return active_path
+
+
 async def run_once(config: TrainingConfig) -> None:
     ensure_dirs(config)
 
@@ -454,12 +463,14 @@ async def run_once(config: TrainingConfig) -> None:
             return
 
     weights_path = run_training(config, counts, signature)
+    active_weights_path = activate_trained_weights(config, weights_path)
     save_state(
         config.state_file,
         {
             "lastTrainedAt": datetime.now(timezone.utc).isoformat(),
             "lastSignature": signature,
             "lastWeightsPath": str(weights_path),
+            "activeWeightsPath": str(active_weights_path),
             "counts": counts,
             "totalImages": total,
             "baseModel": config.base_model,
