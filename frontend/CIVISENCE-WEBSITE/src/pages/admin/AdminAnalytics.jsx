@@ -1,29 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+    Area,
+    AreaChart,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
+} from 'recharts';
 import DashboardLayout from '../../components/Layout/DashboardLayout';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { getDashboardMetrics } from '../../api/admin';
 import { getErrorMessage } from '../../utils/helpers';
 import { isDemoSession } from '../../utils/authStorage';
 import { DEMO_ADMIN_METRICS } from '../../constants/demoData';
-import './AdminDashboard.css';
-import './AdminAnalytics.css';
-import {
-    PieChart,
-    Pie,
-    Cell,
-    ResponsiveContainer,
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-    AreaChart,
-    Area
-} from 'recharts';
 
-const COLORS = ['#2563eb', '#06b6d4', '#16a34a', '#f59e0b', '#ef4444', '#7c3aed', '#ec4899'];
+const COLORS = ['#2563eb', '#06b6d4', '#16a34a', '#f59e0b', '#ef4444', '#0f766e', '#ec4899'];
 const REFRESH_INTERVAL_MS = 30000;
 
 const toChartEntries = (value = {}) =>
@@ -34,15 +32,7 @@ const prettyLabel = (value) => String(value || '').replace(/_/g, ' ');
 const shortLabel = (value, max = 12) => {
     const text = String(value || '');
     if (text.length <= max) return text;
-    return `${text.slice(0, max - 1)}…`;
-};
-
-const getKpiColor = (type) => {
-    if (type === 'success') return 'analytics-kpi-card--success';
-    if (type === 'danger') return 'analytics-kpi-card--danger';
-    if (type === 'warning') return 'analytics-kpi-card--warning';
-    if (type === 'info') return 'analytics-kpi-card--info';
-    return 'analytics-kpi-card--primary';
+    return `${text.slice(0, max - 3)}...`;
 };
 
 export default function AdminAnalytics() {
@@ -130,6 +120,7 @@ export default function AdminAnalytics() {
     const resolutionRate = totalReportsCount
         ? ((resolvedReportsCount / totalReportsCount) * 100).toFixed(1)
         : '0.0';
+    const lastSnapshot = safeMetrics?.snapshotAt ? new Date(safeMetrics.snapshotAt).toLocaleString() : 'Live';
 
     const globalSnapshotData = [
         { name: 'Total', count: totalReportsCount },
@@ -140,14 +131,14 @@ export default function AdminAnalytics() {
     ];
 
     const kpiCards = [
-        { label: 'Total Reports', value: formatNumber(totalReportsCount), tone: 'primary' },
-        { label: 'Resolved Reports', value: formatNumber(resolvedReportsCount), tone: 'success' },
-        { label: 'Pending Reports', value: formatNumber(pendingReportsCount), tone: 'warning' },
-        { label: 'High + Critical', value: formatNumber(highCount), tone: 'danger' },
-        { label: 'Rejected Reports', value: formatNumber(rejectedReportsCount), tone: 'info' },
-        { label: 'Resolution Rate', value: `${resolutionRate}%`, tone: 'primary' },
-        { label: 'Avg Resolution', value: `${Number(safeMetrics?.avgResolutionHours || 0).toFixed(1)}h`, tone: 'info' },
-        { label: 'Total Users', value: formatNumber(safeMetrics?.totalUsers || 0), tone: 'primary' }
+        { label: 'Total Reports', value: formatNumber(totalReportsCount) },
+        { label: 'Resolved Reports', value: formatNumber(resolvedReportsCount) },
+        { label: 'Pending Reports', value: formatNumber(pendingReportsCount) },
+        { label: 'High + Critical', value: formatNumber(highCount) },
+        { label: 'Rejected Reports', value: formatNumber(rejectedReportsCount) },
+        { label: 'Resolution Rate', value: `${resolutionRate}%` },
+        { label: 'Avg Resolution', value: `${Number(safeMetrics?.avgResolutionHours || 0).toFixed(1)}h` },
+        { label: 'Total Users', value: formatNumber(safeMetrics?.totalUsers || 0) }
     ];
 
     if (loading) return <DashboardLayout><LoadingSpinner fullPage /></DashboardLayout>;
@@ -155,162 +146,182 @@ export default function AdminAnalytics() {
 
     return (
         <DashboardLayout>
-            <section className="analytics-hero card">
-                <div>
-                    <h1>Analytics Control Center</h1>
-                    <p>Comprehensive civic operations analytics with auto-refresh every 30 seconds.</p>
-                </div>
-                <div className="analytics-hero__meta">
-                    <span className="analytics-live-dot" />
-                    <span>
-                        Last update: {safeMetrics?.snapshotAt ? new Date(safeMetrics.snapshotAt).toLocaleString() : 'Live'}
-                    </span>
+            <section className="mb-6 rounded-[2rem] border border-slate-200 bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(14,116,144,0.9))] p-6 text-white shadow-[0_26px_80px_-42px_rgba(15,23,42,0.7)] lg:p-8">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-200">Analytics and reports</p>
+                        <h1 className="mt-3 text-4xl font-bold text-white lg:text-5xl">Understand complaint flow, urgency, and city response performance.</h1>
+                        <p className="mt-4 max-w-3xl text-sm leading-8 text-slate-200">
+                            A fuller operational view across status distribution, issue categories, trend movement, and priority pressure.
+                        </p>
+                    </div>
+                    <div className="rounded-3xl bg-white/10 px-5 py-4">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-300">Last update</p>
+                        <p className="mt-2 text-lg font-bold text-white">{lastSnapshot}</p>
+                    </div>
                 </div>
             </section>
 
-            <section className="analytics-kpi-grid">
+            <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {kpiCards.map((item) => (
-                    <article key={item.label} className={`analytics-kpi-card card ${getKpiColor(item.tone)}`}>
-                        <span className="analytics-kpi-card__value">{item.value}</span>
-                        <span className="analytics-kpi-card__label">{item.label}</span>
+                    <article
+                        key={item.label}
+                        className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]"
+                    >
+                        <p className="text-3xl font-extrabold text-slate-950">{item.value}</p>
+                        <p className="mt-2 text-sm font-semibold text-slate-500">{item.label}</p>
                     </article>
                 ))}
             </section>
 
-            <section className="analytics-chart-grid">
-                <article className="chart-card card analytics-chart-card analytics-chart-card--wide">
-                    <h3>14-Day Complaint Trend</h3>
-                    <p>Daily created, resolved, and high-priority complaint pattern.</p>
-                    <ResponsiveContainer width="100%" height={320}>
-                        <AreaChart data={trendData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                            <XAxis dataKey="day" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-                            <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
-                            <Tooltip
-                                contentStyle={{
-                                    background: 'var(--bg-card)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: 8,
-                                    color: 'var(--text-primary)'
-                                }}
-                            />
-                            <Legend formatter={prettyLabel} wrapperStyle={{ fontSize: '12px' }} />
-                            <Area type="monotone" dataKey="total" stroke="#2563eb" fill="rgba(37,99,235,0.2)" />
-                            <Area type="monotone" dataKey="resolved" stroke="#16a34a" fill="rgba(22,163,74,0.18)" />
-                            <Area type="monotone" dataKey="highPriority" stroke="#ef4444" fill="rgba(239,68,68,0.16)" />
-                        </AreaChart>
-                    </ResponsiveContainer>
+            <section className="grid gap-5 xl:grid-cols-2">
+                <article className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)] xl:col-span-2">
+                    <h2 className="text-2xl font-bold text-slate-950">14-day complaint trend</h2>
+                    <p className="mt-2 text-sm text-slate-500">Daily created, resolved, and high-priority complaint movement.</p>
+                    <div className="mt-6 h-[340px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={trendData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
+                                <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 11 }} />
+                                <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
+                                <Tooltip
+                                    contentStyle={{
+                                        background: '#ffffff',
+                                        border: '1px solid rgba(148,163,184,0.25)',
+                                        borderRadius: '16px',
+                                        color: '#0f172a'
+                                    }}
+                                />
+                                <Legend formatter={prettyLabel} wrapperStyle={{ fontSize: '12px' }} />
+                                <Area type="monotone" dataKey="total" stroke="#2563eb" fill="rgba(37,99,235,0.2)" />
+                                <Area type="monotone" dataKey="resolved" stroke="#16a34a" fill="rgba(22,163,74,0.18)" />
+                                <Area type="monotone" dataKey="highPriority" stroke="#ef4444" fill="rgba(239,68,68,0.16)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
                 </article>
 
-                <article className="chart-card card analytics-chart-card">
-                    <h3>Status Distribution</h3>
-                    <p>Current complaint status mix across all reports.</p>
-                    <ResponsiveContainer width="100%" height={280}>
-                        <PieChart>
-                            <Pie
-                                data={statusData}
-                                cx="50%"
-                                cy="44%"
-                                innerRadius={58}
-                                outerRadius={84}
-                                dataKey="value"
-                                label={false}
-                                labelLine={false}
-                            >
-                                {statusData.map((_, index) => (
-                                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip />
-                            <Legend
-                                formatter={(value) => prettyLabel(value)}
-                                verticalAlign="bottom"
-                                iconType="circle"
-                                wrapperStyle={{ fontSize: '12px', lineHeight: 1.6 }}
-                            />
-                        </PieChart>
-                    </ResponsiveContainer>
+                <article className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                    <h2 className="text-2xl font-bold text-slate-950">Status distribution</h2>
+                    <p className="mt-2 text-sm text-slate-500">Current complaint state mix across the platform.</p>
+                    <div className="mt-6 h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={statusData}
+                                    cx="50%"
+                                    cy="44%"
+                                    innerRadius={58}
+                                    outerRadius={84}
+                                    dataKey="value"
+                                    label={false}
+                                    labelLine={false}
+                                >
+                                    {statusData.map((_, index) => (
+                                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                                <Legend
+                                    formatter={(value) => prettyLabel(value)}
+                                    verticalAlign="bottom"
+                                    iconType="circle"
+                                    wrapperStyle={{ fontSize: '12px', lineHeight: 1.6 }}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
                 </article>
 
-                <article className="chart-card card analytics-chart-card">
-                    <h3>Priority Split</h3>
-                    <p>Critical-to-low priority ratio from AI decisions.</p>
-                    <ResponsiveContainer width="100%" height={280}>
-                        <PieChart>
-                            <Pie
-                                data={priorityData}
-                                cx="50%"
-                                cy="44%"
-                                innerRadius={52}
-                                outerRadius={82}
-                                dataKey="value"
-                                label={false}
-                                labelLine={false}
-                            >
-                                {priorityData.map((_, index) => (
-                                    <Cell key={index} fill={COLORS[(index + 2) % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip />
-                            <Legend
-                                formatter={(value) => prettyLabel(value)}
-                                verticalAlign="bottom"
-                                iconType="circle"
-                                wrapperStyle={{ fontSize: '12px', lineHeight: 1.6 }}
-                            />
-                        </PieChart>
-                    </ResponsiveContainer>
+                <article className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                    <h2 className="text-2xl font-bold text-slate-950">Priority split</h2>
+                    <p className="mt-2 text-sm text-slate-500">How complaints are distributed across urgency levels.</p>
+                    <div className="mt-6 h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={priorityData}
+                                    cx="50%"
+                                    cy="44%"
+                                    innerRadius={52}
+                                    outerRadius={82}
+                                    dataKey="value"
+                                    label={false}
+                                    labelLine={false}
+                                >
+                                    {priorityData.map((_, index) => (
+                                        <Cell key={index} fill={COLORS[(index + 2) % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                                <Legend
+                                    formatter={(value) => prettyLabel(value)}
+                                    verticalAlign="bottom"
+                                    iconType="circle"
+                                    wrapperStyle={{ fontSize: '12px', lineHeight: 1.6 }}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
                 </article>
 
-                <article className="chart-card card analytics-chart-card">
-                    <h3>Category Volume</h3>
-                    <p>Top complaint categories by report count.</p>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={categoryData.slice(0, 10)} margin={{ top: 8, right: 12, left: -12, bottom: 44 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                            <XAxis
-                                dataKey="name"
-                                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                                interval={0}
-                                angle={-20}
-                                textAnchor="end"
-                                height={62}
-                                tickFormatter={(value) => shortLabel(value, 14)}
-                            />
-                            <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
-                            <Tooltip
-                                formatter={(value, _name, payload) => [value, prettyLabel(payload?.payload?.name || 'Category')]}
-                                contentStyle={{
-                                    background: 'var(--bg-card)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: 8,
-                                    color: 'var(--text-primary)'
-                                }}
-                            />
-                            <Bar dataKey="count" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                <article className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                    <h2 className="text-2xl font-bold text-slate-950">Category volume</h2>
+                    <p className="mt-2 text-sm text-slate-500">Top complaint categories by report count.</p>
+                    <div className="mt-6 h-[320px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={categoryData.slice(0, 10)} margin={{ top: 8, right: 12, left: -12, bottom: 44 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
+                                <XAxis
+                                    dataKey="name"
+                                    tick={{ fill: '#64748b', fontSize: 11 }}
+                                    interval={0}
+                                    angle={-20}
+                                    textAnchor="end"
+                                    height={62}
+                                    tickFormatter={(value) => shortLabel(value, 14)}
+                                />
+                                <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
+                                <Tooltip
+                                    formatter={(value, _name, payload) => [value, prettyLabel(payload?.payload?.name || 'Category')]}
+                                    contentStyle={{
+                                        background: '#ffffff',
+                                        border: '1px solid rgba(148,163,184,0.25)',
+                                        borderRadius: '16px',
+                                        color: '#0f172a'
+                                    }}
+                                />
+                                <Bar dataKey="count" fill="#06b6d4" radius={[8, 8, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </article>
 
-                <article className="chart-card card analytics-chart-card">
-                    <h3>Global Snapshot</h3>
-                    <p>Quick operational comparison of key queue buckets.</p>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={globalSnapshotData} margin={{ top: 8, right: 12, left: -12, bottom: 18 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                            <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(value) => shortLabel(value, 12)} />
-                            <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
-                            <Tooltip
-                                contentStyle={{
-                                    background: 'var(--bg-card)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: 8,
-                                    color: 'var(--text-primary)'
-                                }}
-                            />
-                            <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                <article className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                    <h2 className="text-2xl font-bold text-slate-950">Global snapshot</h2>
+                    <p className="mt-2 text-sm text-slate-500">Quick comparison of major queue buckets.</p>
+                    <div className="mt-6 h-[320px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={globalSnapshotData} margin={{ top: 8, right: 12, left: -12, bottom: 18 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
+                                <XAxis
+                                    dataKey="name"
+                                    tick={{ fill: '#64748b', fontSize: 11 }}
+                                    tickFormatter={(value) => shortLabel(value, 12)}
+                                />
+                                <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
+                                <Tooltip
+                                    contentStyle={{
+                                        background: '#ffffff',
+                                        border: '1px solid rgba(148,163,184,0.25)',
+                                        borderRadius: '16px',
+                                        color: '#0f172a'
+                                    }}
+                                />
+                                <Bar dataKey="count" fill="#2563eb" radius={[8, 8, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </article>
             </section>
         </DashboardLayout>

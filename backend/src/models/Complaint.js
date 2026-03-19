@@ -135,6 +135,20 @@ const complaintSchema = new mongoose.Schema(
         type: String,
         enum: AI_PROCESSING_STATUS_VALUES,
         default: AI_PROCESSING_STATUS.PENDING
+      },
+      escalation: {
+        stage: {
+          type: String,
+          default: null
+        },
+        lastEscalatedAt: {
+          type: Date,
+          default: null
+        },
+        reason: {
+          type: String,
+          default: null
+        }
       }
     },
     aiMeta: {

@@ -11,6 +11,7 @@ try {
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const logger = require('../config/logger');
+const { ROLES } = require('../constants/roles');
 
 let firebaseInitialized = false;
 
@@ -141,6 +142,71 @@ const sendNotification = async (userId, title, message, complaintId = null) => {
   };
 };
 
+const sendNotificationToUsers = async ({
+  userIds = [],
+  title,
+  message,
+  complaintId = null,
+  excludeUserId = null
+} = {}) => {
+  if (!Array.isArray(userIds) || !title || !message) {
+    return { total: 0, stored: 0, pushSent: 0, reason: 'invalid_payload' };
+  }
+
+  const uniqueIds = Array.from(
+    new Set(userIds.map((id) => String(id)).filter(Boolean))
+  );
+
+  if (excludeUserId) {
+    const excludeId = String(excludeUserId);
+    const index = uniqueIds.indexOf(excludeId);
+    if (index >= 0) uniqueIds.splice(index, 1);
+  }
+
+  if (uniqueIds.length === 0) {
+    return { total: 0, stored: 0, pushSent: 0, reason: 'no_targets' };
+  }
+
+  const results = await Promise.allSettled(
+    uniqueIds.map((id) => sendNotification(id, title, message, complaintId))
+  );
+
+  let stored = 0;
+  let pushSent = 0;
+
+  results.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      if (result.value?.stored) stored += 1;
+      if (result.value?.pushSent) pushSent += 1;
+    }
+  });
+
+  return { total: uniqueIds.length, stored, pushSent };
+};
+
+const sendNotificationToOffice = async ({
+  officeId,
+  title,
+  message,
+  complaintId = null,
+  excludeUserId = null
+} = {}) => {
+  if (!officeId) {
+    return { total: 0, stored: 0, pushSent: 0, reason: 'missing_office' };
+  }
+
+  const officers = await User.find({
+    role: ROLES.OFFICER,
+    municipalOfficeId: officeId,
+    isActive: true
+  })
+    .select('_id')
+    .lean();
+
+  const officerIds = officers.map((officer) => officer._id);
+  return sendNotificationToUsers({ userIds: officerIds, title, message, complaintId, excludeUserId });
+};
+
 const getUserNotifications = async (userId) =>
   Notification.find({ userId }).sort({ createdAt: -1 }).lean();
 
@@ -153,6 +219,8 @@ const markNotificationRead = async ({ notificationId, userId }) =>
 
 module.exports = {
   sendNotification,
+  sendNotificationToUsers,
+  sendNotificationToOffice,
   getUserNotifications,
   markNotificationRead,
   initFirebase

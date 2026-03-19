@@ -1,5 +1,6 @@
 ﻿const { StatusCodes } = require('http-status-codes');
 const logger = require('../config/logger');
+const logsService = require('../services/logsService');
 
 const notFoundHandler = (req, _res, next) => {
   const error = new Error(`Route not found: ${req.originalUrl}`);
@@ -38,7 +39,7 @@ const normalizeError = (err) => {
   };
 };
 
-const errorHandler = (err, _req, res, _next) => {
+const errorHandler = (err, req, res, _next) => {
   const normalized = normalizeError(err);
   const statusCode = normalized.statusCode;
 
@@ -47,6 +48,8 @@ const errorHandler = (err, _req, res, _next) => {
   } else {
     logger.warn({ message: normalized.message, details: normalized.details });
   }
+
+  logsService.recordError({ req, err, statusCode });
 
   res.status(statusCode).json({
     success: false,

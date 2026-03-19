@@ -10,6 +10,7 @@ import {
     HiOutlineCheckCircle,
     HiOutlineCpuChip,
     HiOutlineMapPin,
+    HiOutlineSparkles,
     HiOutlineUserGroup,
     HiOutlineWrenchScrewdriver
 } from 'react-icons/hi2';
@@ -17,83 +18,92 @@ import PublicLayout from '../../components/Layout/PublicLayout';
 import CiviSenseLogo from '../../components/branding/CiviSenseLogo';
 import { ANDROID_APK_URL, IOS_FUNNY_NOTE } from '../../constants/appLinks';
 import { getAppConfig } from '../../api/public';
-import './Home.css';
 
-const howItWorks = [
+const workflow = [
     {
         icon: HiOutlineUserGroup,
-        title: 'Citizen reports issue',
-        description: 'Citizens submit photos, location, and issue details in seconds.'
+        title: 'Citizens submit evidence',
+        description: 'Photos, category details, and geolocation are captured in one quick reporting flow.'
     },
     {
         icon: HiOutlineCpuChip,
-        title: 'AI analyzes complaint',
-        description: 'The platform classifies category and checks for similar reports.'
+        title: 'AI scores urgency',
+        description: 'The platform classifies complaints, flags likely duplicates, and estimates priority.'
     },
     {
         icon: HiOutlineArrowPath,
-        title: 'System routes issue',
-        description: 'The report is assigned to the right municipal department automatically.'
+        title: 'Routing happens automatically',
+        description: 'The issue is pushed toward the right municipal office based on category and location.'
     },
     {
         icon: HiOutlineCheckCircle,
-        title: 'Authority resolves problem',
-        description: 'Officials update progress and close cases with transparent status.'
+        title: 'Resolution stays visible',
+        description: 'Citizens and administrators can see progress instead of waiting in the dark.'
     }
 ];
 
-const features = [
+const capabilities = [
     {
         icon: HiOutlineCpuChip,
-        title: 'AI Issue Detection',
-        description: 'Classifies complaints and improves triage quality from submission.'
+        title: 'AI-assisted triage',
+        description: 'Issue classification, priority reasoning, and routing support from the first submission.'
     },
     {
         icon: HiOutlineMapPin,
-        title: 'Geo Location Routing',
-        description: 'Routes reports to the nearest responsible office by location.'
+        title: 'Location-aware assignment',
+        description: 'Complaints can be directed to the office or zone most likely to act fastest.'
     },
     {
         icon: HiOutlineBellAlert,
-        title: 'Live Complaint Tracking',
-        description: 'Citizens and officers get real-time status updates during resolution.'
+        title: 'Live operational updates',
+        description: 'Notifications and dashboards keep citizens, officers, and admins aligned.'
     },
     {
         icon: HiOutlineChartBar,
-        title: 'Governance Analytics',
-        description: 'Tracks response trends, backlog, and city-level issue distribution.'
+        title: 'Performance analytics',
+        description: 'Capacity, backlog, resolution, and trend views support better governance decisions.'
     }
 ];
 
-const portals = [
+const portalCards = [
     {
         icon: HiOutlineUserGroup,
-        title: 'Citizen Portal',
-        points: ['Quick issue reporting', 'Track complaint status', 'View profile report history']
+        title: 'Citizen portal',
+        subtitle: 'Simple reporting and transparent tracking',
+        points: ['Submit new civic issues', 'Watch status changes', 'See all complaint history']
     },
     {
         icon: HiOutlineWrenchScrewdriver,
-        title: 'Sub Office Portal',
-        points: ['Assigned complaint queue', 'Priority-based actions', 'Resolution workflow updates']
+        title: 'Officer portal',
+        subtitle: 'Evidence review and action management',
+        points: ['Review complaint details', 'Update status and remarks', 'Handle misuse reporting']
     },
     {
         icon: HiOutlineBuildingOffice,
-        title: 'Admin Control Center',
-        points: ['Office and zone management', 'Platform analytics overview', 'Governance configuration']
+        title: 'Admin portal',
+        subtitle: 'System health, offices, zones, and analytics',
+        points: ['Watch office capacity', 'Manage routing structure', 'Read citywide trends']
     }
 ];
 
+const proofPoints = [
+    { value: '3', label: 'connected user portals' },
+    { value: '24/7', label: 'digital issue intake' },
+    { value: 'AI', label: 'triage and priority assist' },
+    { value: 'Live', label: 'status visibility' }
+];
+
 const sectionVariant = {
-    hidden: { opacity: 0, y: 18 },
+    hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'easeOut' } }
 };
 
 const cardVariant = {
-    hidden: { opacity: 0, y: 14 },
+    hidden: { opacity: 0, y: 18 },
     visible: (index = 0) => ({
         opacity: 1,
         y: 0,
-        transition: { duration: 0.32, delay: index * 0.05, ease: 'easeOut' }
+        transition: { duration: 0.32, delay: index * 0.06, ease: 'easeOut' }
     })
 };
 
@@ -113,7 +123,7 @@ export default function Home() {
                     iosNote: data.data.iosNote || IOS_FUNNY_NOTE
                 });
             } catch {
-                // Keep fallback constants.
+                /* keep fallback content */
             }
         };
 
@@ -122,154 +132,211 @@ export default function Home() {
 
     return (
         <PublicLayout>
-            <div className="home-page">
-                <section className="home-page__hero">
-                    <div className="home-page__orb home-page__orb--left" />
-                    <div className="home-page__orb home-page__orb--right" />
+            <div className="overflow-hidden">
+                <section className="relative">
+                    <div className="container grid gap-10 py-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-20">
+                        <motion.div variants={sectionVariant} initial="hidden" animate="visible" className="space-y-8">
+                            <span className="section-tag">
+                                <HiOutlineSparkles />
+                                Public complaint reporting system
+                            </span>
 
-                    <div className="container">
-                        <div className="home-page__hero-grid">
-                            <motion.div
-                                variants={sectionVariant}
-                                initial="hidden"
-                                animate="visible"
-                                className="home-page__hero-content"
-                            >
-                                <span className="home-page__eyebrow">Civic Technology Platform</span>
-
-                                <div className="home-page__brand">
-                                    <CiviSenseLogo size={46} />
-                                    <h1>CiviSense</h1>
-                                </div>
-
-                                <p className="home-page__tagline">Making Cities Better, Together</p>
-
-                                <p className="home-page__description">
-                                    CiviSense helps citizens report potholes, garbage overflow, water leaks, drainage
-                                    blockages, and traffic problems. AI categorizes each complaint and routes it to the
-                                    right municipal department for faster resolution.
-                                </p>
-
-                                <div className="home-page__actions">
-                                    <a href={appConfig.androidApkUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
-                                        <HiOutlineArrowDownTray />
-                                        Download Android App
-                                    </a>
-                                    <Link to="/about" className="btn btn-secondary">
-                                        Explore Platform
-                                    </Link>
-                                </div>
-                            </motion.div>
-
-                            <motion.div
-                                variants={sectionVariant}
-                                initial="hidden"
-                                animate="visible"
-                                transition={{ delay: 0.06, duration: 0.45 }}
-                                className="home-page__mockup-wrap"
-                            >
-                                <div className="home-page__mockup-shell">
-                                    <div className="home-page__mockup-body">
-                                        <div className="home-page__mockup-notch" />
-
-                                        <div className="home-page__mockup-card">
-                                            <p className="home-page__mockup-label">New Complaint</p>
-                                            <p className="home-page__mockup-title">Road pothole near bus stop</p>
-                                            <p className="home-page__mockup-meta">AI: High priority</p>
-                                        </div>
-
-                                        <div className="home-page__mockup-card">
-                                            <p className="home-page__mockup-label">Status Tracking</p>
-                                            <p className="home-page__mockup-title">Assigned to Zone Office</p>
-                                            <p className="home-page__mockup-meta">Updated 2 mins ago</p>
-                                        </div>
-
-                                        <div className="home-page__mockup-placeholder" />
+                            <div className="space-y-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="rounded-3xl border border-slate-200 bg-white p-2 shadow-sm">
+                                        <CiviSenseLogo size={56} />
+                                    </div>
+                                    <div>
+                                        <p className="font-display text-3xl font-bold text-slate-950 sm:text-4xl">CiviSense</p>
+                                        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
+                                            City issue reporting and tracking
+                                        </p>
                                     </div>
                                 </div>
-                            </motion.div>
-                        </div>
-                    </div>
-                </section>
 
-                <section id="app-download" className="home-page__section home-page__section--soft">
-                    <div className="container">
+                                <h1 className="max-w-3xl text-balance text-5xl font-bold text-slate-950 sm:text-6xl lg:text-7xl">
+                                    Turn citizen complaints into clear, trackable municipal action.
+                                </h1>
+                                <p className="max-w-2xl text-lg leading-8 text-slate-600">
+                                    CiviSense helps cities collect civic complaints, score urgency with AI, route cases intelligently,
+                                    and show every stakeholder what is happening next.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <a
+                                    href={appConfig.androidApkUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn btn-primary btn-lg"
+                                >
+                                    <HiOutlineArrowDownTray />
+                                    Download Android app
+                                </a>
+                                <Link to="/login" className="btn btn-secondary btn-lg">
+                                    Open web portal
+                                </Link>
+                            </div>
+
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                {proofPoints.map((item) => (
+                                    <div
+                                        key={item.label}
+                                        className="rounded-3xl border border-slate-200 bg-white/80 px-5 py-4 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)]"
+                                    >
+                                        <p className="text-2xl font-extrabold text-slate-950">{item.value}</p>
+                                        <p className="mt-1 text-sm text-slate-500">{item.label}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.div>
+
                         <motion.div
                             variants={sectionVariant}
                             initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true, amount: 0.25 }}
-                            className="home-page__promo-grid"
+                            animate="visible"
+                            transition={{ delay: 0.08 }}
+                            className="relative"
                         >
-                            <div className="home-page__promo-content">
-                                <h2>Report civic issues instantly from your phone</h2>
-                                <p>
-                                    Capture the issue, attach location, and submit. CiviSense keeps citizens informed as
-                                    complaints move through municipal workflows.
-                                </p>
-                                <div className="home-page__actions">
-                                    <a href={appConfig.androidApkUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
-                                        <HiOutlineArrowDownTray />
-                                        Download App
-                                    </a>
-                                    <Link to="/login" className="btn btn-secondary">
-                                        Open Web Portal
-                                    </Link>
-                                </div>
-                                <p className="home-page__ios-note">{appConfig.iosNote}</p>
-                            </div>
+                            <div className="absolute -left-10 top-8 h-32 w-32 rounded-full bg-sky-200/50 blur-3xl" />
+                            <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-teal-200/60 blur-3xl" />
 
-                            <div className="home-page__promo-panel">
-                                <p className="home-page__panel-label">Mobile Preview</p>
-                                <div className="home-page__panel-list">
-                                    <article>
-                                        <p>Upload issue image</p>
-                                        <span>Add photo and description</span>
-                                    </article>
-                                    <article>
-                                        <p>Pin location</p>
-                                        <span>Auto route to nearby office</span>
-                                    </article>
-                                    <article>
-                                        <p>Track progress</p>
-                                        <span>Get status updates in real time</span>
-                                    </article>
+                            <div className="relative overflow-hidden rounded-[2rem] border border-white/60 bg-[linear-gradient(145deg,rgba(15,23,42,0.98),rgba(15,118,110,0.84))] p-5 text-white shadow-[0_40px_120px_-40px_rgba(15,23,42,0.8)]">
+                                <div className="absolute inset-0 opacity-25 bg-[linear-gradient(rgba(255,255,255,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.18)_1px,transparent_1px)] [background-size:72px_72px]" />
+                                <div className="relative space-y-5">
+                                    <div className="flex items-center justify-between rounded-3xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">How it works</p>
+                                            <h2 className="mt-1 text-2xl font-bold text-white">Complaint process</h2>
+                                        </div>
+                                        <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">
+                                            Active
+                                        </span>
+                                    </div>
+
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="rounded-3xl border border-white/12 bg-white/10 p-4">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-100">Citizen report example</p>
+                                            <div className="mt-3 space-y-3">
+                                                <div className="rounded-2xl bg-slate-950/30 p-4">
+                                                    <p className="text-sm font-semibold text-white">Road pothole near bus stop</p>
+                                                    <p className="mt-2 text-xs text-slate-300">AI priority: High</p>
+                                                </div>
+                                                <div className="rounded-2xl bg-slate-950/30 p-4">
+                                                    <p className="text-sm font-semibold text-white">Overflowing garbage point</p>
+                                                    <p className="mt-2 text-xs text-slate-300">Status: Assigned to sanitary office</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div className="rounded-3xl border border-white/12 bg-white/10 p-4">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100">Officer review</p>
+                                                <div className="mt-4 grid grid-cols-2 gap-3">
+                                                    <div className="rounded-2xl bg-white/10 p-3">
+                                                        <p className="text-2xl font-extrabold text-white">18</p>
+                                                        <p className="text-xs text-slate-300">Assigned</p>
+                                                    </div>
+                                                    <div className="rounded-2xl bg-white/10 p-3">
+                                                        <p className="text-2xl font-extrabold text-white">7</p>
+                                                        <p className="text-xs text-slate-300">In progress</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="rounded-3xl border border-white/12 bg-white/10 p-4">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-100">Admin monitoring</p>
+                                                <div className="mt-4 space-y-3">
+                                                    <div className="flex items-center justify-between text-sm">
+                                                        <span className="text-slate-300">Top load office</span>
+                                                        <span className="font-bold text-white">North Zone Ops</span>
+                                                    </div>
+                                                    <div className="h-2 rounded-full bg-white/15">
+                                                        <div className="h-2 w-[72%] rounded-full bg-gradient-to-r from-sky-300 to-emerald-300" />
+                                                    </div>
+                                                    <p className="text-xs text-slate-300">72% of available complaint capacity in use</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-3xl border border-white/12 bg-white/10 px-4 py-3 text-sm text-slate-200">
+                                        iOS note: {appConfig.iosNote}
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
                     </div>
                 </section>
 
-                <section className="home-page__section">
+                <section className="py-8">
                     <div className="container">
                         <motion.div
                             variants={sectionVariant}
                             initial="hidden"
                             whileInView="visible"
-                            viewport={{ once: true, amount: 0.2 }}
+                            viewport={{ once: true, amount: 0.25 }}
+                            className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.45)] lg:p-8"
                         >
-                            <div className="home-page__section-header">
-                                <h2>How It Works</h2>
+                            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="max-w-2xl">
+                                    <span className="section-tag">Mobile and web access</span>
+                                    <h2 className="mt-4 text-4xl font-bold text-slate-950">One complaint system for citizens and officers</h2>
+                                    <p className="mt-4 text-base leading-8 text-slate-600">
+                                        Citizens need speed and clarity. Officers need evidence and action tools. Administrators need the system view.
+                                        CiviSense brings those together without forcing one workflow on everyone.
+                                    </p>
+                                </div>
+                                <div className="grid gap-3 sm:min-w-[22rem]">
+                                    <a
+                                        href={appConfig.androidApkUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="btn btn-primary"
+                                    >
+                                        <HiOutlineArrowDownTray />
+                                        Download the Android app
+                                    </a>
+                                    <Link to="/register" className="btn btn-secondary">
+                                        Create a citizen account
+                                    </Link>
+                                </div>
                             </div>
-                            <div className="home-page__grid home-page__grid--four">
-                                {howItWorks.map((step, index) => {
-                                    const Icon = step.icon;
+                        </motion.div>
+                    </div>
+                </section>
 
+                <section className="py-12">
+                    <div className="container">
+                        <motion.div variants={sectionVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }}>
+                            <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                                <div>
+                                    <span className="section-tag">Complaint flow</span>
+                                    <h2 className="mt-4 text-4xl font-bold text-slate-950">How complaints are handled</h2>
+                                </div>
+                                <p className="max-w-2xl text-base leading-7 text-slate-600">
+                                    Designed for faster municipal handling and better public trust, from intake to closure.
+                                </p>
+                            </div>
+
+                            <div className="grid gap-4 lg:grid-cols-4">
+                                {workflow.map((item, index) => {
+                                    const Icon = item.icon;
                                     return (
                                         <motion.article
-                                            key={step.title}
+                                            key={item.title}
                                             custom={index}
                                             variants={cardVariant}
                                             initial="hidden"
                                             whileInView="visible"
                                             viewport={{ once: true, amount: 0.2 }}
-                                            className="home-page__card"
+                                            className="rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]"
                                         >
-                                            <div className="home-page__icon-box">
+                                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-2xl text-sky-700">
                                                 <Icon />
                                             </div>
-                                            <h3>{step.title}</h3>
-                                            <p>{step.description}</p>
+                                            <h3 className="mt-5 text-2xl font-bold text-slate-950">{item.title}</h3>
+                                            <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
                                         </motion.article>
                                     );
                                 })}
@@ -278,21 +345,22 @@ export default function Home() {
                     </div>
                 </section>
 
-                <section className="home-page__section home-page__section--soft">
+                <section className="py-12">
                     <div className="container">
-                        <motion.div
-                            variants={sectionVariant}
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true, amount: 0.2 }}
-                        >
-                            <div className="home-page__section-header">
-                                <h2>Platform Features</h2>
+                        <motion.div variants={sectionVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }}>
+                            <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                                <div>
+                                    <span className="section-tag">Main features</span>
+                                    <h2 className="mt-4 text-4xl font-bold text-slate-950">What the website offers</h2>
+                                </div>
+                                <p className="max-w-2xl text-base leading-7 text-slate-600">
+                                    Strong information hierarchy, responsive layouts, and operational detail for every role.
+                                </p>
                             </div>
-                            <div className="home-page__grid home-page__grid--four">
-                                {features.map((feature, index) => {
-                                    const Icon = feature.icon;
 
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                {capabilities.map((feature, index) => {
+                                    const Icon = feature.icon;
                                     return (
                                         <motion.article
                                             key={feature.title}
@@ -301,13 +369,13 @@ export default function Home() {
                                             initial="hidden"
                                             whileInView="visible"
                                             viewport={{ once: true, amount: 0.2 }}
-                                            className="home-page__card"
+                                            className="rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]"
                                         >
-                                            <div className="home-page__icon-box home-page__icon-box--cyan">
+                                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 text-2xl text-teal-700">
                                                 <Icon />
                                             </div>
-                                            <h3>{feature.title}</h3>
-                                            <p>{feature.description}</p>
+                                            <h3 className="mt-5 text-2xl font-bold text-slate-950">{feature.title}</h3>
+                                            <p className="mt-3 text-sm leading-7 text-slate-600">{feature.description}</p>
                                         </motion.article>
                                     );
                                 })}
@@ -316,21 +384,22 @@ export default function Home() {
                     </div>
                 </section>
 
-                <section className="home-page__section">
+                <section className="py-12">
                     <div className="container">
-                        <motion.div
-                            variants={sectionVariant}
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true, amount: 0.2 }}
-                        >
-                            <div className="home-page__section-header">
-                                <h2>Role Portals</h2>
+                        <motion.div variants={sectionVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }}>
+                            <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                                <div>
+                                    <span className="section-tag">User portals</span>
+                                    <h2 className="mt-4 text-4xl font-bold text-slate-950">Separate views for each user role</h2>
+                                </div>
+                                <p className="max-w-2xl text-base leading-7 text-slate-600">
+                                    Each dashboard has a different job. The interface should respect that.
+                                </p>
                             </div>
-                            <div className="home-page__grid home-page__grid--three">
-                                {portals.map((portal, index) => {
-                                    const Icon = portal.icon;
 
+                            <div className="grid gap-4 lg:grid-cols-3">
+                                {portalCards.map((portal, index) => {
+                                    const Icon = portal.icon;
                                     return (
                                         <motion.article
                                             key={portal.title}
@@ -339,15 +408,19 @@ export default function Home() {
                                             initial="hidden"
                                             whileInView="visible"
                                             viewport={{ once: true, amount: 0.2 }}
-                                            className="home-page__card"
+                                            className="rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]"
                                         >
-                                            <div className="home-page__icon-box home-page__icon-box--slate">
+                                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl text-slate-800">
                                                 <Icon />
                                             </div>
-                                            <h3>{portal.title}</h3>
-                                            <ul className="home-page__list">
+                                            <h3 className="mt-5 text-2xl font-bold text-slate-950">{portal.title}</h3>
+                                            <p className="mt-2 text-sm font-semibold text-sky-700">{portal.subtitle}</p>
+                                            <ul className="mt-5 space-y-3">
                                                 {portal.points.map((point) => (
-                                                    <li key={point}>{point}</li>
+                                                    <li key={point} className="flex items-start gap-3 text-sm leading-7 text-slate-600">
+                                                        <span className="mt-2 h-2 w-2 rounded-full bg-sky-500" />
+                                                        {point}
+                                                    </li>
                                                 ))}
                                             </ul>
                                         </motion.article>
@@ -358,25 +431,37 @@ export default function Home() {
                     </div>
                 </section>
 
-                <section className="home-page__section">
+                <section className="pb-16 pt-12">
                     <div className="container">
                         <motion.div
                             variants={sectionVariant}
                             initial="hidden"
                             whileInView="visible"
                             viewport={{ once: true, amount: 0.3 }}
-                            className="home-page__cta"
+                            className="rounded-[2rem] border border-slate-200 bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(14,116,144,0.9))] px-6 py-10 text-white shadow-[0_32px_100px_-44px_rgba(15,23,42,0.8)] lg:px-10"
                         >
-                            <h2>Build smarter cities with CiviSense</h2>
-                            <p>CiviSense is building smarter cities through technology and citizen participation.</p>
-                            <div className="home-page__actions home-page__actions--center">
-                                <a href={appConfig.androidApkUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
-                                    <HiOutlineArrowDownTray />
-                                    Download App
-                                </a>
-                                <Link to="/about" className="btn btn-secondary">
-                                    Learn More
-                                </Link>
+                            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="max-w-3xl">
+                                    <span className="section-tag border-white/20 bg-white/10 text-sky-100">Get started</span>
+                                    <h2 className="mt-4 text-4xl font-bold text-white">Use CiviSense to report and track public issues.</h2>
+                                    <p className="mt-4 max-w-2xl text-base leading-8 text-slate-200">
+                                        CiviSense is designed to make issue reporting easier for citizens and response management clearer for authorities.
+                                    </p>
+                                </div>
+                                <div className="flex flex-col gap-3 sm:flex-row">
+                                    <a
+                                        href={appConfig.androidApkUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="btn btn-primary btn-lg"
+                                    >
+                                        <HiOutlineArrowDownTray />
+                                        Download app
+                                    </a>
+                                    <Link to="/about" className="btn btn-secondary btn-lg">
+                                        Learn more
+                                    </Link>
+                                </div>
                             </div>
                         </motion.div>
                     </div>
