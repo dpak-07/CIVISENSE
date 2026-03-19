@@ -1,15 +1,15 @@
 :root,
 :root[data-theme='light'],
 :root[data-theme='dark'] {
-  --primary: #0f6dff;
-  --primary-light: #3386ff;
-  --primary-dark: #0d4cc4;
-  --primary-glow: rgba(15, 109, 255, 0.18);
+  --primary: #0ea5e9;
+  --primary-light: #38bdf8;
+  --primary-dark: #0369a1;
+  --primary-glow: rgba(14, 165, 233, 0.22);
 
-  --accent: #0f766e;
-  --accent-light: #14b8a6;
-  --accent-alt: #0369a1;
-  --accent-glow: rgba(20, 184, 166, 0.16);
+  --accent: #14b8a6;
+  --accent-light: #2dd4bf;
+  --accent-alt: #0f766e;
+  --accent-glow: rgba(20, 184, 166, 0.2);
 
   --success: #059669;
   --success-light: #047857;
@@ -20,14 +20,14 @@
   --info: #0891b2;
 
   --bg-primary: #ffffff;
-  --bg-secondary: #f3f7fb;
-  --bg-card: rgba(255, 255, 255, 0.9);
-  --bg-card-hover: rgba(255, 255, 255, 0.96);
-  --bg-elevated: #eff6ff;
+  --bg-secondary: #f4f8ff;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-card-hover: rgba(255, 255, 255, 0.97);
+  --bg-elevated: #edf5ff;
   --bg-input: #ffffff;
   --bg-glass: rgba(255, 255, 255, 0.74);
   --bg-soft: #f7fafc;
-  --bg-soft-strong: #edf5ff;
+  --bg-soft-strong: #edf6ff;
 
   --border-color: rgba(148, 163, 184, 0.25);
   --border-light: rgba(56, 189, 248, 0.26);
@@ -38,13 +38,13 @@
   --text-muted: #64748b;
   --text-inverse: #ffffff;
 
-  --bg-body-gradient-a: rgba(14, 165, 233, 0.12);
-  --bg-body-gradient-b: rgba(14, 116, 144, 0.11);
-  --bg-body-base: #eef4fb;
+  --bg-body-gradient-a: rgba(14, 165, 233, 0.18);
+  --bg-body-gradient-b: rgba(20, 184, 166, 0.14);
+  --bg-body-base: #eef4ff;
   --bg-grid-line: rgba(148, 163, 184, 0.08);
   --bg-grid-opacity: 1;
-  --bg-orb-a: rgba(56, 189, 248, 0.26);
-  --bg-orb-b: rgba(13, 76, 196, 0.16);
+  --bg-orb-a: rgba(56, 189, 248, 0.32);
+  --bg-orb-b: rgba(16, 185, 129, 0.22);
   --bg-line-highlight: rgba(14, 165, 233, 0.18);
   --feature-section-bg: rgba(255, 255, 255, 0.8);
   --footer-bg: rgba(255, 255, 255, 0.92);
@@ -53,8 +53,8 @@
   --scrollbar-thumb: rgba(14, 116, 144, 0.38);
   --scrollbar-thumb-hover: rgba(14, 116, 144, 0.58);
 
-  --font-family: 'Manrope', 'Segoe UI', sans-serif;
-  --font-display: 'Space Grotesk', 'Segoe UI', sans-serif;
+  --font-family: 'Outfit', 'Manrope', 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', 'Outfit', 'Segoe UI', sans-serif;
   --font-xs: 0.75rem;
   --font-sm: 0.85rem;
   --font-base: 0.96rem;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -34,6 +35,64 @@ import AdminAnalytics from './pages/admin/AdminAnalytics';
 import DevTools from './pages/admin/DevTools';
 import Logs from './pages/logs/Logs';
 
+const pageVariants = {
+    initial: { opacity: 0, y: 18 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+    exit: { opacity: 0, y: -12, transition: { duration: 0.25, ease: 'easeInOut' } }
+};
+
+const PageTransition = ({ children }) => (
+    <motion.div className="page-transition" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+        {children}
+    </motion.div>
+);
+
+const withTransition = (node) => <PageTransition>{node}</PageTransition>;
+
+function AnimatedRoutes() {
+    const location = useLocation();
+
+    return (
+        <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+                {/* Public */}
+                <Route path="/" element={withTransition(<Home />)} />
+                <Route path="/about" element={withTransition(<About />)} />
+                <Route path="/developers" element={withTransition(<Developers />)} />
+                <Route path="/contact" element={withTransition(<Contact />)} />
+
+                {/* Auth */}
+                <Route path="/login" element={withTransition(<Login />)} />
+                <Route path="/register" element={withTransition(<Register />)} />
+
+                {/* Citizen */}
+                <Route path="/citizen" element={withTransition(<ProtectedRoute allowedRoles={['citizen']}><CitizenDashboard /></ProtectedRoute>)} />
+                <Route path="/citizen/report" element={withTransition(<ProtectedRoute allowedRoles={['citizen']}><NewComplaint /></ProtectedRoute>)} />
+                <Route path="/citizen/complaints" element={withTransition(<ProtectedRoute allowedRoles={['citizen']}><CitizenComplaints /></ProtectedRoute>)} />
+                <Route path="/citizen/complaint/:id" element={withTransition(<ProtectedRoute allowedRoles={['citizen', 'admin', 'super_admin']}><ComplaintDetail /></ProtectedRoute>)} />
+
+                {/* Officer */}
+                <Route path="/officer" element={withTransition(<ProtectedRoute allowedRoles={['officer']}><OfficerDashboard /></ProtectedRoute>)} />
+                <Route path="/officer/complaints" element={withTransition(<ProtectedRoute allowedRoles={['officer']}><OfficerDashboard /></ProtectedRoute>)} />
+                <Route path="/officer/complaint/:id" element={withTransition(<ProtectedRoute allowedRoles={['officer', 'admin', 'super_admin']}><OfficerComplaintManage /></ProtectedRoute>)} />
+
+                {/* Admin */}
+                <Route path="/admin" element={withTransition(<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminDashboard /></ProtectedRoute>)} />
+                <Route path="/admin/complaints" element={withTransition(<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminComplaints /></ProtectedRoute>)} />
+                <Route path="/admin/complaint/:id" element={withTransition(<ProtectedRoute allowedRoles={['admin', 'super_admin']}><ComplaintDetail /></ProtectedRoute>)} />
+                <Route path="/admin/offices" element={withTransition(<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminOffices /></ProtectedRoute>)} />
+                <Route path="/admin/zones" element={withTransition(<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminZones /></ProtectedRoute>)} />
+                <Route path="/admin/analytics" element={withTransition(<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminAnalytics /></ProtectedRoute>)} />
+                <Route path="/devs" element={withTransition(<ProtectedRoute allowedRoles={['super_admin']}><DevTools /></ProtectedRoute>)} />
+                <Route path="/logs" element={withTransition(<ProtectedRoute allowedRoles={['admin', 'super_admin']}><Logs /></ProtectedRoute>)} />
+
+                {/* Catch-all */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </AnimatePresence>
+    );
+}
+
 export default function App() {
     const [showSplash, setShowSplash] = useState(true);
 
@@ -52,41 +111,7 @@ export default function App() {
             ) : (
                 <BrowserRouter>
                     <AuthProvider>
-                        <Routes>
-                        {/* Public */}
-                        <Route path="/" element={<Home />} />
-                        <Route path="/about" element={<About />} />
-                        <Route path="/developers" element={<Developers />} />
-                        <Route path="/contact" element={<Contact />} />
-
-                        {/* Auth */}
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/register" element={<Register />} />
-
-                        {/* Citizen */}
-                        <Route path="/citizen" element={<ProtectedRoute allowedRoles={['citizen']}><CitizenDashboard /></ProtectedRoute>} />
-                        <Route path="/citizen/report" element={<ProtectedRoute allowedRoles={['citizen']}><NewComplaint /></ProtectedRoute>} />
-                        <Route path="/citizen/complaints" element={<ProtectedRoute allowedRoles={['citizen']}><CitizenComplaints /></ProtectedRoute>} />
-                        <Route path="/citizen/complaint/:id" element={<ProtectedRoute allowedRoles={['citizen', 'admin', 'super_admin']}><ComplaintDetail /></ProtectedRoute>} />
-
-                        {/* Officer */}
-                        <Route path="/officer" element={<ProtectedRoute allowedRoles={['officer']}><OfficerDashboard /></ProtectedRoute>} />
-                        <Route path="/officer/complaints" element={<ProtectedRoute allowedRoles={['officer']}><OfficerDashboard /></ProtectedRoute>} />
-                        <Route path="/officer/complaint/:id" element={<ProtectedRoute allowedRoles={['officer', 'admin', 'super_admin']}><OfficerComplaintManage /></ProtectedRoute>} />
-
-                        {/* Admin */}
-                        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminDashboard /></ProtectedRoute>} />
-                        <Route path="/admin/complaints" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminComplaints /></ProtectedRoute>} />
-                        <Route path="/admin/complaint/:id" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><ComplaintDetail /></ProtectedRoute>} />
-                        <Route path="/admin/offices" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminOffices /></ProtectedRoute>} />
-                        <Route path="/admin/zones" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminZones /></ProtectedRoute>} />
-                        <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminAnalytics /></ProtectedRoute>} />
-                        <Route path="/devs" element={<ProtectedRoute allowedRoles={['super_admin']}><DevTools /></ProtectedRoute>} />
-                        <Route path="/logs" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><Logs /></ProtectedRoute>} />
-
-                        {/* Catch-all */}
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
+                        <AnimatedRoutes />
                     </AuthProvider>
                 </BrowserRouter>
             )}

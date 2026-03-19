@@ -77,6 +77,19 @@ export default function CitizenDashboard() {
     const highPriority = complaints.filter((item) => ['high', 'critical'].includes(item?.priority?.level)).length;
     const prioritizedRecent = sortComplaintsByPriorityAndDate(complaints).slice(0, 6);
     const completionRate = total ? Math.round((resolved / total) * 100) : 0;
+    const completionNote =
+        completionRate >= 80 ? 'Strong progress' : completionRate >= 60 ? 'Steady progress' : 'Needs follow-up';
+    const guidanceNotes = [
+        pending > 0
+            ? `You have ${pending} open complaint(s). Keep an eye on status updates.`
+            : 'No open complaints right now. You are all caught up.',
+        highPriority > 0
+            ? `${highPriority} complaint(s) are high priority. Expect faster updates on these.`
+            : 'No high-priority complaints at the moment.',
+        rejected > 0
+            ? `${rejected} complaint(s) were rejected. Review the notes for details.`
+            : 'No complaints rejected in your recent history.'
+    ];
 
     if (loading) return <DashboardLayout><LoadingSpinner fullPage /></DashboardLayout>;
 
@@ -148,6 +161,48 @@ export default function CitizenDashboard() {
                 <StatsCard icon={<HiOutlineClock />} label="Pending" value={pending} color="warning" />
                 <StatsCard icon={<HiOutlineExclamationTriangle />} label="Rejected" value={rejected} color="danger" />
             </div>
+
+            <section className="mb-6 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+                <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-xl text-sky-700">
+                            <HiOutlineSparkles />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-950">Your impact snapshot</h2>
+                            <p className="text-sm text-slate-500">{completionNote} on your reported issues.</p>
+                        </div>
+                    </div>
+                    <div className="mt-5 space-y-3">
+                        {guidanceNotes.map((note) => (
+                            <div key={note} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                                {note}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-950">Quick actions</h2>
+                            <p className="text-sm text-slate-500">Manage your reports in a few clicks.</p>
+                        </div>
+                        <Link to="/citizen/report" className="btn btn-primary btn-sm">
+                            <HiOutlinePlusCircle />
+                            New report
+                        </Link>
+                    </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        <Link to="/citizen/complaints" className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700 transition hover:border-sky-200 hover:bg-sky-50/70">
+                            View all complaints
+                        </Link>
+                        <Link to="/citizen/report" className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700 transition hover:border-sky-200 hover:bg-sky-50/70">
+                            Submit a new issue
+                        </Link>
+                    </div>
+                </div>
+            </section>
 
             <section className="mb-6 grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
                 <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_55px_-34px_rgba(15,23,42,0.45)]">

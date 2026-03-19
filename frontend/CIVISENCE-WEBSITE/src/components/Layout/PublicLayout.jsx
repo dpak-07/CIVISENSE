@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { getRolePath } from '../../utils/helpers';
 import CiviSenseLogo from '../branding/CiviSenseLogo';
+import ScrollProgressBar from '../ScrollProgressBar';
 import { ANDROID_APK_URL, IOS_FUNNY_NOTE } from '../../constants/appLinks';
 
 const navItems = [
@@ -40,11 +41,12 @@ export default function PublicLayout({ children }) {
 
     return (
         <div className="min-h-screen text-slate-900">
+            <ScrollProgressBar />
             <div className="border-b border-slate-200/60 bg-slate-950 text-white">
                 <div className="container flex flex-col gap-2 py-3 text-xs font-semibold uppercase tracking-[0.24em] sm:flex-row sm:items-center sm:justify-between">
                     <span className="flex items-center gap-2 text-slate-200">
                         <HiOutlineSparkles className="text-sm text-sky-300" />
-                        Public complaint reporting portal
+                        Civic operations platform
                     </span>
                     <a
                         href={ANDROID_APK_URL}
@@ -67,7 +69,7 @@ export default function PublicLayout({ children }) {
                         <div>
                             <p className="font-display text-xl font-bold text-slate-950">CiviSense</p>
                             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                                City issue reporting portal
+                                Citizen reporting and office action
                             </p>
                         </div>
                     </Link>
@@ -172,7 +174,7 @@ export default function PublicLayout({ children }) {
                             </div>
                             <div>
                                 <h3 className="text-2xl font-bold text-slate-950">CiviSense</h3>
-                                <p className="text-sm text-slate-500">Complaint reporting and tracking for city services.</p>
+                                <p className="text-sm text-slate-500">Complaint reporting and coordination for city services.</p>
                             </div>
                         </div>
                         <p className="max-w-2xl text-sm leading-7 text-slate-600">

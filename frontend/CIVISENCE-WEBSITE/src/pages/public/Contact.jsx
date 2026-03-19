@@ -32,6 +32,21 @@ const contactCards = [
     }
 ];
 
+const supportHighlights = [
+    {
+        title: 'Deployment planning',
+        description: 'Scope the rollout, office onboarding, and phased launches with your team.'
+    },
+    {
+        title: 'Training & handover',
+        description: 'Guided sessions for citizen support, officer workflows, and admin oversight.'
+    },
+    {
+        title: 'Operational support',
+        description: 'Ongoing monitoring, escalation playbooks, and performance reviews.'
+    }
+];
+
 export default function Contact() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [loading, setLoading] = useState(false);
@@ -95,6 +110,24 @@ export default function Contact() {
                                         </div>
                                     );
                                 })}
+                            </div>
+
+                            <div className="section-shell mt-6 p-5">
+                                <div className="section-shell__content">
+                                    <p className="text-sm font-bold uppercase tracking-[0.22em] text-sky-700">Support promise</p>
+                                    <h2 className="mt-3 text-2xl font-bold text-slate-950">Production-ready rollout guidance</h2>
+                                    <p className="mt-3 text-sm leading-7 text-slate-600">
+                                        We help teams plan a smooth launch, set response workflows, and train office users for day-one adoption.
+                                    </p>
+                                    <div className="mt-4 grid gap-3">
+                                        {supportHighlights.map((item) => (
+                                            <div key={item.title} className="rounded-3xl border border-slate-200 bg-white px-4 py-3">
+                                                <p className="text-sm font-semibold text-slate-950">{item.title}</p>
+                                                <p className="text-xs text-slate-500">{item.description}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
