@@ -15,8 +15,17 @@ ssh -i /path/to/your-key.pem ec2-user@<EC2_PUBLIC_IP>
 On the EC2 instance:
 
 ```bash
+## Ubuntu EC2 (apt-based):
+sudo apt update
+sudo apt install -y docker.io docker-compose git curl
+sudo systemctl enable --now docker
+sudo usermod -aG docker ubuntu
+newgrp docker
+docker compose version
+
+## Amazon Linux (dnf-based):
 sudo dnf update -y
-sudo dnf install -y docker git
+sudo dnf install -y docker git docker-compose-plugin
 sudo systemctl enable --now docker
 sudo usermod -aG docker ec2-user
 newgrp docker

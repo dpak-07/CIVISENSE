@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     civic_classifier_score_weight: float = Field(4.2, alias="CIVIC_CLASSIFIER_SCORE_WEIGHT")
     civic_classifier_min_confidence: float = Field(0.5, alias="CIVIC_CLASSIFIER_MIN_CONFIDENCE")
     reason_nlp_enabled: bool = Field(True, alias="REASON_NLP_ENABLED")
-    hf_reason_model_name: str = Field("google/flan-t5-small", alias="HF_REASON_MODEL_NAME")
+    hf_reason_model_name: str = Field("google/flan-t5-base", alias="HF_REASON_MODEL_NAME")
     hf_reason_max_new_tokens: int = Field(72, alias="HF_REASON_MAX_NEW_TOKENS")
     category_validation_review_confidence: float = Field(
         0.6,
