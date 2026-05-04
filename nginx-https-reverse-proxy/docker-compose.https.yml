@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  frontend:
+    build: .
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+    environment:
+      - DOMAIN
+      - EMAIL
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - backend
+      - ai-service
+    restart: unless-stopped
+
+volumes:
+  letsencrypt:
