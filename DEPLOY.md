@@ -89,7 +89,7 @@ mongosh --eval "rs.initiate()"
 
 ## Step 4: Clone Project
 
-```bash
+```bash 
 sudo mkdir -p /var/www
 sudo chown -R ec2-user:ec2-user /var/www
 cd /var/www
