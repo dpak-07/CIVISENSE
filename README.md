@@ -48,6 +48,20 @@ npm ci
 npm run dev
 ```
 
+## Docker Production
+
+For an EC2/container deployment, copy the Docker env template and start the stack:
+
+```bash
+cp .env.docker.example .env
+# Fill the required blank values in .env first.
+docker compose up -d --build
+```
+
+Full EC2 steps are in `DEPLOY_DOCKER_EC2.md`.
+
+For a brand-new EC2 instance, start with `EC2_FRESH_INSTANCE_README.md`.
+
 ## Quality and CI
 
 - Backend tests: `cd backend && npm test`
