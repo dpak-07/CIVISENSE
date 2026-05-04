@@ -22,10 +22,9 @@ RUN apt-get update \
         libxrender1 \
         libatk-bridge2.0-0 \
         libgtk-3-0 \
-        libgl1-mesa-glx \
+        libgl1 \
         libglx0 \
         libegl1 \
-        libdbus-glib-1-2 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
