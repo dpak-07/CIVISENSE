@@ -54,6 +54,11 @@ Start the stack:
 ```bash
 docker compose up -d --build
 docker compose ps
+
+**HTTPS Setup** (after domain points to IP):
+1. cd nginx-https-reverse-proxy
+2. DOMAIN=yourdomain.com EMAIL=admin@yourdomain.com docker compose up -d --build
+3. https://yourdomain.com ready (Certbot auto)
 ```
 
 First startup can take several minutes because the AI service downloads model files. Watch logs:

@@ -30,8 +30,18 @@ sudo systemctl enable --now docker
 sudo usermod -aG docker ec2-user
 newgrp docker
 docker compose version
-```
 
+**HTTPS + Domain Setup**
+1. cd nginx-https-reverse-proxy
+2. Edit nginx.conf: replace 'yourdomain.com' with your domain
+3. cp docker-compose.override.yml ../
+4. cd ..
+5. DOMAIN=yourdomain.com EMAIL=admin@yourdomain.com docker compose up -d --build frontend
+6. Point A record to EC2 IP (ports 80/443 open)
+
+Certbot auto-certificates. HTTPS ready.
+
+```
 If `docker compose version` works, Docker is ready.
 
 ## 3. Get the Project
