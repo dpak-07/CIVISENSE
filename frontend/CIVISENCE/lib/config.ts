@@ -1,14 +1,14 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-const DEFAULT_PROD_API_BASE_URL = "https://civisence.duckdns.org/api";
+const DEFAULT_PROD_API_BASE_URL = "http://13.200.19.117/api";
 const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || "";
 const envBaseUrls = process.env.EXPO_PUBLIC_API_BASE_URLS || "";
 const envFallbackBaseUrls = process.env.EXPO_PUBLIC_API_BASE_URL_FALLBACKS || "";
 const PROD_API_BASE_URLS = [
   DEFAULT_PROD_API_BASE_URL,
-  "http://43.204.139.225/api",
 ];
+const LOCAL_BACKEND_PORT = "5000";
 
 const normalizeBaseUrl = (value: string): string =>
   value.trim().replace(/\/+$/, "");
@@ -96,6 +96,32 @@ const resolveExpoHost = (): string | null => {
   return null;
 };
 
+const buildApiUrlForHost = (host: string): string =>
+  `http://${host}:${LOCAL_BACKEND_PORT}/api`;
+
+const resolveDevelopmentBaseUrls = (): string[] => {
+  if (!__DEV__) {
+    return [];
+  }
+
+  const urls: string[] = [];
+
+  if (Platform.OS === "web") {
+    urls.push(buildApiUrlForHost("localhost"));
+  }
+
+  const expoHost = resolveExpoHost();
+  if (expoHost) {
+    urls.push(buildApiUrlForHost(expoHost));
+  }
+
+  if (Platform.OS === "android") {
+    urls.push(buildApiUrlForHost("10.0.2.2"));
+  }
+
+  return urls;
+};
+
 const resolveSingleEnvBaseUrl = (value: string): string | null => {
   if (!value) {
     return null;
@@ -140,18 +166,23 @@ const resolveApiBaseUrls = (): string[] => {
     .filter((url): url is string => Boolean(url))
     .map(normalizeBaseUrl);
 
-  const dedupedResolvedEnvUrls = Array.from(
-    new Map(resolvedEnvUrls.map((url) => [url.toLowerCase(), url])).values()
+  const developmentUrls = resolveDevelopmentBaseUrls().map(normalizeBaseUrl);
+  const preferredUrls = __DEV__
+    ? [...developmentUrls, ...resolvedEnvUrls]
+    : resolvedEnvUrls;
+
+  const dedupedPreferredUrls = Array.from(
+    new Map(preferredUrls.map((url) => [url.toLowerCase(), url])).values()
   );
 
-  if (dedupedResolvedEnvUrls.length > 0) {
+  if (dedupedPreferredUrls.length > 0) {
     const prodFallbacks = PROD_API_BASE_URLS.map(normalizeBaseUrl).filter(
       (url) =>
-        !dedupedResolvedEnvUrls.some(
+        !dedupedPreferredUrls.some(
           (configured) => configured.toLowerCase() === url.toLowerCase()
         )
     );
-    return [...dedupedResolvedEnvUrls, ...prodFallbacks];
+    return [...dedupedPreferredUrls, ...prodFallbacks];
   }
 
   return PROD_API_BASE_URLS.map(normalizeBaseUrl);
