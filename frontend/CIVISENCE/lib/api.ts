@@ -31,7 +31,7 @@ const isNetworkLikeAxiosError = (error: AxiosError<ApiErrorBody>): boolean => {
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 20000,
+  timeout: 300000,
 });
 
 let isClearingUnauthorizedSession = false;
