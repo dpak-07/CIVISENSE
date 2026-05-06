@@ -12,6 +12,16 @@ export const updateMunicipalOffice = (id, data) =>
 export const deleteMunicipalOffice = (id) =>
     api.delete(`/municipal-offices/${id}`);
 
+export const importMunicipalOffices = (formData) =>
+    api.post('/municipal-offices/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+export const downloadMunicipalOfficeTemplate = () =>
+    api.get('/municipal-offices/import-template', {
+        responseType: 'blob'
+    });
+
 // Short aliases
 export const getOffices = getMunicipalOffices;
 export const createOffice = createMunicipalOffice;

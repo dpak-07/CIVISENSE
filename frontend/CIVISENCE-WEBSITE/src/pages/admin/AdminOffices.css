@@ -144,6 +144,46 @@
     font-weight: 600;
 }
 
+.admin-import-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.admin-import-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 10px 14px;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-soft);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: var(--font-sm);
+    font-weight: 600;
+}
+
+.admin-import-upload input[type='file'] {
+    display: none;
+}
+
+.admin-import-upload.is-disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.admin-import-note {
+    margin-bottom: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: rgba(13, 148, 136, 0.12);
+    border: 1px solid rgba(13, 148, 136, 0.24);
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+}
+
 .admin-offices__section-title {
     margin-top: var(--space-8);
     margin-bottom: var(--space-4);

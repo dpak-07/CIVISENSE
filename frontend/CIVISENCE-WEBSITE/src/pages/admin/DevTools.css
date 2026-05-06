@@ -94,6 +94,34 @@
     font-size: var(--font-xs);
 }
 
+.dev-upload-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.dev-upload-progress__bar {
+    flex: 1;
+    min-width: 180px;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(15, 23, 42, 0.08);
+}
+
+.dev-upload-progress__bar span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #0f766e, #14b8a6);
+    transition: width 160ms ease;
+}
+
+.dev-upload-progress__label {
+    font-size: var(--font-xs);
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
 .dev-user-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

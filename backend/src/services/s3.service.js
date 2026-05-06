@@ -62,8 +62,8 @@ const uploadStreamToS3 = async (stream, key, mimetype) => {
 
     const responseMessage =
       env.nodeEnv === 'development'
-        ? `Failed to upload image to storage: ${error.message}`
-        : 'Failed to upload image to storage';
+        ? `Failed to upload file to storage: ${error.message}`
+        : 'Failed to upload file to storage';
 
     throw new ApiError(StatusCodes.BAD_GATEWAY, responseMessage);
   }

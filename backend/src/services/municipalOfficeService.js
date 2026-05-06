@@ -8,6 +8,7 @@ const ApiError = require('../utils/ApiError');
 const { buildGoogleMapsLink, normalizeCoordinates, parseCoordinatesFromMapLink } = require('../utils/mapLink');
 const { ROLES } = require('../constants/roles');
 const { ensureDefaultDomainEmail, normalizeEmail } = require('../utils/email');
+const { parseWorkbookRows, getRowValue, buildWorkbookBuffer } = require('../utils/spreadsheet');
 
 const SALT_ROUNDS = 12;
 const DEFAULT_OFFICER_PASSWORD = '1234';
@@ -200,6 +201,7 @@ const createMunicipalOffice = async (payload) => {
     location: locationPayload.location,
     mapLink: locationPayload.mapLink,
     maxCapacity,
+    isActive: typeof payload.isActive === 'boolean' ? payload.isActive : true,
     officerCredentials: officerCredentialSnapshot
   });
 
@@ -421,9 +423,141 @@ const deleteMunicipalOffice = async (officeId) => {
   };
 };
 
+const toBoolean = (value, fallback = true) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (['true', '1', 'yes', 'y', 'active'].includes(normalized)) {
+    return true;
+  }
+
+  if (['false', '0', 'no', 'n', 'inactive'].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+};
+
+const buildOfficePayloadFromRow = (row) => {
+  const rawName = getRowValue(row, ['name', 'officeName']);
+  const rawType = getRowValue(row, ['type', 'officeType']);
+  const rawZone = getRowValue(row, ['zone']);
+  const rawMaxCapacity = getRowValue(row, ['maxCapacity', 'capacity']);
+  const rawMapLink = getRowValue(row, ['mapLink', 'googleMapsLink', 'mapsLink']);
+  const rawLatitude = getRowValue(row, ['latitude', 'lat']);
+  const rawLongitude = getRowValue(row, ['longitude', 'lng', 'lon']);
+  const rawOfficerName = getRowValue(row, ['officerName', 'officeAccountName']);
+  const rawOfficerEmail = getRowValue(row, ['officerEmail', 'officeLoginEmail', 'officeEmail']);
+  const rawOfficerPassword = getRowValue(row, ['officerPassword', 'officePassword']);
+  const rawOfficerIsActive = getRowValue(row, ['officerIsActive', 'accountActive']);
+  const rawIsActive = getRowValue(row, ['isActive', 'officeActive']);
+
+  return {
+    name: String(rawName || '').trim(),
+    type: String(rawType || '').trim().toLowerCase(),
+    zone: String(rawZone || '').trim(),
+    maxCapacity: Number(rawMaxCapacity || 0),
+    mapLink: String(rawMapLink || '').trim(),
+    latitude: rawLatitude === '' ? undefined : Number(rawLatitude),
+    longitude: rawLongitude === '' ? undefined : Number(rawLongitude),
+    officerName: String(rawOfficerName || '').trim(),
+    officerEmail: String(rawOfficerEmail || '').trim(),
+    officerPassword: String(rawOfficerPassword || '').trim(),
+    officerIsActive: toBoolean(rawOfficerIsActive, true),
+    isActive: toBoolean(rawIsActive, true)
+  };
+};
+
+const importMunicipalOffices = async ({ buffer }) => {
+  const rows = parseWorkbookRows(buffer);
+  if (!rows.length) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Spreadsheet does not contain any rows');
+  }
+
+  const created = [];
+  const updated = [];
+  const errors = [];
+
+  for (const [index, row] of rows.entries()) {
+    const rowNumber = index + 2;
+    try {
+      const payload = buildOfficePayloadFromRow(row);
+      if (!payload.name || !payload.type || !payload.zone) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'name, type, and zone are required');
+      }
+
+      const existing = await MunicipalOffice.findOne({
+        name: payload.name,
+        zone: payload.zone
+      }).lean();
+
+      if (existing) {
+        const office = await updateMunicipalOffice(existing._id, payload);
+        updated.push({
+          id: office._id,
+          name: office.name,
+          zone: office.zone
+        });
+      } else {
+        const office = await createMunicipalOffice(payload);
+        created.push({
+          id: office._id,
+          name: office.name,
+          zone: office.zone
+        });
+      }
+    } catch (error) {
+      errors.push({
+        row: rowNumber,
+        name: String(getRowValue(row, ['name', 'officeName']) || '').trim() || null,
+        message: error.message || 'Failed to import office row'
+      });
+    }
+  }
+
+  return {
+    totalRows: rows.length,
+    createdCount: created.length,
+    updatedCount: updated.length,
+    errorCount: errors.length,
+    created,
+    updated,
+    errors
+  };
+};
+
+const buildMunicipalOfficeImportTemplateBuffer = () =>
+  buildWorkbookBuffer({
+    sheetName: 'MunicipalOffices',
+    rows: [
+      {
+        name: 'Central Municipal Office',
+        type: 'main',
+        zone: 'North Zone',
+        maxCapacity: 120,
+        mapLink: buildGoogleMapsLink({ longitude: 80.2707, latitude: 13.0827 }),
+        latitude: 13.0827,
+        longitude: 80.2707,
+        officerName: 'North Zone Officer',
+        officerEmail: 'northzoneoffice@gmail.com',
+        officerPassword: '1234',
+        officerIsActive: true,
+        isActive: true
+      }
+    ]
+  });
+
 module.exports = {
   createMunicipalOffice,
   getMunicipalOffices,
   updateMunicipalOffice,
-  deleteMunicipalOffice
+  deleteMunicipalOffice,
+  importMunicipalOffices,
+  buildMunicipalOfficeImportTemplateBuffer
 };

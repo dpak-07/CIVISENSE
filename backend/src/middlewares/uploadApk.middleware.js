@@ -11,7 +11,8 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/vnd.android.package-archive',
   'application/octet-stream',
   'application/zip',
-  'application/x-zip-compressed'
+  'application/x-zip-compressed',
+  'application/java-archive'
 ]);
 
 const uploadApkBuild = async (req, _res, next) => {

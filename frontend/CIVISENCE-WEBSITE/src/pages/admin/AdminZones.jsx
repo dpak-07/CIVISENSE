@@ -7,7 +7,9 @@ import { useAuth } from '../../context/AuthContext';
 import {
     getSensitiveLocations,
     createSensitiveLocation,
-    updateSensitiveLocation
+    updateSensitiveLocation,
+    importSensitiveLocations,
+    downloadSensitiveLocationTemplate
 } from '../../api/sensitiveLocations';
 import { getErrorMessage } from '../../utils/helpers';
 import { isDemoSession } from '../../utils/authStorage';
@@ -55,6 +57,7 @@ const getCoordinates = (location) => {
 export default function AdminZones() {
     const { user } = useAuth();
     const isSuperAdmin = user?.role === 'super_admin';
+    const canImport = user?.role === 'admin' || user?.role === 'super_admin';
 
     const [zones, setZones] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -63,6 +66,19 @@ export default function AdminZones() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
+    const [importing, setImporting] = useState(false);
+    const [importMessage, setImportMessage] = useState('');
+
+    const downloadBlob = (blob, fileName) => {
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(url);
+    };
 
     useEffect(() => {
         void loadZones();
@@ -265,6 +281,46 @@ export default function AdminZones() {
         setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
+    const handleTemplateDownload = async () => {
+        setError('');
+        setImportMessage('');
+        try {
+            const response = await downloadSensitiveLocationTemplate();
+            downloadBlob(response.data, 'sensitive-location-import-template.xlsx');
+        } catch (err) {
+            setError(getErrorMessage(err));
+        }
+    };
+
+    const handleImportFile = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setImporting(true);
+        setError('');
+        setImportMessage('');
+
+        try {
+            if (isDemoSession()) {
+                throw new Error('Spreadsheet import is unavailable in demo mode.');
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await importSensitiveLocations(formData);
+            const summary = response?.data?.data;
+            setImportMessage(
+                `Imported ${summary?.createdCount || 0} new locations, updated ${summary?.updatedCount || 0}, errors ${summary?.errorCount || 0}.`
+            );
+            await loadZones();
+        } catch (err) {
+            setError(getErrorMessage(err));
+        } finally {
+            event.target.value = '';
+            setImporting(false);
+        }
+    };
+
     return (
         <DashboardLayout>
             <div className="page-header">
@@ -272,13 +328,31 @@ export default function AdminZones() {
                     <h1>Sensitive Zones</h1>
                     <p>Maintain protected locations with map links, priority weight, and status controls.</p>
                 </div>
-                {isSuperAdmin ? (
-                    <button type="button" className="btn btn-primary" onClick={openNew}>
-                        + Add Zone
-                    </button>
-                ) : (
-                    <span className="admin-zones__view-badge">View Only (Super Admin Required)</span>
-                )}
+                <div className="admin-import-actions">
+                    {canImport ? (
+                        <>
+                            <button type="button" className="btn btn-ghost" onClick={handleTemplateDownload}>
+                                Download Sample
+                            </button>
+                            <label className={`admin-import-upload ${importing ? 'is-disabled' : ''}`}>
+                                <span>{importing ? 'Importing...' : 'Import Excel'}</span>
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls,.csv"
+                                    onChange={handleImportFile}
+                                    disabled={importing}
+                                />
+                            </label>
+                        </>
+                    ) : null}
+                    {isSuperAdmin ? (
+                        <button type="button" className="btn btn-primary" onClick={openNew}>
+                            + Add Zone
+                        </button>
+                    ) : (
+                        <span className="admin-zones__view-badge">View Only (Super Admin Required)</span>
+                    )}
+                </div>
             </div>
 
             {loading ? (
@@ -286,6 +360,7 @@ export default function AdminZones() {
             ) : (
                 <>
                     {error && <div className="auth-error" style={{ marginBottom: 'var(--space-4)' }}>{error}</div>}
+                    {importMessage ? <div className="admin-import-note">{importMessage}</div> : null}
                     {sortedZones.length === 0 ? (
                         <EmptyState title="No zones configured" message="No sensitive zones available." />
                     ) : (

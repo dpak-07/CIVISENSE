@@ -57,6 +57,7 @@ export default function DevTools() {
     const [loading, setLoading] = useState(true);
     const [savingConfig, setSavingConfig] = useState(false);
     const [uploadingApk, setUploadingApk] = useState(false);
+    const [apkUploadProgress, setApkUploadProgress] = useState(0);
     const [savingUsers, setSavingUsers] = useState({});
     const [deletingUsers, setDeletingUsers] = useState({});
     const [savingDevelopers, setSavingDevelopers] = useState({});
@@ -204,12 +205,18 @@ export default function DevTools() {
         }
 
         setUploadingApk(true);
+        setApkUploadProgress(0);
         setError('');
         setSuccess('');
         try {
             const formData = new FormData();
             formData.append('apk', file);
-            const response = await uploadDevAppApk(formData);
+            const response = await uploadDevAppApk(formData, (progressEvent) => {
+                const total = Number(progressEvent?.total || 0);
+                const loaded = Number(progressEvent?.loaded || 0);
+                if (!total) return;
+                setApkUploadProgress(Math.min(100, Math.round((loaded / total) * 100)));
+            });
             const nextApkUrl =
                 response?.data?.data?.uploadedApkUrl || response?.data?.data?.androidApkUrl || '';
 
@@ -223,6 +230,7 @@ export default function DevTools() {
         } finally {
             event.target.value = '';
             setUploadingApk(false);
+            setTimeout(() => setApkUploadProgress(0), 1200);
         }
     };
 
@@ -745,7 +753,7 @@ export default function DevTools() {
                             <label>Upload APK File to S3</label>
                             <label className="dev-upload-field">
                                 <HiOutlineArrowUpTray />
-                                <span>{uploadingApk ? 'Uploading...' : 'Choose APK and Upload'}</span>
+                                <span>{uploadingApk ? `Uploading ${apkUploadProgress}%` : 'Choose APK and Upload'}</span>
                                 <input
                                     type="file"
                                     accept=".apk,application/vnd.android.package-archive"
@@ -753,6 +761,14 @@ export default function DevTools() {
                                     disabled={uploadingApk}
                                 />
                             </label>
+                            {uploadingApk ? (
+                                <div className="dev-upload-progress" aria-live="polite">
+                                    <div className="dev-upload-progress__bar">
+                                        <span style={{ width: `${apkUploadProgress}%` }} />
+                                    </div>
+                                    <span className="dev-upload-progress__label">{apkUploadProgress}% uploaded</span>
+                                </div>
+                            ) : null}
                             <small className="dev-help-text">
                                 Uploading will push file to S3 and auto-update Android APK URL.
                             </small>

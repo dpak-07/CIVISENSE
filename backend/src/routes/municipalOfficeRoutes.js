@@ -2,12 +2,24 @@
 const municipalOfficeController = require('../controllers/municipalOfficeController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const allowRoles = require('../middlewares/roleMiddleware');
+const uploadSpreadsheet = require('../middlewares/uploadSpreadsheet.middleware');
 const { ROLES } = require('../constants/roles');
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
+router.post(
+  '/import',
+  allowRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  uploadSpreadsheet,
+  municipalOfficeController.importMunicipalOffices
+);
+router.get(
+  '/import-template',
+  allowRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  municipalOfficeController.downloadMunicipalOfficeTemplate
+);
 router.post(
   '/',
   allowRoles(ROLES.SUPER_ADMIN),

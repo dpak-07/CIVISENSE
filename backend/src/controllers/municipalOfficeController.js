@@ -12,6 +12,26 @@ const getMunicipalOffices = asyncHandler(async (req, res) => {
   res.status(StatusCodes.OK).json({ success: true, data: offices });
 });
 
+const importMunicipalOffices = asyncHandler(async (req, res) => {
+  const result = await municipalOfficeService.importMunicipalOffices({
+    buffer: req.uploadedSpreadsheet?.buffer
+  });
+  res.status(StatusCodes.OK).json({ success: true, data: result });
+});
+
+const downloadMunicipalOfficeTemplate = asyncHandler(async (_req, res) => {
+  const buffer = await municipalOfficeService.buildMunicipalOfficeImportTemplateBuffer();
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+  res.setHeader(
+    'Content-Disposition',
+    'attachment; filename="municipal-office-import-template.xlsx"'
+  );
+  res.status(StatusCodes.OK).send(buffer);
+});
+
 const updateMunicipalOffice = asyncHandler(async (req, res) => {
   const office = await municipalOfficeService.updateMunicipalOffice(req.params.id, req.body);
   res.status(StatusCodes.OK).json({ success: true, data: office });
@@ -25,6 +45,8 @@ const deleteMunicipalOffice = asyncHandler(async (req, res) => {
 module.exports = {
   createMunicipalOffice,
   getMunicipalOffices,
+  importMunicipalOffices,
+  downloadMunicipalOfficeTemplate,
   updateMunicipalOffice,
   deleteMunicipalOffice
 };

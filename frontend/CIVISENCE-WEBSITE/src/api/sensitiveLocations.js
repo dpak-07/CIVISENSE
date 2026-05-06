@@ -11,3 +11,13 @@ export const updateSensitiveLocation = (id, payload) =>
 
 export const deleteSensitiveLocation = (id) =>
     api.delete(`/sensitive-locations/${id}`);
+
+export const importSensitiveLocations = (formData) =>
+    api.post('/sensitive-locations/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+export const downloadSensitiveLocationTemplate = () =>
+    api.get('/sensitive-locations/import-template', {
+        responseType: 'blob'
+    });

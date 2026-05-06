@@ -4,7 +4,13 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import EmptyState from '../../components/EmptyState';
 import Modal from '../../components/Modal';
 import { useAuth } from '../../context/AuthContext';
-import { getOffices, createOffice, updateOffice } from '../../api/offices';
+import {
+    getOffices,
+    createOffice,
+    updateOffice,
+    importMunicipalOffices,
+    downloadMunicipalOfficeTemplate
+} from '../../api/offices';
 import { getSensitiveLocations } from '../../api/sensitiveLocations';
 import { getErrorMessage } from '../../utils/helpers';
 import { isDemoSession } from '../../utils/authStorage';
@@ -45,6 +51,7 @@ const getCoordinateText = (office) => {
 export default function AdminOffices() {
     const { user } = useAuth();
     const isSuperAdmin = user?.role === 'super_admin';
+    const canImport = user?.role === 'admin' || user?.role === 'super_admin';
 
     const [offices, setOffices] = useState([]);
     const [sensitiveLocations, setSensitiveLocations] = useState([]);
@@ -55,6 +62,19 @@ export default function AdminOffices() {
     const [officeForm, setOfficeForm] = useState(EMPTY_OFFICE_FORM);
     const [officeError, setOfficeError] = useState('');
     const [officeSaving, setOfficeSaving] = useState(false);
+    const [officeImporting, setOfficeImporting] = useState(false);
+    const [officeImportMessage, setOfficeImportMessage] = useState('');
+
+    const downloadBlob = (blob, fileName) => {
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(url);
+    };
 
     useEffect(() => {
         void loadAll();
@@ -280,6 +300,46 @@ export default function AdminOffices() {
         setOfficeForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
+    const handleOfficeTemplateDownload = async () => {
+        setOfficeError('');
+        setOfficeImportMessage('');
+        try {
+            const response = await downloadMunicipalOfficeTemplate();
+            downloadBlob(response.data, 'municipal-office-import-template.xlsx');
+        } catch (err) {
+            setOfficeError(getErrorMessage(err));
+        }
+    };
+
+    const handleOfficeImportFile = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setOfficeImporting(true);
+        setOfficeError('');
+        setOfficeImportMessage('');
+
+        try {
+            if (isDemoSession()) {
+                throw new Error('Spreadsheet import is unavailable in demo mode.');
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await importMunicipalOffices(formData);
+            const summary = response?.data?.data;
+            setOfficeImportMessage(
+                `Imported ${summary?.createdCount || 0} new offices, updated ${summary?.updatedCount || 0}, errors ${summary?.errorCount || 0}.`
+            );
+            await loadAll();
+        } catch (err) {
+            setOfficeError(getErrorMessage(err));
+        } finally {
+            event.target.value = '';
+            setOfficeImporting(false);
+        }
+    };
+
     const activeSensitiveCount = sensitiveLocations.filter((item) => item?.isActive !== false).length;
 
     return (
@@ -292,11 +352,29 @@ export default function AdminOffices() {
                         {activeSensitiveCount > 0 ? ` Active sensitive locations fetched: ${activeSensitiveCount}.` : ''}
                     </p>
                 </div>
-                {isSuperAdmin ? (
-                    <button className="btn btn-primary" onClick={openNewOffice}>+ Add Office</button>
-                ) : (
-                    <span className="admin-offices__view-badge">View Only (Super Admin Required)</span>
-                )}
+                <div className="admin-import-actions">
+                    {canImport ? (
+                        <>
+                            <button type="button" className="btn btn-ghost" onClick={handleOfficeTemplateDownload}>
+                                Download Sample
+                            </button>
+                            <label className={`admin-import-upload ${officeImporting ? 'is-disabled' : ''}`}>
+                                <span>{officeImporting ? 'Importing...' : 'Import Excel'}</span>
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls,.csv"
+                                    onChange={handleOfficeImportFile}
+                                    disabled={officeImporting}
+                                />
+                            </label>
+                        </>
+                    ) : null}
+                    {isSuperAdmin ? (
+                        <button className="btn btn-primary" onClick={openNewOffice}>+ Add Office</button>
+                    ) : (
+                        <span className="admin-offices__view-badge">View Only (Super Admin Required)</span>
+                    )}
+                </div>
             </div>
 
             {loading ? (
@@ -304,6 +382,7 @@ export default function AdminOffices() {
             ) : (
                 <>
                     {officeError && <div className="auth-error" style={{ marginBottom: 'var(--space-4)' }}>{officeError}</div>}
+                    {officeImportMessage ? <div className="admin-import-note">{officeImportMessage}</div> : null}
                     {offices.length === 0 ? (
                         <EmptyState title="No offices" message="No municipal offices available." />
                     ) : (

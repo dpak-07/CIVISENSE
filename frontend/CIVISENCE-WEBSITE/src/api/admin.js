@@ -3,9 +3,10 @@ import api from './axios';
 export const getDashboardMetrics = () => api.get('/admin/dashboard');
 export const getDevToolsData = () => api.get('/admin/dev-tools');
 export const updateDevAppConfig = (payload) => api.patch('/admin/dev-tools/app-config', payload);
-export const uploadDevAppApk = (formData) =>
+export const uploadDevAppApk = (formData, onUploadProgress) =>
     api.post('/admin/dev-tools/app-config/upload-apk', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress
     });
 export const getDevDevelopers = () => api.get('/admin/dev-tools/developers');
 export const createDevDeveloper = (payload) => api.post('/admin/dev-tools/developers', payload);

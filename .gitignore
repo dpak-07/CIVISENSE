@@ -145,6 +145,10 @@ ai_service/yolov8n.pt
 .env.local
 .env.*.local
 .env.production
+.env.backend.production
+.env.ai.production
+.env.website.production
+.env.mobile.production
 **/.env.production
 backend/.env
 ai_service/.env

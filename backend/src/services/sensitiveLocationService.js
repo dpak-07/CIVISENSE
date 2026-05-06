@@ -7,6 +7,7 @@ const {
   parseCoordinatesFromMapLink,
   buildGoogleMapsLink
 } = require('../utils/mapLink');
+const { parseWorkbookRows, getRowValue, buildWorkbookBuffer } = require('../utils/spreadsheet');
 
 const DEFAULT_PRIORITY_WEIGHT = 1;
 const DEFAULT_RADIUS_METERS = 150;
@@ -343,10 +344,136 @@ const deleteSensitiveLocation = async (locationId) => {
   };
 };
 
+const toBoolean = (value, fallback = true) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (['true', '1', 'yes', 'y', 'active'].includes(normalized)) {
+    return true;
+  }
+
+  if (['false', '0', 'no', 'n', 'inactive'].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+};
+
+const buildSensitivePayloadFromRow = (row) => {
+  const rawLatitude = getRowValue(row, ['latitude', 'lat']);
+  const rawLongitude = getRowValue(row, ['longitude', 'lng', 'lon']);
+
+  return {
+    name: String(getRowValue(row, ['name']) || '').trim(),
+    type: String(getRowValue(row, ['type', 'category']) || '')
+      .trim()
+      .toLowerCase(),
+    priorityWeight: Number(getRowValue(row, ['priorityWeight', 'priority']) || DEFAULT_PRIORITY_WEIGHT),
+    description: String(getRowValue(row, ['description']) || '').trim(),
+    radiusMeters: Number(getRowValue(row, ['radiusMeters', 'radius']) || DEFAULT_RADIUS_METERS),
+    mapLink: String(getRowValue(row, ['mapLink', 'googleMapsLink', 'mapsLink']) || '').trim(),
+    latitude: rawLatitude === '' ? undefined : Number(rawLatitude),
+    longitude: rawLongitude === '' ? undefined : Number(rawLongitude),
+    isActive: toBoolean(getRowValue(row, ['isActive']), true)
+  };
+};
+
+const importSensitiveLocations = async ({ buffer, createdBy }) => {
+  const rows = parseWorkbookRows(buffer);
+  if (!rows.length) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Spreadsheet does not contain any rows');
+  }
+
+  const created = [];
+  const updated = [];
+  const errors = [];
+
+  for (const [index, row] of rows.entries()) {
+    const rowNumber = index + 2;
+    try {
+      const payload = buildSensitivePayloadFromRow(row);
+      if (!payload.name || !payload.type) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'name and type are required');
+      }
+
+      if (!Number.isFinite(payload.latitude)) {
+        delete payload.latitude;
+      }
+
+      if (!Number.isFinite(payload.longitude)) {
+        delete payload.longitude;
+      }
+
+      const existing = await SensitiveLocation.findOne({
+        name: payload.name,
+        $or: [{ type: payload.type }, { category: payload.type }]
+      }).lean();
+
+      if (existing) {
+        const location = await updateSensitiveLocation(existing._id, payload);
+        updated.push({
+          id: location._id,
+          name: location.name,
+          type: location.type
+        });
+      } else {
+        const location = await createSensitiveLocation(payload, createdBy);
+        created.push({
+          id: location._id,
+          name: location.name,
+          type: location.type
+        });
+      }
+    } catch (error) {
+      errors.push({
+        row: rowNumber,
+        name: String(getRowValue(row, ['name']) || '').trim() || null,
+        message: error.message || 'Failed to import sensitive location row'
+      });
+    }
+  }
+
+  return {
+    totalRows: rows.length,
+    createdCount: created.length,
+    updatedCount: updated.length,
+    errorCount: errors.length,
+    created,
+    updated,
+    errors
+  };
+};
+
+const buildSensitiveLocationImportTemplateBuffer = () =>
+  buildWorkbookBuffer({
+    sheetName: 'SensitiveLocations',
+    rows: [
+      {
+        name: 'City General Hospital',
+        type: 'hospital',
+        priorityWeight: 4,
+        description: 'Emergency care perimeter',
+        radiusMeters: 250,
+        mapLink: buildGoogleMapsLink({ longitude: 80.2785, latitude: 13.0674 }),
+        latitude: 13.0674,
+        longitude: 80.2785,
+        isActive: true
+      }
+    ]
+  });
+
 module.exports = {
   createSensitiveLocation,
   getSensitiveLocations,
   getPublicSensitiveLocations,
   updateSensitiveLocation,
-  deleteSensitiveLocation
+  deleteSensitiveLocation,
+  importSensitiveLocations,
+  buildSensitiveLocationImportTemplateBuffer
 };
