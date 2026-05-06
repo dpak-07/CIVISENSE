@@ -109,7 +109,7 @@ npm ci --omit=dev
 2. Create env file:
 
 ```bash
-cp .env.example .env
+cp .env.ec2.production .env
 nano .env
 ```
 
@@ -152,7 +152,7 @@ deactivate
 2. Configure env:
 
 ```bash
-cp .env.example .env
+cp .env.ec2.production .env
 nano .env
 ```
 
@@ -178,14 +178,24 @@ MONGO_ALLOW_STANDALONE_FALLBACK=true
 
 ## Step 7: Build Website (`/var/www/CIVISENCE/frontend/CIVISENCE-WEBSITE`)
 
-1. Install dependencies:
+1. Configure the website API URL:
+
+```bash
+cd /var/www/CIVISENCE/frontend/CIVISENCE-WEBSITE
+cp .env.ec2.production .env
+nano .env
+```
+
+Set `VITE_API_BASE_URL` to your public API URL, for example `https://your-domain.com/api`.
+
+2. Install dependencies:
 
 ```bash
 cd /var/www/CIVISENCE/frontend/CIVISENCE-WEBSITE
 npm ci
 ```
 
-2. If instance is low memory, create swap temporarily:
+3. If instance is low memory, create swap temporarily:
 
 ```bash
 sudo fallocate -l 4G /swapfile
@@ -195,20 +205,20 @@ sudo swapon /swapfile
 free -h
 ```
 
-3. Build Vite app:
+4. Build Vite app:
 
 ```bash
 npm run build
 ```
 
-4. Publish static files:
+5. Publish static files:
 
 ```bash
 sudo mkdir -p /var/www/civisence-website
 sudo cp -r dist/* /var/www/civisence-website/
 ```
 
-5. Remove temporary swap (if created):
+6. Remove temporary swap (if created):
 
 ```bash
 sudo swapoff /swapfile

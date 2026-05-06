@@ -48,19 +48,16 @@ npm ci
 npm run dev
 ```
 
-## Docker Production
+## EC2 Production
 
-For an EC2/container deployment, copy the Docker env template and start the stack:
+Production env templates are provided for direct EC2/PM2 deployment:
 
-```bash
-cp .env.docker.example .env
-# Fill the required blank values in .env first.
-docker compose up -d --build
-```
+- `backend/.env.ec2.production`
+- `ai_service/.env.ec2.production`
+- `frontend/CIVISENCE-WEBSITE/.env.ec2.production`
+- `frontend/CIVISENCE/.env.ec2.production`
 
-Full EC2 steps are in `DEPLOY_DOCKER_EC2.md`.
-
-For a brand-new EC2 instance, start with `EC2_FRESH_INSTANCE_README.md`.
+Copy the relevant template to `.env` inside that app folder, fill secrets and host names, then follow `DEPLOY.md`.
 
 ## Quality and CI
 
@@ -73,5 +70,4 @@ For a brand-new EC2 instance, start with `EC2_FRESH_INSTANCE_README.md`.
 - AI monitoring endpoints support API-key protection via `AI_MONITOR_API_KEY`.
 - Production CORS is strict; set `CORS_ORIGIN` explicitly.
 - Build artifacts under `frontend/CIVISENCE-WEBSITE/dist` are not tracked.
-- Docker on EC2 guide: `DEPLOY_DOCKER_EC2.md`.
-- Full deployment README: `DEPLOYMENT_README.md`.
+- Full EC2 deployment guide: `DEPLOY.md`.
