@@ -125,7 +125,7 @@ JWT_ACCESS_SECRET=<strong_secret>
 JWT_REFRESH_SECRET=<strong_secret>
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
-CORS_ORIGIN=https://your-domain.com
+CORS_ORIGIN=https://civisence.duckdns.org
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX=200
 AWS_REGION=<your-region>
@@ -188,7 +188,7 @@ cp .env.ec2.production .env
 nano .env
 ```
 
-Set `VITE_API_BASE_URL` to your public API URL, for example `https://your-domain.com/api`.
+Set `VITE_API_BASE_URL` to your public API URL, for example `https://civisence.duckdns.org/api`.
 
 2. Install dependencies:
 
@@ -286,11 +286,11 @@ sudo nano /etc/nginx/conf.d/civisence.conf
 ```nginx
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name civisence.duckdns.org;
 
     root /var/www/civisence-website;
     index index.html;
-    client_max_body_size 20M;
+    client_max_body_size 250M;
 
     location / {
         try_files $uri $uri/ /index.html;

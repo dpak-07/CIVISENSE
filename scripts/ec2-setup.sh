@@ -4,7 +4,7 @@ set -Eeuo pipefail
 APP_ROOT="${APP_ROOT:-/var/www/CIVISENSE}"
 WEBSITE_ROOT="${WEBSITE_ROOT:-/var/www/civisense-website}"
 PUBLIC_HOST="${PUBLIC_HOST:-3.7.203.235}"
-DOMAIN="${DOMAIN:-}"
+DOMAIN="${DOMAIN:-civisence.duckdns.org}"
 REPO_URL="${CIVISENSE_REPO_URL:-}"
 APP_USER="${APP_USER:-ec2-user}"
 BACKEND_ENV_FILE="${BACKEND_ENV_FILE:-${APP_ROOT}/.env.backend.production}"
@@ -154,7 +154,7 @@ server {
 
     root ${WEBSITE_ROOT};
     index index.html;
-    client_max_body_size 20M;
+    client_max_body_size 250M;
 
     location / {
         try_files \$uri \$uri/ /index.html;
