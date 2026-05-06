@@ -6,7 +6,8 @@ export const updateDevAppConfig = (payload) => api.patch('/admin/dev-tools/app-c
 export const uploadDevAppApk = (formData, onUploadProgress) =>
     api.post('/admin/dev-tools/app-config/upload-apk', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress
+        onUploadProgress,
+        timeout: 0
     });
 export const getDevDevelopers = () => api.get('/admin/dev-tools/developers');
 export const createDevDeveloper = (payload) => api.post('/admin/dev-tools/developers', payload);
