@@ -2,6 +2,7 @@ const { StatusCodes } = require('http-status-codes');
 const asyncHandler = require('../utils/asyncHandler');
 const adminService = require('../services/adminService');
 const ApiError = require('../utils/ApiError');
+const logger = require('../config/logger');
 
 const getDashboard = asyncHandler(async (_req, res) => {
   const dashboard = await adminService.getDashboardMetrics();
@@ -14,12 +15,22 @@ const getDevTools = asyncHandler(async (_req, res) => {
 });
 
 const updateAppConfig = asyncHandler(async (req, res) => {
-  const data = await adminService.updateAppConfig({
-    androidApkUrl: req.body?.androidApkUrl,
-    iosNote: req.body?.iosNote,
-    updatedBy: req.user?.id || null
-  });
-  res.status(StatusCodes.OK).json({ success: true, data });
+  try {
+    const data = await adminService.updateAppConfig({
+      androidApkUrl: req.body?.androidApkUrl,
+      iosNote: req.body?.iosNote,
+      updatedBy: req.user?.id || null
+    });
+    res.status(StatusCodes.OK).json({ success: true, data });
+  } catch (err) {
+    logger.error({
+      message: 'updateAppConfig failed',
+      body: req.body,
+      userId: req.user?.id || null,
+      error: err.stack || err.message || err
+    });
+    throw err;
+  }
 });
 
 const uploadDevAppApk = asyncHandler(async (req, res) => {
@@ -27,18 +38,28 @@ const uploadDevAppApk = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'APK file is required');
   }
 
-  const data = await adminService.updateAppConfig({
-    androidApkUrl: req.uploadedApkUrl,
-    updatedBy: req.user?.id || null
-  });
+  try {
+    const data = await adminService.updateAppConfig({
+      androidApkUrl: req.uploadedApkUrl,
+      updatedBy: req.user?.id || null
+    });
 
-  res.status(StatusCodes.OK).json({
-    success: true,
-    data: {
-      ...data,
-      uploadedApkUrl: req.uploadedApkUrl
-    }
-  });
+    res.status(StatusCodes.OK).json({
+      success: true,
+      data: {
+        ...data,
+        uploadedApkUrl: req.uploadedApkUrl
+      }
+    });
+  } catch (err) {
+    logger.error({
+      message: 'uploadDevAppApk failed',
+      uploadedApkUrl: req.uploadedApkUrl,
+      userId: req.user?.id || null,
+      error: err.stack || err.message || err
+    });
+    throw err;
+  }
 });
 
 const updateDevUserCredentials = asyncHandler(async (req, res) => {
