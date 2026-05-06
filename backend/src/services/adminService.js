@@ -398,9 +398,16 @@ const updateAppConfig = async ({ androidApkUrl, iosNote, updatedBy }) => {
 
   update.updatedBy = updatedBy || null;
 
+  const setOnInsert = { ...DEFAULT_APP_CONFIG, key: APP_CONFIG_KEY };
+  Object.keys(update).forEach((field) => {
+    if (field in setOnInsert) {
+      delete setOnInsert[field];
+    }
+  });
+
   const config = await SystemConfig.findOneAndUpdate(
     { key: APP_CONFIG_KEY },
-    { $set: update, $setOnInsert: { ...DEFAULT_APP_CONFIG, key: APP_CONFIG_KEY } },
+    { $set: update, $setOnInsert: setOnInsert },
     { new: true, upsert: true, runValidators: true }
   );
 
