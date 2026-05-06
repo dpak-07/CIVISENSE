@@ -5,7 +5,6 @@ import {
   Image,
   Linking,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -39,6 +38,9 @@ type ZoneRow = {
   complaintsCount: number;
   isActive: boolean;
   coordinates: { latitude: number; longitude: number } | null;
+  googleMapsDirectionsLink?: string | null;
+  googleMapsLink?: string | null;
+  mapLink?: string | null;
 };
 type ActivityBadge = {
   key: "new" | "assigned" | "low" | "done";
@@ -242,6 +244,9 @@ export default function ProfileScreen() {
         complaintsCount: count,
         isActive: office?.isActive ?? true,
         coordinates: toLatLng(office?.location?.coordinates),
+        googleMapsDirectionsLink: office?.googleMapsDirectionsLink,
+        googleMapsLink: office?.googleMapsLink,
+        mapLink: office?.mapLink,
       });
     });
 
@@ -253,6 +258,9 @@ export default function ProfileScreen() {
         complaintsCount: 0,
         isActive: office.isActive,
         coordinates: toLatLng(office.location?.coordinates),
+        googleMapsDirectionsLink: office.googleMapsDirectionsLink,
+        googleMapsLink: office.googleMapsLink,
+        mapLink: office.mapLink,
       }));
     }
 
@@ -599,7 +607,10 @@ export default function ProfileScreen() {
                   selectedZone?.coordinates
                     ? void openDirections(
                         selectedZone.coordinates.latitude,
-                        selectedZone.coordinates.longitude
+                        selectedZone.coordinates.longitude,
+                        selectedZone.googleMapsDirectionsLink ||
+                          selectedZone.googleMapsLink ||
+                          selectedZone.mapLink
                       )
                     : Alert.alert("Location unavailable", "No map coordinates for this office.")
                 }
@@ -667,11 +678,10 @@ const toLatLng = (coords?: [number, number]) => {
   return { latitude, longitude };
 };
 
-const openDirections = async (latitude: number, longitude: number) => {
+const openDirections = async (latitude: number, longitude: number, mapLink?: string | null) => {
   const url =
-    Platform.OS === "ios"
-      ? `http://maps.apple.com/?ll=${latitude},${longitude}`
-      : `https://www.google.com/maps?q=${latitude},${longitude}`;
+    mapLink ||
+    `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
   try {
     await Linking.openURL(url);
   } catch {

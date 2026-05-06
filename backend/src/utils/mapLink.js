@@ -99,12 +99,24 @@ const buildGoogleMapsLink = ({ longitude, latitude }) => {
   }
 
   const [lng, lat] = normalized;
-  return `https://www.google.com/maps?q=${lat},${lng}`;
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+};
+
+const buildGoogleMapsDirectionsLink = ({ longitude, latitude }) => {
+  const normalized = normalizeCoordinates({ longitude, latitude });
+  if (!normalized) {
+    return null;
+  }
+
+  const [lng, lat] = normalized;
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
 };
 
 module.exports = {
   normalizeCoordinates,
   parseCoordinatesFromMapLink,
-  buildGoogleMapsLink
+  buildGoogleMapsLink,
+  buildGoogleMapsDirectionsLink,
+  buildOpenStreetMapLink: buildGoogleMapsLink
 };
 

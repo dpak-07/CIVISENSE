@@ -1,12 +1,13 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-const DEFAULT_PROD_API_BASE_URL = "http://13.200.19.117/api";
+const DEFAULT_PROD_API_BASE_URL = "https://civisence.duckdns.org/api";
 const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || "";
 const envBaseUrls = process.env.EXPO_PUBLIC_API_BASE_URLS || "";
 const envFallbackBaseUrls = process.env.EXPO_PUBLIC_API_BASE_URL_FALLBACKS || "";
 const PROD_API_BASE_URLS = [
   DEFAULT_PROD_API_BASE_URL,
+  "http://3.7.203.235/api",
 ];
 const LOCAL_BACKEND_PORT = "5000";
 

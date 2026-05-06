@@ -64,7 +64,7 @@ const toMapsUrl = (complaint) => {
     if (!coordinates) {
         return '';
     }
-    return `https://www.google.com/maps?q=${coordinates.latitude},${coordinates.longitude}`;
+    return `https://www.openstreetmap.org/?mlat=${coordinates.latitude}&mlon=${coordinates.longitude}#map=17/${coordinates.latitude}/${coordinates.longitude}`;
 };
 
 const toPriorityClass = (priorityLevel) => {

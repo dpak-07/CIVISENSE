@@ -14,7 +14,7 @@ import {
 import { getErrorMessage } from '../../utils/helpers';
 import { isDemoSession } from '../../utils/authStorage';
 import { DEMO_SENSITIVE_LOCATIONS } from '../../constants/demoData';
-import { buildGoogleMapsLink, parseCoordinatesFromMapLink } from '../../utils/mapLink';
+import { buildOpenStreetMapLink, parseCoordinatesFromMapLink } from '../../utils/mapLink';
 import '../citizen/CitizenDashboard.css';
 import './AdminZones.css';
 
@@ -129,7 +129,7 @@ export default function AdminZones() {
             radiusMeters: Number(location.radiusMeters || 150),
             mapLink:
                 location.mapLink ||
-                buildGoogleMapsLink({
+                buildOpenStreetMapLink({
                     longitude,
                     latitude
                 }),
@@ -172,7 +172,7 @@ export default function AdminZones() {
         let mapLink = form.mapLink.trim();
 
         if (!mapLink && (latitude === null || longitude === null)) {
-            throw new Error('Provide a Google Maps link or valid latitude/longitude.');
+            throw new Error('Provide a map link or valid latitude/longitude.');
         }
 
         const fromLink = mapLink ? parseCoordinatesFromMapLink(mapLink) : null;
@@ -184,7 +184,7 @@ export default function AdminZones() {
         }
 
         if (!mapLink) {
-            mapLink = buildGoogleMapsLink({
+            mapLink = buildOpenStreetMapLink({
                 longitude: resolvedLongitude,
                 latitude: resolvedLatitude
             });
@@ -382,7 +382,7 @@ export default function AdminZones() {
                                             <span>Map Link:</span>{' '}
                                             {location.mapLink ? (
                                                 <a href={location.mapLink} target="_blank" rel="noreferrer">
-                                                    Open in Google Maps
+                                                    Open in OpenStreetMap
                                                 </a>
                                             ) : (
                                                 '-'
@@ -410,7 +410,7 @@ export default function AdminZones() {
                 isOpen={showModal}
                 onClose={() => !saving && setShowModal(false)}
                 title={editingId ? 'Edit Sensitive Zone' : 'Create Sensitive Zone'}
-                subtitle="Store zone location via Google Maps URL with parsed coordinates."
+                subtitle="Store zone location via a map URL with parsed coordinates."
                 size="xl"
                 className="modal--compact"
                 bodyScrollable={false}
@@ -467,14 +467,14 @@ export default function AdminZones() {
                         <input className="input" name="longitude" type="number" step="any" value={form.longitude} onChange={handleFieldChange} />
                     </div>
                     <div className="input-group input-group--span-3">
-                        <label>Google Maps Link *</label>
+                        <label>Map Link *</label>
                         <input
                             className="input"
                             name="mapLink"
                             value={form.mapLink}
                             onChange={handleFieldChange}
                             onBlur={handleMapLinkBlur}
-                            placeholder="https://www.google.com/maps?q=13.0827,80.2707"
+                            placeholder="https://www.openstreetmap.org/?mlat=13.0827&mlon=80.2707#map=17/13.0827/80.2707"
                         />
                         <small className="form-help-text">Paste any maps URL containing coordinates.</small>
                     </div>

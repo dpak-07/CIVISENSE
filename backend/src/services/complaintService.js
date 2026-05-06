@@ -18,13 +18,17 @@ const {
   TERMINAL_STATUS,
   AI_PROCESSING_STATUS
 } = require('../constants/complaint');
+const {
+  buildGoogleMapsLink,
+  buildGoogleMapsDirectionsLink
+} = require('../utils/mapLink');
 
 const MISUSE_REPORT_THRESHOLD = Math.max(Number(process.env.MISUSE_REPORT_THRESHOLD) || 3, 1);
 
 
 const complaintPopulate = [
   { path: 'reportedBy', select: 'name email role isActive isBlacklisted misuseReportCount' },
-  { path: 'assignedMunicipalOffice', select: 'name type zone workload maxCapacity isActive' },
+  { path: 'assignedMunicipalOffice', select: 'name type zone workload maxCapacity isActive location mapLink' },
   { path: 'duplicateInfo.masterComplaintId', select: 'title status category' },
   {
     path: 'statusHistory.updatedBy',
@@ -121,6 +125,53 @@ const buildComplaintImages = (uploadedImageUrl) =>
         }
       ]
     : [];
+
+const buildMapLinksFromLocation = (location) => {
+  const coordinates = Array.isArray(location?.coordinates) ? location.coordinates : null;
+  if (!coordinates || coordinates.length !== 2) {
+    return {
+      mapLink: null,
+      googleMapsLink: null,
+      googleMapsDirectionsLink: null
+    };
+  }
+
+  const [longitude, latitude] = coordinates;
+  const googleMapsLink = buildGoogleMapsLink({ longitude, latitude });
+  const googleMapsDirectionsLink = buildGoogleMapsDirectionsLink({ longitude, latitude });
+
+  return {
+    mapLink: googleMapsLink,
+    googleMapsLink,
+    googleMapsDirectionsLink
+  };
+};
+
+const withLocationMapLinks = (document) => {
+  if (!document || typeof document !== 'object') {
+    return document;
+  }
+
+  return {
+    ...document,
+    ...buildMapLinksFromLocation(document.location)
+  };
+};
+
+const toComplaintResponse = (complaint) => {
+  if (!complaint) {
+    return complaint;
+  }
+
+  return {
+    ...complaint,
+    ...buildMapLinksFromLocation(complaint.location),
+    assignedMunicipalOffice: withLocationMapLinks(complaint.assignedMunicipalOffice)
+  };
+};
+
+const toComplaintListResponse = (complaints) =>
+  Array.isArray(complaints) ? complaints.map(toComplaintResponse) : complaints;
 
 const getComplaintOrThrow = async (id) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -231,7 +282,7 @@ const createComplaint = async (payload, reportedBy, options = {}) => {
     }
 
     return {
-      complaint: created,
+      complaint: toComplaintResponse(created),
       duplicateDetected: true,
       masterComplaintId: masterComplaint._id
     };
@@ -299,7 +350,7 @@ const createComplaint = async (payload, reportedBy, options = {}) => {
   }
 
   return {
-    complaint: created,
+    complaint: toComplaintResponse(created),
     duplicateDetected: false,
     masterComplaintId: null
   };
@@ -338,10 +389,12 @@ const getComplaints = async (filters, requester = null) => {
     query.assignedMunicipalOffice = officer.municipalOfficeId;
   }
 
-  return Complaint.find(query)
+  const complaints = await Complaint.find(query)
     .populate(complaintPopulate)
     .sort({ createdAt: -1 })
     .lean();
+
+  return toComplaintListResponse(complaints);
 };
 
 const getComplaintById = async (id) => {
@@ -354,7 +407,7 @@ const getComplaintById = async (id) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Complaint not found');
   }
 
-  return complaint;
+  return toComplaintResponse(complaint);
 };
 
 const toOptionalTrimmedText = (value) => {
@@ -515,7 +568,8 @@ const updateComplaintStatus = async ({
     });
   }
 
-  return Complaint.findById(complaint._id).populate(complaintPopulate).lean();
+  const updatedComplaint = await Complaint.findById(complaint._id).populate(complaintPopulate).lean();
+  return toComplaintResponse(updatedComplaint);
 };
 
 const reportComplaintUserMisuse = async ({

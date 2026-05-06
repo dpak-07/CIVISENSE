@@ -5,7 +5,12 @@ const MunicipalOffice = require('../models/MunicipalOffice');
 const User = require('../models/User');
 const Complaint = require('../models/Complaint');
 const ApiError = require('../utils/ApiError');
-const { buildGoogleMapsLink, normalizeCoordinates, parseCoordinatesFromMapLink } = require('../utils/mapLink');
+const {
+  buildGoogleMapsLink,
+  buildGoogleMapsDirectionsLink,
+  normalizeCoordinates,
+  parseCoordinatesFromMapLink
+} = require('../utils/mapLink');
 const { ROLES } = require('../constants/roles');
 const { ensureDefaultDomainEmail, normalizeEmail } = require('../utils/email');
 const { parseWorkbookRows, getRowValue, buildWorkbookBuffer } = require('../utils/spreadsheet');
@@ -34,7 +39,7 @@ const buildLocationPayload = (payload, fallback = {}) => {
   const mapCoordinates = mapLinkFromPayload ? parseCoordinatesFromMapLink(mapLinkFromPayload) : null;
 
   if (mapLinkFromPayload && !mapCoordinates) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Google Maps link must include valid coordinates');
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Map link must include valid coordinates');
   }
 
   let coordinates = null;
@@ -59,15 +64,13 @@ const buildLocationPayload = (payload, fallback = {}) => {
   }
 
   const [longitude, latitude] = coordinates;
+  const googleMapsLink = buildGoogleMapsLink({ longitude, latitude });
   return {
     location: {
       type: 'Point',
       coordinates
     },
-    mapLink:
-      mapLinkFromPayload ||
-      fallback.mapLink ||
-      buildGoogleMapsLink({ longitude, latitude })
+    mapLink: googleMapsLink || mapLinkFromPayload || fallback.mapLink || null
   };
 };
 
@@ -95,6 +98,34 @@ const sanitizeOfficer = (officer) => {
   };
 };
 
+const withMapLinks = (office) => {
+  if (!office) {
+    return office;
+  }
+
+  const coordinates = Array.isArray(office.location?.coordinates)
+    ? office.location.coordinates
+    : null;
+  if (!coordinates || coordinates.length !== 2) {
+    return {
+      ...office,
+      googleMapsLink: office.mapLink || null,
+      googleMapsDirectionsLink: null
+    };
+  }
+
+  const [longitude, latitude] = coordinates;
+  const googleMapsLink = buildGoogleMapsLink({ longitude, latitude });
+  const googleMapsDirectionsLink = buildGoogleMapsDirectionsLink({ longitude, latitude });
+
+  return {
+    ...office,
+    mapLink: googleMapsLink || office.mapLink || null,
+    googleMapsLink: googleMapsLink || office.mapLink || null,
+    googleMapsDirectionsLink
+  };
+};
+
 const attachOfficerAccounts = async (offices) => {
   if (!Array.isArray(offices) || offices.length === 0) {
     return offices;
@@ -118,10 +149,12 @@ const attachOfficerAccounts = async (offices) => {
     officerMap.set(officeId, officer);
   });
 
-  return offices.map((office) => ({
-    ...office,
-    officerAccount: sanitizeOfficer(officerMap.get(String(office._id)) || null)
-  }));
+  return offices.map((office) =>
+    withMapLinks({
+      ...office,
+      officerAccount: sanitizeOfficer(officerMap.get(String(office._id)) || null)
+    })
+  );
 };
 
 const normalizeOfficerPayload = (payload, officeName) => {
@@ -449,7 +482,7 @@ const buildOfficePayloadFromRow = (row) => {
   const rawType = getRowValue(row, ['type', 'officeType']);
   const rawZone = getRowValue(row, ['zone']);
   const rawMaxCapacity = getRowValue(row, ['maxCapacity', 'capacity']);
-  const rawMapLink = getRowValue(row, ['mapLink', 'googleMapsLink', 'mapsLink']);
+  const rawMapLink = getRowValue(row, ['mapLink', 'googleMapsLink', 'openStreetMapLink', 'mapsLink']);
   const rawLatitude = getRowValue(row, ['latitude', 'lat']);
   const rawLongitude = getRowValue(row, ['longitude', 'lng', 'lon']);
   const rawOfficerName = getRowValue(row, ['officerName', 'officeAccountName']);

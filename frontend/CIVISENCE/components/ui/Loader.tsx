@@ -16,89 +16,80 @@ type LoaderProps = {
 };
 
 export default function Loader({ txt = "Loading CiviSense..." }: LoaderProps) {
-  const ringSpin = useSharedValue(0);
-  const breathe = useSharedValue(0);
-  const progress = useSharedValue(0);
-  const drift = useSharedValue(0);
+  const pulse = useSharedValue(0);
+  const sweep = useSharedValue(0);
+  const route = useSharedValue(0);
 
   useEffect(() => {
-    ringSpin.value = withRepeat(
-      withTiming(360, { duration: 4500, easing: Easing.linear }),
-      -1,
-      false
-    );
-    breathe.value = withRepeat(
-      withTiming(1, { duration: 1300, easing: Easing.inOut(Easing.quad) }),
+    pulse.value = withRepeat(
+      withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.quad) }),
       -1,
       true
     );
-    progress.value = withRepeat(
-      withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.cubic) }),
+    sweep.value = withRepeat(
+      withTiming(1, { duration: 1650, easing: Easing.inOut(Easing.cubic) }),
       -1,
       false
     );
-    drift.value = withRepeat(
-      withTiming(1, { duration: 5200, easing: Easing.inOut(Easing.ease) }),
+    route.value = withRepeat(
+      withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
       -1,
       true
     );
-  }, [breathe, drift, progress, ringSpin]);
+  }, [pulse, route, sweep]);
 
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${ringSpin.value}deg` }],
-  }));
-
-  const glowStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(breathe.value, [0, 1], [0.9, 1.12]) }],
-    opacity: interpolate(breathe.value, [0, 1], [0.2, 0.46]),
-  }));
-
-  const cardStyle = useAnimatedStyle(() => ({
+  const logoStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateY: interpolate(breathe.value, [0, 1], [1, -3]) },
-      { scale: interpolate(breathe.value, [0, 1], [0.985, 1.02]) },
+      { translateY: interpolate(pulse.value, [0, 1], [2, -4]) },
+      { scale: interpolate(pulse.value, [0, 1], [0.98, 1.02]) },
     ],
   }));
 
-  const tickerStyle = useAnimatedStyle(() => ({
-    width: interpolate(progress.value, [0, 0.5, 1], [28, 184, 64]),
+  const beaconStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.value, [0, 1], [0.16, 0.42]),
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [0.9, 1.18]) }],
   }));
 
-  const orbAStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: interpolate(drift.value, [0, 1], [-12, 14]) },
-      { translateY: interpolate(drift.value, [0, 1], [8, -6]) },
-    ],
+  const sweepStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: interpolate(sweep.value, [0, 1], [-56, 218]) }],
   }));
 
-  const orbBStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: interpolate(drift.value, [0, 1], [16, -12]) },
-      { translateY: interpolate(drift.value, [0, 1], [-10, 10]) },
-    ],
+  const routeDotStyle = useAnimatedStyle(() => ({
+    left: interpolate(route.value, [0, 0.34, 0.68, 1], [22, 88, 146, 202]),
+    top: interpolate(route.value, [0, 0.34, 0.68, 1], [30, 62, 34, 60]),
+  }));
+
+  const blockStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.value, [0, 1], [0.54, 1]),
   }));
 
   return (
-    <LinearGradient colors={["#070D1E", "#101D39", "#132B51"]} style={styles.container}>
-      <Animated.View style={[styles.orb, styles.orbA, orbAStyle]} />
-      <Animated.View style={[styles.orb, styles.orbB, orbBStyle]} />
+    <LinearGradient colors={["#F8FBFF", "#EAF3F6", "#FFF8F0"]} style={styles.container}>
+      <View style={styles.cityGrid} pointerEvents="none">
+        <View style={[styles.road, styles.roadA]} />
+        <View style={[styles.road, styles.roadB]} />
+        <View style={[styles.road, styles.roadC]} />
+        <Animated.View style={[styles.cityBlock, styles.blockA, blockStyle]} />
+        <Animated.View style={[styles.cityBlock, styles.blockB, blockStyle]} />
+        <Animated.View style={[styles.cityBlock, styles.blockC, blockStyle]} />
+        <Animated.View style={[styles.cityBlock, styles.blockD, blockStyle]} />
+        <View style={styles.routeLine} />
+        <Animated.View style={[styles.routeDot, routeDotStyle]} />
+      </View>
 
-      <View style={styles.logoStage}>
-        <Animated.View style={[styles.logoGlow, glowStyle]} />
-        <Animated.View style={[styles.ringOuter, ringStyle]} />
-        <Animated.View style={[styles.logoCard, cardStyle]}>
-          <LinearGradient colors={["#0F2A49", "#123861"]} style={styles.logoCardFill}>
-            <CiviSenseLogo size={88} />
-          </LinearGradient>
+      <View style={styles.brandStage}>
+        <Animated.View style={[styles.beacon, beaconStyle]} />
+        <Animated.View style={[styles.logoPlate, logoStyle]}>
+          <CiviSenseLogo size={92} />
         </Animated.View>
       </View>
 
       <Text style={styles.brandTitle}>CiviSense</Text>
-      <Text style={styles.brandTag}>Making Cities Better</Text>
+      <Text style={styles.brandTag}>Making cities better</Text>
       <Text style={styles.caption}>{txt}</Text>
 
-      <View style={styles.tickerTrack}>
-        <Animated.View style={[styles.tickerFill, tickerStyle]} />
+      <View style={styles.progressTrack}>
+        <Animated.View style={[styles.progressSweep, sweepStyle]} />
       </View>
     </LinearGradient>
   );
@@ -112,97 +103,146 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     paddingHorizontal: 24,
   },
-  orb: {
+  cityGrid: {
     position: "absolute",
+    width: 252,
+    height: 104,
+    bottom: 78,
+    opacity: 0.9,
+  },
+  road: {
+    position: "absolute",
+    backgroundColor: "rgba(15,23,42,0.08)",
     borderRadius: 999,
-    opacity: 0.16,
   },
-  orbA: {
-    width: 300,
-    height: 300,
-    top: 40,
-    left: -110,
-    backgroundColor: "#4F46E5",
+  roadA: {
+    left: 12,
+    right: 12,
+    top: 52,
+    height: 5,
   },
-  orbB: {
-    width: 260,
-    height: 260,
-    bottom: 40,
-    right: -110,
-    backgroundColor: "#7C3AED",
+  roadB: {
+    left: 74,
+    top: 14,
+    width: 5,
+    height: 78,
   },
-  logoStage: {
-    width: 210,
-    height: 210,
+  roadC: {
+    right: 46,
+    top: 10,
+    width: 5,
+    height: 82,
+  },
+  cityBlock: {
+    position: "absolute",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.08)",
+  },
+  blockA: {
+    left: 18,
+    top: 18,
+    width: 42,
+    height: 24,
+  },
+  blockB: {
+    left: 94,
+    top: 18,
+    width: 40,
+    height: 26,
+  },
+  blockC: {
+    right: 18,
+    top: 28,
+    width: 44,
+    height: 22,
+  },
+  blockD: {
+    left: 112,
+    bottom: 12,
+    width: 58,
+    height: 24,
+  },
+  routeLine: {
+    position: "absolute",
+    left: 22,
+    right: 42,
+    top: 60,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: "#2AA876",
+    opacity: 0.34,
+  },
+  routeDot: {
+    position: "absolute",
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#FF8A3D",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  brandStage: {
+    width: 190,
+    height: 174,
     justifyContent: "center",
     alignItems: "center",
   },
-  logoGlow: {
+  beacon: {
     position: "absolute",
-    width: 146,
-    height: 146,
+    width: 136,
+    height: 136,
     borderRadius: 999,
-    backgroundColor: "#7DD3FC",
+    backgroundColor: "#2AA876",
   },
-  ringOuter: {
-    position: "absolute",
-    width: 186,
-    height: 186,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: "rgba(141,235,247,0.35)",
-    borderTopColor: "rgba(255,255,255,0.9)",
-    borderRightColor: "rgba(255,255,255,0.8)",
-    borderStyle: "dashed",
-  },
-  logoCard: {
+  logoPlate: {
     width: 124,
     height: 124,
-    borderRadius: 28,
-    overflow: "hidden",
-    shadowColor: "#5EEAD4",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  logoCardFill: {
-    flex: 1,
+    borderRadius: 30,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#1D3557",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 8,
   },
   brandTitle: {
-    marginTop: 8,
-    color: "#F8FAFC",
-    fontSize: 28,
+    color: "#12263A",
+    fontSize: 30,
     fontWeight: "800",
-    letterSpacing: 0.2,
+    letterSpacing: 0,
   },
   brandTag: {
-    marginTop: 3,
-    color: "#C7D2FE",
-    fontSize: 12.5,
-    fontWeight: "600",
+    marginTop: 5,
+    color: "#2AA876",
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0,
   },
   caption: {
-    marginTop: 16,
-    color: "#F9A8D4",
+    marginTop: 18,
+    color: "#52657A",
     fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
+    letterSpacing: 0,
   },
-  tickerTrack: {
+  progressTrack: {
     marginTop: 16,
-    width: 184,
-    height: 5,
+    width: 218,
+    height: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(196,225,255,0.25)",
+    backgroundColor: "rgba(18,38,58,0.1)",
     overflow: "hidden",
   },
-  tickerFill: {
+  progressSweep: {
+    width: 56,
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "#8DEBF7",
+    backgroundColor: "#2AA876",
   },
 });
 

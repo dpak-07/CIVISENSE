@@ -87,8 +87,7 @@ $checks = @(
         Path = Join-Path $RootPath "frontend/CIVISENCE/.env.production";
         Keys = @(
             "EXPO_PUBLIC_API_BASE_URL",
-            "EXPO_PUBLIC_API_BASE_URLS",
-            "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY"
+            "EXPO_PUBLIC_API_BASE_URLS"
         )
     }
 )

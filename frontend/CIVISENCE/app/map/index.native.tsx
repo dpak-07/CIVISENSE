@@ -3,9 +3,9 @@ import {
   ActivityIndicator,
   Animated,
   Alert,
+  Image,
   Linking,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,7 +16,6 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import MapView, { Callout, Marker } from "react-native-maps";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -45,6 +44,9 @@ type MapItem = {
   status?: string;
   priority?: string;
   category?: string;
+  mapLink?: string | null;
+  googleMapsLink?: string | null;
+  googleMapsDirectionsLink?: string | null;
 };
 
 const DEFAULT_REGION: MapRegion = {
@@ -54,14 +56,9 @@ const DEFAULT_REGION: MapRegion = {
   longitudeDelta: 60,
 };
 
-const MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#eef2ff" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#475569" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#eef2ff" }] },
-  { featureType: "water", stylers: [{ color: "#bae6fd" }] },
-  { featureType: "road", stylers: [{ color: "#ffffff" }] },
-  { featureType: "poi", stylers: [{ visibility: "simplified" }] },
-] as const;
+const OSM_TILE_SIZE = 256;
+const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
+const OSM_LINK = "https://www.openstreetmap.org";
 
 const priorityColor = (level?: string) => {
   if (level === "high") return "#ef4444";
@@ -127,12 +124,83 @@ const buildRegionFromPoints = (
   return { latitude, longitude, latitudeDelta, longitudeDelta };
 };
 
-const openDirections = (lat: number, lng: number) => {
+const buildGoogleMapsDirectionsUrl = (lat: number, lng: number) =>
+  `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+
+const openDirections = (item: MapItem) => {
   const url =
-    Platform.OS === "ios"
-      ? `http://maps.apple.com/?ll=${lat},${lng}`
-      : `https://www.google.com/maps?q=${lat},${lng}`;
+    item.googleMapsDirectionsLink ||
+    item.googleMapsLink ||
+    item.mapLink ||
+    buildGoogleMapsDirectionsUrl(item.latitude, item.longitude);
   Linking.openURL(url).catch(() => undefined);
+};
+
+const longitudeToTileX = (longitude: number, zoom: number) =>
+  ((longitude + 180) / 360) * 2 ** zoom;
+
+const latitudeToTileY = (latitude: number, zoom: number) => {
+  const latRad = (latitude * Math.PI) / 180;
+  return (
+    ((1 -
+      Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) /
+      2) *
+    2 ** zoom
+  );
+};
+
+const getZoomForRegion = (region: MapRegion, width: number) => {
+  const safeWidth = Math.max(width, 1);
+  const zoom = Math.log2((360 * safeWidth) / (Math.max(region.longitudeDelta, 0.01) * OSM_TILE_SIZE));
+  return clamp(Math.round(zoom), 2, 18);
+};
+
+const buildTileLayout = (region: MapRegion, width: number, height: number) => {
+  const zoom = getZoomForRegion(region, width);
+  const centerX = longitudeToTileX(region.longitude, zoom);
+  const centerY = latitudeToTileY(region.latitude, zoom);
+  const tilesWide = Math.ceil(width / OSM_TILE_SIZE) + 2;
+  const tilesHigh = Math.ceil(height / OSM_TILE_SIZE) + 2;
+  const startX = Math.floor(centerX - tilesWide / 2);
+  const startY = Math.floor(centerY - tilesHigh / 2);
+  const centerPixelX = centerX * OSM_TILE_SIZE;
+  const centerPixelY = centerY * OSM_TILE_SIZE;
+  const tiles: { key: string; url: string; left: number; top: number }[] = [];
+  const tileCount = 2 ** zoom;
+
+  for (let x = startX; x < startX + tilesWide; x += 1) {
+    for (let y = startY; y < startY + tilesHigh; y += 1) {
+      if (y < 0 || y >= tileCount) {
+        continue;
+      }
+      const wrappedX = ((x % tileCount) + tileCount) % tileCount;
+      tiles.push({
+        key: `${zoom}-${wrappedX}-${y}`,
+        url: `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${y}.png`,
+        left: x * OSM_TILE_SIZE - centerPixelX + width / 2,
+        top: y * OSM_TILE_SIZE - centerPixelY + height / 2,
+      });
+    }
+  }
+
+  return { zoom, tiles };
+};
+
+const getMarkerPosition = (
+  point: LatLng,
+  region: MapRegion,
+  zoom: number,
+  width: number,
+  height: number
+) => {
+  const centerX = longitudeToTileX(region.longitude, zoom) * OSM_TILE_SIZE;
+  const centerY = latitudeToTileY(region.latitude, zoom) * OSM_TILE_SIZE;
+  const pointX = longitudeToTileX(point.longitude, zoom) * OSM_TILE_SIZE;
+  const pointY = latitudeToTileY(point.latitude, zoom) * OSM_TILE_SIZE;
+  return {
+    left: pointX - centerX + width / 2,
+    top: pointY - centerY + height / 2,
+  };
 };
 
 const matchesStatus = (status: string | undefined, filter: ComplaintStatusFilter) => {
@@ -153,11 +221,9 @@ const clamp = (value: number, min: number, max: number) => {
 
 export default function CityMap() {
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
-  const mapRef = useRef<MapView | null>(null);
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const sheetStartRef = useRef(1);
   const [loading, setLoading] = useState(true);
-  const [mapReady, setMapReady] = useState(false);
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [offices, setOffices] = useState<MunicipalOffice[]>([]);
   const [selectedItem, setSelectedItem] = useState<MapItem | null>(null);
@@ -177,15 +243,12 @@ export default function CityMap() {
   const handleSelectItem = useCallback((item: MapItem) => {
     setSelectedItem(item);
     setSheetExpanded(true);
-    mapRef.current?.animateToRegion(
-      {
-        latitude: item.latitude,
-        longitude: item.longitude,
-        latitudeDelta: 0.06,
-        longitudeDelta: 0.06,
-      },
-      420
-    );
+    setRegion({
+      latitude: item.latitude,
+      longitude: item.longitude,
+      latitudeDelta: 0.06,
+      longitudeDelta: 0.06,
+    });
   }, []);
 
   useEffect(() => {
@@ -304,6 +367,9 @@ export default function CityMap() {
           status: item.status,
           priority: item.priority?.level,
           category: item.category,
+          mapLink: item.mapLink,
+          googleMapsLink: item.googleMapsLink,
+          googleMapsDirectionsLink: item.googleMapsDirectionsLink,
         };
       });
     return mapped.filter((item): item is MapItem => item !== null);
@@ -323,6 +389,9 @@ export default function CityMap() {
           latitude: coords.latitude,
           longitude: coords.longitude,
           status: office.isActive ? "active" : "inactive",
+          mapLink: office.mapLink,
+          googleMapsLink: office.googleMapsLink,
+          googleMapsDirectionsLink: office.googleMapsDirectionsLink,
         };
       });
     return mapped.filter((item): item is MapItem => item !== null);
@@ -395,7 +464,14 @@ export default function CityMap() {
     };
   }, [complaintMarkers, officeMarkers]);
 
-  const mapBottomPadding = sheetExpanded ? sheetExpandedHeight + 24 : sheetCollapsedHeight + 36;
+  const mapHeight = windowHeight;
+  const mapWidth = windowWidth;
+  const activeRegion = region || buildRegionFromPoints(markerPoints, userLocation || undefined);
+  const { tiles: osmTiles, zoom: osmZoom } = useMemo(
+    () => buildTileLayout(activeRegion, mapWidth, mapHeight),
+    [activeRegion, mapHeight, mapWidth]
+  );
+  const mapCreditsBottom = sheetExpanded ? sheetExpandedHeight + 42 : sheetCollapsedHeight + 52;
 
   useEffect(() => {
     if (region || markerPoints.length === 0) {
@@ -403,25 +479,6 @@ export default function CityMap() {
     }
     setRegion(buildRegionFromPoints(markerPoints, userLocation || undefined));
   }, [markerPoints, region, userLocation]);
-
-  useEffect(() => {
-    if (!mapReady) {
-      return;
-    }
-
-    if (markerPoints.length > 0) {
-      mapRef.current?.fitToCoordinates(markerPoints, {
-        edgePadding: { top: 120, right: 60, bottom: mapBottomPadding, left: 60 },
-        animated: true,
-      });
-      return;
-    }
-
-    if (userLocation) {
-      const focusRegion = buildRegionFromPoints([], userLocation);
-      mapRef.current?.animateToRegion(focusRegion, 600);
-    }
-  }, [mapBottomPadding, mapReady, markerPoints, userLocation]);
 
   const handleLocate = async () => {
     try {
@@ -440,20 +497,16 @@ export default function CityMap() {
       setUserLocation(next);
       const nextRegion = buildRegionFromPoints(markerPoints, next);
       setRegion(nextRegion);
-      mapRef.current?.animateToRegion(nextRegion, 600);
     } catch (error) {
       Alert.alert("Location error", getApiErrorMessage(error));
     }
   };
 
   const handleFitToMarkers = () => {
-    if (!mapRef.current || markerPoints.length === 0) {
+    if (markerPoints.length === 0) {
       return;
     }
-    mapRef.current.fitToCoordinates(markerPoints, {
-      edgePadding: { top: 80, right: 40, bottom: mapBottomPadding, left: 40 },
-      animated: true,
-    });
+    setRegion(buildRegionFromPoints(markerPoints, userLocation || undefined));
   };
 
   if (!sessionStore.getAccessToken()) {
@@ -487,85 +540,113 @@ export default function CityMap() {
 
   return (
     <View style={styles.container}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={region || DEFAULT_REGION}
-        customMapStyle={MAP_STYLE as any}
-        showsUserLocation
-        showsCompass
-        showsTraffic={false}
-        onMapReady={() => setMapReady(true)}
-        onRegionChangeComplete={(nextRegion) => setRegion(nextRegion)}
-        onPress={() => setSelectedItem(null)}
-      >
-        {showComplaints
-          ? filteredComplaints.map((item) => (
-              <Marker
-                key={`complaint-${item.id}`}
-                coordinate={{ latitude: item.latitude, longitude: item.longitude }}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  handleSelectItem(item);
-                }}
+      <View style={styles.map}>
+        {osmTiles.map((tile) => (
+          <Image
+            key={tile.key}
+            source={{ uri: tile.url }}
+            style={[
+              styles.osmTile,
+              {
+                left: tile.left,
+                top: tile.top,
+              },
+            ]}
+          />
+        ))}
+        <Pressable style={styles.mapDismissLayer} onPress={() => setSelectedItem(null)} />
+        {userLocation ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.userMarker,
+              {
+                left: getMarkerPosition(userLocation, activeRegion, osmZoom, mapWidth, mapHeight).left - 9,
+                top: getMarkerPosition(userLocation, activeRegion, osmZoom, mapWidth, mapHeight).top - 9,
+              },
+            ]}
+          />
+        ) : null}
+        {visibleMarkers.map((item) => {
+          const position = getMarkerPosition(item, activeRegion, osmZoom, mapWidth, mapHeight);
+          const markerStyle =
+            item.type === "office"
+              ? [
+                  styles.officeMarker,
+                  {
+                    left: position.left - 12,
+                    top: position.top - 12,
+                  },
+                ]
+              : [
+                  styles.markerDot,
+                  {
+                    left: position.left - 9,
+                    top: position.top - 9,
+                    backgroundColor: priorityColor(item.priority),
+                  },
+                ];
+          return (
+            <Pressable
+              key={`${item.type}-${item.id}`}
+              style={markerStyle}
+              onPress={() => handleSelectItem(item)}
+            >
+              {item.type === "office" ? (
+                <Ionicons name="business" size={14} color="#fff" />
+              ) : null}
+            </Pressable>
+          );
+        })}
+        {selectedItem ? (
+          <View style={[styles.mapInfoCard, { top: insets.top + 258 }]}>
+            <Text style={styles.calloutTitle} numberOfLines={2}>
+              {selectedItem.title}
+            </Text>
+            <Text style={styles.calloutSub} numberOfLines={1}>
+              {selectedItem.category || selectedItem.subtitle}
+            </Text>
+            <View style={styles.calloutMetaRow}>
+              <Text
+                style={[
+                  styles.calloutTag,
+                  {
+                    color:
+                      selectedItem.type === "office"
+                        ? statusColor(selectedItem.status)
+                        : priorityColor(selectedItem.priority),
+                    borderColor:
+                      selectedItem.type === "office"
+                        ? statusColor(selectedItem.status)
+                        : priorityColor(selectedItem.priority),
+                  },
+                ]}
               >
-                <View
-                  style={[
-                    styles.markerDot,
-                    { backgroundColor: priorityColor(item.priority) },
-                  ]}
-                />
-                <Callout tooltip>
-                  <View style={styles.callout}>
-                    <Text style={styles.calloutTitle}>{item.title}</Text>
-                    <Text style={styles.calloutSub}>{item.category || "Complaint"}</Text>
-                    <View style={styles.calloutMetaRow}>
-                      <Text
-                        style={[
-                          styles.calloutTag,
-                          { color: priorityColor(item.priority), borderColor: priorityColor(item.priority) },
-                        ]}
-                      >
-                        {(item.priority || "low").toUpperCase()}
-                      </Text>
-                      <Text style={[styles.calloutTag, { color: statusColor(item.status), borderColor: statusColor(item.status) }]}>
-                        {formatStatusLabel(item.status).toUpperCase()}
-                      </Text>
-                    </View>
-                  </View>
-                </Callout>
-              </Marker>
-            ))
-          : null}
-
-        {showOffices
-          ? searchedOffices.map((item) => (
-              <Marker
-                key={`office-${item.id}`}
-                coordinate={{ latitude: item.latitude, longitude: item.longitude }}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  handleSelectItem(item);
-                }}
+                {selectedItem.type === "office"
+                  ? (selectedItem.status || "active").toUpperCase()
+                  : `${(selectedItem.priority || "low").toUpperCase()} PRIORITY`}
+              </Text>
+              <Text
+                style={[
+                  styles.calloutTag,
+                  {
+                    color: statusColor(selectedItem.status),
+                    borderColor: statusColor(selectedItem.status),
+                  },
+                ]}
               >
-                <View style={styles.officeMarker}>
-                  <Ionicons name="business" size={14} color="#fff" />
-                </View>
-                <Callout tooltip>
-                  <View style={styles.callout}>
-                    <Text style={styles.calloutTitle}>{item.title}</Text>
-                    <Text style={styles.calloutSub}>{item.subtitle}</Text>
-                    <View style={styles.calloutMetaRow}>
-                      <Text style={[styles.calloutTag, { color: statusColor(item.status), borderColor: statusColor(item.status) }]}>
-                        {(item.status || "active").toUpperCase()}
-                      </Text>
-                    </View>
-                  </View>
-                </Callout>
-              </Marker>
-            ))
-          : null}
-      </MapView>
+                {formatStatusLabel(selectedItem.status).toUpperCase()}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+        <Pressable
+          style={[styles.mapAttribution, { bottom: mapCreditsBottom }]}
+          onPress={() => Linking.openURL(OSM_LINK).catch(() => undefined)}
+        >
+          <Text style={styles.mapAttributionText}>{OSM_ATTRIBUTION}</Text>
+        </Pressable>
+      </View>
 
       <LinearGradient
         colors={["#f8fafc", "#e0e7ff"]}
@@ -789,7 +870,7 @@ export default function CityMap() {
                   </View>
                   <Pressable
                     style={styles.directionsButton}
-                    onPress={() => openDirections(selectedItem.latitude, selectedItem.longitude)}
+                    onPress={() => openDirections(selectedItem)}
                   >
                     <Ionicons name="navigate" size={16} color="#fff" />
                     <Text style={styles.directionsText}>Get directions</Text>
@@ -833,8 +914,20 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#dbeafe",
+    overflow: "hidden",
+  },
+  osmTile: {
+    position: "absolute",
+    width: OSM_TILE_SIZE,
+    height: OSM_TILE_SIZE,
+  },
+  mapDismissLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
   },
   markerDot: {
+    position: "absolute",
     width: 18,
     height: 18,
     borderRadius: 9,
@@ -845,8 +938,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3,
     elevation: 3,
+    zIndex: 3,
   },
   officeMarker: {
+    position: "absolute",
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -855,6 +950,34 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "#fff",
+    zIndex: 3,
+  },
+  userMarker: {
+    position: "absolute",
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#2563eb",
+    borderWidth: 3,
+    borderColor: "#fff",
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 4,
+    zIndex: 2,
+  },
+  mapInfoCard: {
+    position: "absolute",
+    left: 12,
+    right: 64,
+    zIndex: 4,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.1)",
   },
   callout: {
     width: 220,
@@ -864,6 +987,20 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderWidth: 1,
     borderColor: "rgba(15,23,42,0.1)",
+  },
+  mapAttribution: {
+    position: "absolute",
+    left: 12,
+    zIndex: 4,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.86)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  mapAttributionText: {
+    fontSize: 10,
+    color: "#475569",
+    fontWeight: "600",
   },
   calloutTitle: {
     fontSize: 13,

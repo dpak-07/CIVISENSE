@@ -38,6 +38,13 @@ export type AssignedMunicipalOffice = {
   workload?: number;
   maxCapacity?: number;
   isActive?: boolean;
+  location?: {
+    type: "Point";
+    coordinates: [number, number];
+  };
+  mapLink?: string | null;
+  googleMapsLink?: string | null;
+  googleMapsDirectionsLink?: string | null;
 };
 
 export type ComplaintStatusHistoryEntry = {
@@ -63,6 +70,9 @@ export type ComplaintRecord = {
     type: "Point";
     coordinates: [number, number];
   };
+  mapLink?: string | null;
+  googleMapsLink?: string | null;
+  googleMapsDirectionsLink?: string | null;
   images?: ComplaintImage[];
   priority?: ComplaintPriority;
   assignedMunicipalOffice?: AssignedMunicipalOffice | null;

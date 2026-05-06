@@ -12,6 +12,9 @@ export type MunicipalOffice = {
     type: "Point";
     coordinates: [number, number];
   };
+  mapLink?: string | null;
+  googleMapsLink?: string | null;
+  googleMapsDirectionsLink?: string | null;
 };
 
 type Envelope<T> = {

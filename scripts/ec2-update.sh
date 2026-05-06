@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 APP_ROOT="${APP_ROOT:-/var/www/CIVISENSE}"
 WEBSITE_ROOT="${WEBSITE_ROOT:-/var/www/civisense-website}"
-PUBLIC_HOST="${PUBLIC_HOST:-13.200.19.117}"
+PUBLIC_HOST="${PUBLIC_HOST:-3.7.203.235}"
 DOMAIN="${DOMAIN:-}"
 SKIP_GIT_PULL="${SKIP_GIT_PULL:-0}"
 BACKEND_ENV_FILE="${BACKEND_ENV_FILE:-${APP_ROOT}/.env.backend.production}"

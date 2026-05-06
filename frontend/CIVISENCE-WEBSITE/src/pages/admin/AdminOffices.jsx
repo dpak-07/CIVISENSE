@@ -15,7 +15,7 @@ import { getSensitiveLocations } from '../../api/sensitiveLocations';
 import { getErrorMessage } from '../../utils/helpers';
 import { isDemoSession } from '../../utils/authStorage';
 import { DEMO_OFFICES } from '../../constants/demoData';
-import { buildGoogleMapsLink, parseCoordinatesFromMapLink } from '../../utils/mapLink';
+import { buildOpenStreetMapLink, parseCoordinatesFromMapLink } from '../../utils/mapLink';
 import '../citizen/CitizenDashboard.css';
 import './AdminOffices.css';
 
@@ -126,7 +126,7 @@ export default function AdminOffices() {
             maxCapacity: office.maxCapacity || 100,
             mapLink:
                 office.mapLink ||
-                buildGoogleMapsLink({
+                buildOpenStreetMapLink({
                     longitude,
                     latitude
             }),
@@ -172,7 +172,7 @@ export default function AdminOffices() {
         let mapLink = officeForm.mapLink.trim();
 
         if (!mapLink && (latitude === null || longitude === null)) {
-            throw new Error('Provide a Google Maps link or valid latitude/longitude.');
+            throw new Error('Provide a map link or valid latitude/longitude.');
         }
 
         const coordinatesFromLink = mapLink ? parseCoordinatesFromMapLink(mapLink) : null;
@@ -184,7 +184,7 @@ export default function AdminOffices() {
         }
 
         if (!mapLink) {
-            mapLink = buildGoogleMapsLink({
+            mapLink = buildOpenStreetMapLink({
                 longitude: resolvedLongitude,
                 latitude: resolvedLatitude
             });
@@ -414,7 +414,7 @@ export default function AdminOffices() {
                                             <span>Map Link:</span>{' '}
                                             {office.mapLink ? (
                                                 <a href={office.mapLink} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
-                                                    Open in Google Maps
+                                                    Open in OpenStreetMap
                                                 </a>
                                             ) : (
                                                 '-'
@@ -432,7 +432,7 @@ export default function AdminOffices() {
                 isOpen={showOfficeModal}
                 onClose={() => !officeSaving && setShowOfficeModal(false)}
                 title={editingOfficeId ? 'Edit Municipal Office' : 'Create Municipal Office'}
-                subtitle="Use a Google Maps link or manual coordinates to store the office location."
+                subtitle="Use a map link or manual coordinates to store the office location."
                 size="xl"
                 className="modal--compact"
                 bodyScrollable={false}
@@ -487,14 +487,14 @@ export default function AdminOffices() {
                         <input className="input" name="longitude" type="number" step="any" value={officeForm.longitude} onChange={handleOfficeFieldChange} />
                     </div>
                     <div className="input-group input-group--span-3">
-                        <label>Google Maps Link *</label>
+                        <label>Map Link *</label>
                         <input
                             className="input"
                             name="mapLink"
                             value={officeForm.mapLink}
                             onChange={handleOfficeFieldChange}
                             onBlur={handleMapLinkBlur}
-                            placeholder="https://www.google.com/maps?q=13.0827,80.2707"
+                            placeholder="https://www.openstreetmap.org/?mlat=13.0827&mlon=80.2707#map=17/13.0827/80.2707"
                         />
                         <small className="form-help-text">You can paste any maps URL with coordinates. Coordinates below are optional fallback.</small>
                     </div>

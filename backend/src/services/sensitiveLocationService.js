@@ -5,7 +5,8 @@ const ApiError = require('../utils/ApiError');
 const {
   normalizeCoordinates,
   parseCoordinatesFromMapLink,
-  buildGoogleMapsLink
+  buildGoogleMapsLink,
+  buildGoogleMapsDirectionsLink
 } = require('../utils/mapLink');
 const { parseWorkbookRows, getRowValue, buildWorkbookBuffer } = require('../utils/spreadsheet');
 
@@ -109,7 +110,7 @@ const resolveCoordinatesFromPayload = (payload) => {
   if (mapLink) {
     const coordinates = parseCoordinatesFromMapLink(mapLink);
     if (!coordinates) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Google Maps link must include valid coordinates');
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Map link must include valid coordinates');
     }
     return coordinates;
   }
@@ -131,9 +132,9 @@ const resolveLocationPayload = (payload, fallback = {}) => {
 
   const [longitude, latitude] = coordinates;
   const mapLink =
+    buildGoogleMapsLink({ longitude, latitude }) ||
     toTrimmedString(payload.mapLink) ||
-    toTrimmedString(fallback.mapLink) ||
-    buildGoogleMapsLink({ longitude, latitude });
+    toTrimmedString(fallback.mapLink);
 
   return {
     location: {
@@ -150,18 +151,21 @@ const toResponseShape = (document) => {
   }
 
   const type = toTrimmedString(document.type || document.category);
+  const [longitude, latitude] = Array.isArray(document.location?.coordinates)
+    ? document.location.coordinates
+    : [];
+  const googleMapsLink = buildGoogleMapsLink({ longitude, latitude });
+  const googleMapsDirectionsLink = buildGoogleMapsDirectionsLink({ longitude, latitude });
+
   return {
     ...document,
     type,
     category: type,
     priorityWeight: toSafePriorityWeight(document.priorityWeight),
     radiusMeters: toSafeRadius(document.radiusMeters),
-    mapLink:
-      toTrimmedString(document.mapLink) ||
-      buildGoogleMapsLink({
-        longitude: document.location?.coordinates?.[0],
-        latitude: document.location?.coordinates?.[1]
-      })
+    mapLink: googleMapsLink || toTrimmedString(document.mapLink) || null,
+    googleMapsLink: googleMapsLink || toTrimmedString(document.mapLink) || null,
+    googleMapsDirectionsLink
   };
 };
 
@@ -377,7 +381,7 @@ const buildSensitivePayloadFromRow = (row) => {
     priorityWeight: Number(getRowValue(row, ['priorityWeight', 'priority']) || DEFAULT_PRIORITY_WEIGHT),
     description: String(getRowValue(row, ['description']) || '').trim(),
     radiusMeters: Number(getRowValue(row, ['radiusMeters', 'radius']) || DEFAULT_RADIUS_METERS),
-    mapLink: String(getRowValue(row, ['mapLink', 'googleMapsLink', 'mapsLink']) || '').trim(),
+    mapLink: String(getRowValue(row, ['mapLink', 'googleMapsLink', 'openStreetMapLink', 'mapsLink']) || '').trim(),
     latitude: rawLatitude === '' ? undefined : Number(rawLatitude),
     longitude: rawLongitude === '' ? undefined : Number(rawLongitude),
     isActive: toBoolean(getRowValue(row, ['isActive']), true)

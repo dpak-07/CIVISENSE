@@ -67,8 +67,8 @@ export const parseCoordinatesFromMapLink = (mapLink) => {
     });
 };
 
-export const buildGoogleMapsLink = ({ longitude, latitude }) => {
+export const buildOpenStreetMapLink = ({ longitude, latitude }) => {
     const normalized = normalizeCoordinates({ longitude, latitude });
     if (!normalized) return '';
-    return `https://www.google.com/maps?q=${normalized.latitude},${normalized.longitude}`;
+    return `https://www.openstreetmap.org/?mlat=${normalized.latitude}&mlon=${normalized.longitude}#map=17/${normalized.latitude}/${normalized.longitude}`;
 };
