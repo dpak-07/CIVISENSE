@@ -1,10 +1,12 @@
 # CiviSense Deployment Guide (AWS EC2 - Amazon Linux 2023)
 
-This guide deploys all 3 parts from this repo on one EC2 instance:
+This guide deploys all 3 parts from this repo on one EC2 instance.
+
+It mirrors `scripts/ec2-setup.sh` behavior (single EC2, Nginx reverse proxy, PM2-managed backend + AI service, Vite frontend build).
 
 - `backend` (Node.js/Express, default `5000`)
 - `ai_service` (FastAPI/Uvicorn, default `8000`)
-- `frontend/CIVISENCE-WEBSITE` (Vite static build via Nginx)
+- `frontend/CIVISENCE-WEBSITE` (Vite static build served by Nginx)
 
 ## Step 1: Launch and Prepare EC2
 
@@ -227,16 +229,30 @@ sudo rm -f /swapfile
 
 ## Step 8: Start Backend and AI Service with PM2
 
-1. Start backend:
+This section can be done either manually (commands below) **or** by running:
 
 ```bash
-pm2 start /var/www/CIVISENCE/backend/src/server.js --name civisense-backend --cwd /var/www/CIVISENCE/backend
+scripts/ec2-setup.sh
+# or later:
+scripts/ec2-update.sh
 ```
 
-2. Start AI service:
+Manual start (matches the PM2 commands used in `scripts/ec2-setup.sh`):
+
+1. Backend (Node.js):
 
 ```bash
-pm2 start /var/www/CIVISENCE/ai_service/.venv/bin/uvicorn --name civisense-ai --cwd /var/www/CIVISENCE/ai_service -- app.main:app --host 127.0.0.1 --port 8000
+pm2 describe civisense-backend >/dev/null 2>&1 \
+  && pm2 restart civisense-backend --update-env \
+  || pm2 start bash --name civisense-backend --cwd /var/www/CIVISENSE/backend -- -lc "set -a; . '/var/www/CIVISENSE/.env.backend.production'; set +a; exec node src/server.js"
+```
+
+2. AI service (FastAPI/Uvicorn in the AI venv):
+
+```bash
+pm2 describe civisense-ai >/dev/null 2>&1 \
+  && pm2 restart civisense-ai --update-env \
+  || pm2 start bash --name civisense-ai --cwd /var/www/CIVISENCE/ai_service -- -lc "set -a; . '/var/www/CIVISENSE/.env.ai.production'; set +a; exec .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
 ```
 
 3. Persist PM2 services across reboot:
@@ -255,6 +271,7 @@ curl http://127.0.0.1:5000/health
 curl http://127.0.0.1:8000/health
 pm2 list
 ```
+
 
 ## Step 9: Configure Nginx Reverse Proxy
 
