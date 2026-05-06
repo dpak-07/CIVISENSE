@@ -7,7 +7,7 @@ export const uploadDevAppApk = (formData, onUploadProgress) =>
     api.post('/admin/dev-tools/app-config/upload-apk', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress,
-        timeout: 0
+        timeout: 600000
     });
 export const getDevDevelopers = () => api.get('/admin/dev-tools/developers');
 export const createDevDeveloper = (payload) => api.post('/admin/dev-tools/developers', payload);
