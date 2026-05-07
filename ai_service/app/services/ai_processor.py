@@ -842,7 +842,7 @@ class AIProcessor:
                     final_level=str(final_level),
                 )
             except Exception as exc:
-                logger.warning("Priority NLP reason generation failed in AIProcessor: %s", exc)
+                logger.warning("Priority reason generation failed in AIProcessor: %s", exc)
 
         result = PriorityResult(
             base_score=base_priority.base_score,

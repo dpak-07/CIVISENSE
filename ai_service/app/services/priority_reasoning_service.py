@@ -13,15 +13,15 @@ logger = logging.getLogger(__name__)
 class PriorityReasoningService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.enabled = bool(settings.reason_nlp_enabled and not settings.ai_low_memory_mode)
+        self.nlp_enabled = bool(settings.reason_nlp_enabled)
         self._pipeline = None
 
     async def load_model(self) -> None:
-        if not self.enabled:
-            if self.settings.ai_low_memory_mode:
-                logger.warning("Priority NLP reason generator disabled by AI_LOW_MEMORY_MODE=true")
-            else:
-                logger.info("Priority NLP reason generator disabled by configuration")
+        if not self.nlp_enabled:
+            logger.info(
+                "NLP priority reason model disabled by REASON_NLP_ENABLED=false; "
+                "template priority reason generator is active"
+            )
             return
         await asyncio.to_thread(self._load_model_sync)
 
@@ -86,7 +86,7 @@ class PriorityReasoningService:
         ):
             return fallback
 
-        if not self.enabled or self._pipeline is None:
+        if not self.nlp_enabled or self._pipeline is None:
             return fallback
 
         prompt = (
