@@ -4,6 +4,8 @@ import json
 import logging
 import math
 import re
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -661,6 +663,9 @@ class ComplaintImageValidationService:
         self._civic_classifier: YOLO | None = None
         self._civic_classifier_model_path: str | None = None
         self._model_load_warnings: list[str] = []
+        self._clip_load_lock = threading.Lock()
+        self._clip_load_complete = threading.Event()
+        self._clip_load_started = False
 
     async def load_model(self) -> None:
         await asyncio.to_thread(self._load_model_sync)
@@ -709,38 +714,92 @@ class ComplaintImageValidationService:
             logger.warning("BLIP image captioning model disabled by HF_CAPTION_ENABLED=false")
 
         if clip_enabled and not clip_loaded:
-            logger.info(
-                "Loading CLIP zero-shot model '%s' on CPU",
-                self.settings.hf_clip_model_name,
-            )
-            try:
-                self._clip_processor = CLIPProcessor.from_pretrained(self.settings.hf_clip_model_name)
-                self._clip_model = CLIPModel.from_pretrained(self.settings.hf_clip_model_name)
-                self._clip_model.to("cpu")
-                self._clip_model.eval()
-                civic_pairs = [
-                    (category, prompt)
-                    for category in SUPPORTED_CATEGORIES
-                    for prompt in CATEGORY_CLIP_PROMPTS.get(category, ())
-                ]
-                non_civic_pairs = [(NON_CIVIC_CLIP_CATEGORY, prompt) for prompt in NON_CIVIC_CLIP_PROMPTS]
-                self._clip_prompt_category_pairs = civic_pairs + non_civic_pairs
-                logger.info("CLIP zero-shot model loaded")
-            except Exception as exc:
-                self._clip_processor = None
-                self._clip_model = None
-                self._clip_prompt_category_pairs = []
-                message = f"CLIP zero-shot model failed to load: {exc}"
-                self._model_load_warnings.append(message)
-                logger.exception(message)
-                if not self.settings.ai_continue_on_model_load_error:
-                    raise
+            if self.settings.hf_clip_background_load:
+                self._start_clip_background_load()
+            else:
+                try:
+                    self._load_clip_sync()
+                except Exception as exc:
+                    self._handle_clip_load_error(exc)
+                    if not self.settings.ai_continue_on_model_load_error:
+                        raise
         elif self.settings.ai_low_memory_mode:
             logger.warning("CLIP zero-shot model disabled by AI_LOW_MEMORY_MODE=true")
         else:
             logger.warning("CLIP zero-shot model disabled by HF_CLIP_ENABLED=false")
 
         self._load_civic_classifier_sync()
+
+    def _start_clip_background_load(self) -> None:
+        with self._clip_load_lock:
+            if self._clip_load_started:
+                logger.info("CLIP zero-shot model is already loading in background")
+                return
+            self._clip_load_started = True
+            self._clip_load_complete.clear()
+
+        logger.info(
+            "Starting CLIP zero-shot model background load '%s' on CPU; service startup will continue",
+            self.settings.hf_clip_model_name,
+        )
+        worker = threading.Thread(target=self._load_clip_background, name="clip-loader", daemon=True)
+        worker.start()
+
+        heartbeat_seconds = max(0, int(self.settings.hf_clip_background_heartbeat_seconds))
+        if heartbeat_seconds > 0:
+            monitor = threading.Thread(
+                target=self._monitor_clip_background_load,
+                args=(heartbeat_seconds,),
+                name="clip-loader-monitor",
+                daemon=True,
+            )
+            monitor.start()
+
+    def _load_clip_background(self) -> None:
+        try:
+            self._load_clip_sync()
+        except Exception as exc:
+            self._handle_clip_load_error(exc)
+        finally:
+            self._clip_load_complete.set()
+
+    def _monitor_clip_background_load(self, heartbeat_seconds: int) -> None:
+        started_at = time.monotonic()
+        while not self._clip_load_complete.wait(heartbeat_seconds):
+            elapsed = int(time.monotonic() - started_at)
+            logger.warning(
+                "CLIP zero-shot model still loading after %ss; AI service is running without CLIP until it finishes",
+                elapsed,
+            )
+
+    def _load_clip_sync(self) -> None:
+        logger.info(
+            "Loading CLIP zero-shot model '%s' on CPU",
+            self.settings.hf_clip_model_name,
+        )
+        clip_processor = CLIPProcessor.from_pretrained(self.settings.hf_clip_model_name)
+        clip_model = CLIPModel.from_pretrained(self.settings.hf_clip_model_name)
+        clip_model.to("cpu")
+        clip_model.eval()
+        civic_pairs = [
+            (category, prompt)
+            for category in SUPPORTED_CATEGORIES
+            for prompt in CATEGORY_CLIP_PROMPTS.get(category, ())
+        ]
+        non_civic_pairs = [(NON_CIVIC_CLIP_CATEGORY, prompt) for prompt in NON_CIVIC_CLIP_PROMPTS]
+
+        self._clip_processor = clip_processor
+        self._clip_model = clip_model
+        self._clip_prompt_category_pairs = civic_pairs + non_civic_pairs
+        logger.info("CLIP zero-shot model loaded")
+
+    def _handle_clip_load_error(self, exc: Exception) -> None:
+        self._clip_processor = None
+        self._clip_model = None
+        self._clip_prompt_category_pairs = []
+        message = f"CLIP zero-shot model failed to load: {exc}"
+        self._model_load_warnings.append(message)
+        logger.exception(message)
 
     def _load_civic_classifier_sync(self) -> None:
         if not self.settings.civic_classifier_enabled or self._civic_classifier is not None:

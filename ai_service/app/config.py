@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     hf_caption_num_beams: int = Field(3, alias="HF_CAPTION_NUM_BEAMS")
     hf_clip_model_name: str = Field("openai/clip-vit-base-patch32", alias="HF_CLIP_MODEL_NAME")
     hf_clip_enabled: bool = Field(True, alias="HF_CLIP_ENABLED")
+    hf_clip_background_load: bool = Field(True, alias="HF_CLIP_BACKGROUND_LOAD")
+    hf_clip_background_heartbeat_seconds: int = Field(30, alias="HF_CLIP_BACKGROUND_HEARTBEAT_SECONDS")
     hf_clip_score_weight: float = Field(3.0, alias="HF_CLIP_SCORE_WEIGHT")
     hf_clip_min_confidence: float = Field(0.28, alias="HF_CLIP_MIN_CONFIDENCE")
     ai_continue_on_model_load_error: bool = Field(True, alias="AI_CONTINUE_ON_MODEL_LOAD_ERROR")
