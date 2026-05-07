@@ -91,7 +91,9 @@ const validateMunicipalOffice = (document) => {
 
 const main = async () => {
   const mongoUri = resolveMongoUri();
-  const dataFile = resolveFilePath('database/municipal_offices_chennai.json');
+  const dataFile = resolveFilePath(
+    process.argv[2] || process.env.MUNICIPAL_OFFICES_SEED_FILE || 'database/municipal_offices_tamil_nadu.json'
+  );
 
   if (!fs.existsSync(dataFile)) {
     throw new Error(`Missing file: ${dataFile}`);

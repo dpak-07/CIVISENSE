@@ -38,11 +38,15 @@ class Settings(BaseSettings):
         "Salesforce/blip-image-captioning-base",
         alias="HF_CAPTION_MODEL_NAME",
     )
+    hf_caption_enabled: bool = Field(True, alias="HF_CAPTION_ENABLED")
     hf_caption_max_new_tokens: int = Field(32, alias="HF_CAPTION_MAX_NEW_TOKENS")
     hf_caption_num_beams: int = Field(3, alias="HF_CAPTION_NUM_BEAMS")
     hf_clip_model_name: str = Field("openai/clip-vit-base-patch32", alias="HF_CLIP_MODEL_NAME")
+    hf_clip_enabled: bool = Field(True, alias="HF_CLIP_ENABLED")
     hf_clip_score_weight: float = Field(3.0, alias="HF_CLIP_SCORE_WEIGHT")
     hf_clip_min_confidence: float = Field(0.28, alias="HF_CLIP_MIN_CONFIDENCE")
+    ai_continue_on_model_load_error: bool = Field(True, alias="AI_CONTINUE_ON_MODEL_LOAD_ERROR")
+    ai_low_memory_mode: bool = Field(True, alias="AI_LOW_MEMORY_MODE")
     civic_classifier_enabled: bool = Field(True, alias="CIVIC_CLASSIFIER_ENABLED")
     civic_classifier_model_path: str | None = Field(None, alias="CIVIC_CLASSIFIER_MODEL_PATH")
     civic_classifier_state_file: str = Field(

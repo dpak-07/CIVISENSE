@@ -660,6 +660,7 @@ class ComplaintImageValidationService:
         self._clip_prompt_category_pairs: list[tuple[str, str]] = []
         self._civic_classifier: YOLO | None = None
         self._civic_classifier_model_path: str | None = None
+        self._model_load_warnings: list[str] = []
 
     async def load_model(self) -> None:
         await asyncio.to_thread(self._load_model_sync)
@@ -668,13 +669,14 @@ class ComplaintImageValidationService:
         self._load_model_sync()
 
     def _load_model_sync(self) -> None:
-        core_models_loaded = (
-            self._processor is not None
-            and self._model is not None
-            and self._clip_processor is not None
-            and self._clip_model is not None
-        )
-        if core_models_loaded and (not self.settings.civic_classifier_enabled or self._civic_classifier is not None):
+        caption_enabled = bool(self.settings.hf_caption_enabled)
+        clip_enabled = bool(self.settings.hf_clip_enabled and not self.settings.ai_low_memory_mode)
+        caption_loaded = self._processor is not None and self._model is not None
+        clip_loaded = self._clip_processor is not None and self._clip_model is not None
+        caption_ready = caption_loaded or not caption_enabled
+        clip_ready = clip_loaded or not clip_enabled
+
+        if caption_ready and clip_ready and (not self.settings.civic_classifier_enabled or self._civic_classifier is not None):
             return
 
         torch.set_num_threads(max(1, int(self.settings.cpu_threads)))
@@ -684,33 +686,59 @@ class ComplaintImageValidationService:
             # PyTorch allows setting this only once per process.
             pass
 
-        if not core_models_loaded:
+        if caption_enabled and not caption_loaded:
             logger.info(
                 "Loading BLIP image captioning model '%s' on CPU",
                 self.settings.hf_caption_model_name,
             )
-            self._processor = BlipProcessor.from_pretrained(self.settings.hf_caption_model_name)
-            self._model = BlipForConditionalGeneration.from_pretrained(self.settings.hf_caption_model_name)
-            self._model.to("cpu")
-            self._model.eval()
-            logger.info("BLIP image captioning model loaded")
+            try:
+                self._processor = BlipProcessor.from_pretrained(self.settings.hf_caption_model_name)
+                self._model = BlipForConditionalGeneration.from_pretrained(self.settings.hf_caption_model_name)
+                self._model.to("cpu")
+                self._model.eval()
+                logger.info("BLIP image captioning model loaded")
+            except Exception as exc:
+                self._processor = None
+                self._model = None
+                message = f"BLIP image captioning model failed to load: {exc}"
+                self._model_load_warnings.append(message)
+                logger.exception(message)
+                if not self.settings.ai_continue_on_model_load_error:
+                    raise
+        elif not caption_enabled:
+            logger.warning("BLIP image captioning model disabled by HF_CAPTION_ENABLED=false")
 
+        if clip_enabled and not clip_loaded:
             logger.info(
                 "Loading CLIP zero-shot model '%s' on CPU",
                 self.settings.hf_clip_model_name,
             )
-            self._clip_processor = CLIPProcessor.from_pretrained(self.settings.hf_clip_model_name)
-            self._clip_model = CLIPModel.from_pretrained(self.settings.hf_clip_model_name)
-            self._clip_model.to("cpu")
-            self._clip_model.eval()
-            civic_pairs = [
-                (category, prompt)
-                for category in SUPPORTED_CATEGORIES
-                for prompt in CATEGORY_CLIP_PROMPTS.get(category, ())
-            ]
-            non_civic_pairs = [(NON_CIVIC_CLIP_CATEGORY, prompt) for prompt in NON_CIVIC_CLIP_PROMPTS]
-            self._clip_prompt_category_pairs = civic_pairs + non_civic_pairs
-            logger.info("CLIP zero-shot model loaded")
+            try:
+                self._clip_processor = CLIPProcessor.from_pretrained(self.settings.hf_clip_model_name)
+                self._clip_model = CLIPModel.from_pretrained(self.settings.hf_clip_model_name)
+                self._clip_model.to("cpu")
+                self._clip_model.eval()
+                civic_pairs = [
+                    (category, prompt)
+                    for category in SUPPORTED_CATEGORIES
+                    for prompt in CATEGORY_CLIP_PROMPTS.get(category, ())
+                ]
+                non_civic_pairs = [(NON_CIVIC_CLIP_CATEGORY, prompt) for prompt in NON_CIVIC_CLIP_PROMPTS]
+                self._clip_prompt_category_pairs = civic_pairs + non_civic_pairs
+                logger.info("CLIP zero-shot model loaded")
+            except Exception as exc:
+                self._clip_processor = None
+                self._clip_model = None
+                self._clip_prompt_category_pairs = []
+                message = f"CLIP zero-shot model failed to load: {exc}"
+                self._model_load_warnings.append(message)
+                logger.exception(message)
+                if not self.settings.ai_continue_on_model_load_error:
+                    raise
+        elif self.settings.ai_low_memory_mode:
+            logger.warning("CLIP zero-shot model disabled by AI_LOW_MEMORY_MODE=true")
+        else:
+            logger.warning("CLIP zero-shot model disabled by HF_CLIP_ENABLED=false")
 
         self._load_civic_classifier_sync()
 
@@ -783,9 +811,19 @@ class ComplaintImageValidationService:
     def _model_variant(self) -> str:
         if self._civic_classifier is not None:
             return "fine_tuned_civic_classifier_blip_clip_yolov8n_mobilenetv2"
-        return "stock_pretrained_yolov8n_mobilenetv2_blip_clip"
+        parts = ["stock_pretrained_yolov8n", "mobilenetv2"]
+        if self._model is not None:
+            parts.append("blip")
+        if self._clip_model is not None:
+            parts.append("clip")
+        return "_".join(parts)
 
     def _model_note(self) -> str:
+        if self._model_load_warnings:
+            return (
+                "Note: AI service is running in reduced model mode. "
+                f"{' '.join(self._model_load_warnings[-2:])}"
+            )
         if self._civic_classifier is not None:
             model_name = Path(self._civic_classifier_model_path).name if self._civic_classifier_model_path else "best.pt"
             return (
@@ -1346,7 +1384,8 @@ class ComplaintImageValidationService:
 
     def _generate_caption(self, image: Image.Image) -> str:
         if self._processor is None or self._model is None:
-            raise RuntimeError("BLIP model is not loaded")
+            logger.warning("BLIP model is not loaded; using fallback caption")
+            return "unknown scene"
 
         prepared = image.convert("RGB")
         inputs = self._processor(images=prepared, return_tensors="pt")
@@ -1409,7 +1448,8 @@ class ComplaintImageValidationService:
 
     def _classify_with_clip(self, image: Image.Image) -> tuple[dict[str, float], float]:
         if self._clip_processor is None or self._clip_model is None:
-            raise RuntimeError("CLIP model is not loaded")
+            logger.warning("CLIP model is not loaded; using zero CLIP scores")
+            return {category: 0.0 for category in SUPPORTED_CATEGORIES}, 0.0
         if not self._clip_prompt_category_pairs:
             return {category: 0.0 for category in SUPPORTED_CATEGORIES}, 0.0
 

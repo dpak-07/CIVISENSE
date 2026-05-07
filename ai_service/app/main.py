@@ -47,10 +47,15 @@ async def lifespan(app: FastAPI):
         await mongodb.connect()
         runtime_stats.replica_set_enabled = mongodb.replica_set_enabled
 
+        logger.info("Starting AI image downloader")
         await image_downloader.start()
+        logger.info("Loading YOLO object detection model")
         await model_service.load()
+        logger.info("Loading MobileNet image feature model")
         await mobilenet_service.load()
+        logger.info("Loading optional image validation models")
         await image_validation_service.load_model()
+        logger.info("Loading optional priority reasoning model")
         await priority_reasoning_service.load_model()
 
         assert mongodb.complaints is not None
@@ -96,6 +101,9 @@ async def lifespan(app: FastAPI):
 
         logger.info("AI service started")
         yield
+    except Exception:
+        logger.exception("AI service startup failed")
+        raise
     finally:
         logger.info("AI service shutting down")
 

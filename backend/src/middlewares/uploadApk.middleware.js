@@ -1,9 +1,11 @@
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const Busboy = require('busboy');
-const { PassThrough } = require('stream');
 const { StatusCodes } = require('http-status-codes');
+const { v4: uuidv4 } = require('uuid');
 const ApiError = require('../utils/ApiError');
-const { uploadApkToS3 } = require('../services/s3.service');
+const { uploadApkFileToS3 } = require('../services/s3.service');
 
 const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024;
 const ALLOWED_FIELDS = new Set(['apk', 'file']);
@@ -14,6 +16,37 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/x-zip-compressed',
   'application/java-archive'
 ]);
+
+const ensureDirectory = async (directory) => {
+  await fs.promises.mkdir(directory, { recursive: true });
+};
+
+const buildPublicBaseUrl = (req) => {
+  const configured = String(process.env.PUBLIC_BASE_URL || process.env.BACKEND_PUBLIC_URL || '').trim();
+  if (configured) {
+    return configured.replace(/\/+$/, '');
+  }
+  return `${req.protocol}://${req.get('host')}`;
+};
+
+const persistLocalApkFallback = async ({ req, tempPath, originalFilename }) => {
+  const uploadsDirectory = path.resolve(__dirname, '..', 'uploads', 'apks');
+  await ensureDirectory(uploadsDirectory);
+
+  const extension = path.extname(originalFilename || '').toLowerCase() === '.apk' ? '.apk' : '.apk';
+  const fileName = `${Date.now()}-${uuidv4()}${extension}`;
+  const finalPath = path.join(uploadsDirectory, fileName);
+
+  await fs.promises.rename(tempPath, finalPath);
+  return `${buildPublicBaseUrl(req)}/uploads/apks/${encodeURIComponent(fileName)}`;
+};
+
+const removeTempFile = async (tempPath) => {
+  if (!tempPath) {
+    return;
+  }
+  await fs.promises.unlink(tempPath).catch(() => {});
+};
 
 const uploadApkBuild = async (req, _res, next) => {
   const contentType = req.headers['content-type'] || '';
@@ -70,7 +103,6 @@ const uploadApkBuild = async (req, _res, next) => {
 
   busboy.on('file', (fieldname, fileStream, info) => {
     fileSeen = true;
-    fileStream.setTimeout(900000);
 
     if (!ALLOWED_FIELDS.has(fieldname)) {
       fileStream.resume();
@@ -86,40 +118,49 @@ const uploadApkBuild = async (req, _res, next) => {
       return;
     }
 
-    const passThrough = new PassThrough();
+    const tempDirectory = path.join(os.tmpdir(), 'civisense-apk-uploads');
+    const tempPath = path.join(tempDirectory, `${Date.now()}-${uuidv4()}.apk`);
+    let fileTooLarge = false;
+
     fileStream.on('limit', () => {
-      passThrough.destroy(new ApiError(StatusCodes.PAYLOAD_TOO_LARGE, 'APK exceeds 200MB limit'));
+      fileTooLarge = true;
       fail(new ApiError(StatusCodes.PAYLOAD_TOO_LARGE, 'APK exceeds 200MB limit'));
     });
 
-    fileStream.on('error', () => {
-      passThrough.destroy(new ApiError(StatusCodes.BAD_REQUEST, 'APK stream processing failed'));
-      fail(new ApiError(StatusCodes.BAD_REQUEST, 'APK stream processing failed'));
-    });
+    fileProcessingPromise = ensureDirectory(tempDirectory)
+      .then(
+        () =>
+          new Promise((resolve, reject) => {
+            const writeStream = fs.createWriteStream(tempPath);
 
-    passThrough.on('error', () => {
-      if (!middlewareError) {
-        fail(new ApiError(StatusCodes.BAD_GATEWAY, 'APK upload stream failed'));
-      }
-    });
+            fileStream.on('error', () => {
+              writeStream.destroy();
+              reject(new ApiError(StatusCodes.BAD_REQUEST, 'APK stream processing failed'));
+            });
 
-    fileStream.pipe(passThrough);
+            writeStream.on('error', () => {
+              reject(new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to store APK upload temporarily'));
+            });
 
-    fileProcessingPromise = uploadApkToS3(
-      passThrough,
-      filename,
-      extension === '.apk' ? 'application/vnd.android.package-archive' : mimeType,
-      req.user?.id || 'system'
-    )
-      .then((url) => {
-        uploadedApkUrl = url;
-      })
-      .catch((error) => {
-        if (error instanceof ApiError) {
-          fail(error);
-          return;
-        }
-        fail(new ApiError(StatusCodes.BAD_GATEWAY, 'APK upload failed'));
+            writeStream.on('finish', () => {
+              if (fileTooLarge) {
+                reject(new ApiError(StatusCodes.PAYLOAD_TOO_LARGE, 'APK exceeds 200MB limit'));
+                return;
+              }
+
+              resolve({
+                tempPath,
+                filename,
+                mimetype: extension === '.apk' ? 'application/vnd.android.package-archive' : mimeType
+              });
+            });
+
+            fileStream.pipe(writeStream);
+          })
+      )
+      .catch(async (error) => {
+        await removeTempFile(tempPath);
+        throw error;
       });
   });
 
@@ -142,7 +183,30 @@ const uploadApkBuild = async (req, _res, next) => {
 
     try {
       if (fileProcessingPromise) {
-        await fileProcessingPromise;
+        const storedFile = await fileProcessingPromise;
+        if (storedFile) {
+          try {
+            uploadedApkUrl = await uploadApkFileToS3(
+              storedFile.tempPath,
+              storedFile.filename,
+              storedFile.mimetype,
+              req.user?.id || 'system'
+            );
+            await removeTempFile(storedFile.tempPath);
+          } catch (error) {
+            const logger = require('../config/logger');
+            logger.warn({
+              message: 'S3 APK upload failed; using local APK fallback',
+              errorName: error.name,
+              errorMessage: error.message
+            });
+            uploadedApkUrl = await persistLocalApkFallback({
+              req,
+              tempPath: storedFile.tempPath,
+              originalFilename: storedFile.filename
+            });
+          }
+        }
       }
 
       if (middlewareError) {
@@ -160,7 +224,17 @@ const uploadApkBuild = async (req, _res, next) => {
 
       req.uploadedApkUrl = uploadedApkUrl;
       return done();
-    } catch (_error) {
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return done(error);
+      }
+      const logger = require('../config/logger');
+      logger.error({
+        message: 'APK upload middleware error',
+        errorName: error.name,
+        errorMessage: error.message,
+        stack: error.stack
+      });
       return done(new ApiError(StatusCodes.BAD_GATEWAY, 'APK upload processing failed'));
     }
   });

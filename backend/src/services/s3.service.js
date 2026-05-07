@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const { Upload } = require('@aws-sdk/lib-storage');
 const { StatusCodes } = require('http-status-codes');
 const { v4: uuidv4 } = require('uuid');
@@ -27,6 +28,14 @@ const buildObjectKey = (prefix, filename, mimetype, seed) => {
 
 const uploadStreamToS3 = async (stream, key, mimetype) => {
   try {
+    logger.debug({
+      message: 'Starting S3 upload',
+      bucket: env.aws.bucketName,
+      key,
+      region: env.aws.region,
+      endpoint: env.aws.endpointUrl || 'default'
+    });
+
     const uploader = new Upload({
       client: s3Client,
       params: {
@@ -43,6 +52,12 @@ const uploadStreamToS3 = async (stream, key, mimetype) => {
 
     await uploader.done();
 
+    logger.info({
+      message: 'S3 upload succeeded',
+      bucket: env.aws.bucketName,
+      key
+    });
+
     const encodedKey = key
       .split('/')
       .map((segment) => encodeURIComponent(segment))
@@ -52,12 +67,17 @@ const uploadStreamToS3 = async (stream, key, mimetype) => {
   } catch (error) {
     logger.error({
       message: 'S3 upload failed',
-      name: error.name,
+      bucket: env.aws.bucketName,
+      key,
+      region: env.aws.region,
+      endpoint: env.aws.endpointUrl || 'default',
+      errorName: error.name,
       errorCode: error.Code || error.code || null,
       errorMessage: error.message,
-      httpStatus: error.$metadata?.httpStatusCode || null,
+      httpStatusCode: error.$metadata?.httpStatusCode || null,
       requestId: error.$metadata?.requestId || null,
-      cause: error.cause?.message || null
+      causeMessage: error.cause?.message || null,
+      stack: error.stack || null
     });
 
     const responseMessage =
@@ -88,8 +108,14 @@ const uploadApkToS3 = async (stream, filename, mimetype, uploadedBy) => {
   return uploadStreamToS3(stream, key, mimetype);
 };
 
+const uploadApkFileToS3 = async (filePath, filename, mimetype, uploadedBy) => {
+  const stream = fs.createReadStream(filePath);
+  return uploadApkToS3(stream, filename, mimetype, uploadedBy);
+};
+
 module.exports = {
   uploadToS3,
   uploadProfilePhotoToS3,
-  uploadApkToS3
+  uploadApkToS3,
+  uploadApkFileToS3
 };

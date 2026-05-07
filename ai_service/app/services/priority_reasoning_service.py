@@ -13,12 +13,15 @@ logger = logging.getLogger(__name__)
 class PriorityReasoningService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.enabled = bool(settings.reason_nlp_enabled)
+        self.enabled = bool(settings.reason_nlp_enabled and not settings.ai_low_memory_mode)
         self._pipeline = None
 
     async def load_model(self) -> None:
         if not self.enabled:
-            logger.info("Priority NLP reason generator disabled by configuration")
+            if self.settings.ai_low_memory_mode:
+                logger.warning("Priority NLP reason generator disabled by AI_LOW_MEMORY_MODE=true")
+            else:
+                logger.info("Priority NLP reason generator disabled by configuration")
             return
         await asyncio.to_thread(self._load_model_sync)
 
@@ -29,13 +32,19 @@ class PriorityReasoningService:
             "Loading NLP reason model '%s' on CPU",
             self.settings.hf_reason_model_name,
         )
-        self._pipeline = pipeline(
-            "text2text-generation",
-            model=self.settings.hf_reason_model_name,
-            tokenizer=self.settings.hf_reason_model_name,
-            device=-1,
-        )
-        logger.info("NLP reason model loaded")
+        try:
+            self._pipeline = pipeline(
+                "text2text-generation",
+                model=self.settings.hf_reason_model_name,
+                tokenizer=self.settings.hf_reason_model_name,
+                device=-1,
+            )
+            logger.info("NLP reason model loaded")
+        except Exception:
+            self._pipeline = None
+            logger.exception("NLP reason model failed to load; deterministic fallback reasons will be used")
+            if not self.settings.ai_continue_on_model_load_error:
+                raise
 
     def generate_reason(
         self,
