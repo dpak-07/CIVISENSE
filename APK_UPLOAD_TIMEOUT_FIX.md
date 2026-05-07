@@ -22,25 +22,25 @@ Multiple timeout configurations were too short:
 ### ✅ 2. Frontend - APK Upload Endpoint
 **File:** `frontend/CIVISENCE-WEBSITE/src/api/admin.js`
 - **Before:** `timeout: 0` (might not override properly)
-- **After:** `timeout: 600000` (10 minutes)
+- **After:** `timeout: 900000` (15 minutes)
 - **Impact:** Specific timeout for APK uploads
 
 ### ✅ 3. Backend - Node.js Server Timeout
 **File:** `backend/src/server.js`
-- **Added:** `server.setTimeout(600000);` (10 minutes)
+- **Added:** `server.setTimeout(900000);` (15 minutes)
 - **Impact:** HTTP server socket timeout
 
 ### ✅ 4. Backend - File Stream Timeout
 **File:** `backend/src/middlewares/uploadApk.middleware.js`
-- **Added:** `fileStream.setTimeout(600000);`
+- **Added:** `fileStream.setTimeout(900000);`
 - **Impact:** Individual file stream timeout
 
 ### ✅ 5. Nginx - Proxy Timeouts (EC2)
 **Files:** `DEPLOY.md`, `scripts/ec2-setup.sh`
 - **Added:**
-  - `proxy_connect_timeout 600s;`
-  - `proxy_send_timeout 600s;`
-  - `proxy_read_timeout 600s;`
+  - `proxy_connect_timeout 900s;`
+  - `proxy_send_timeout 900s;`
+  - `proxy_read_timeout 900s;`
 - **Impact:** Nginx reverse proxy timeout for large uploads
 
 ## Timeout Configuration Summary
@@ -48,12 +48,12 @@ Multiple timeout configurations were too short:
 | Component | Timeout | Purpose |
 |-----------|---------|---------|
 | Axios Global | 5 min (300s) | API requests |
-| Axios APK Upload | 10 min (600s) | File uploads |
-| Node.js Server | 10 min (600s) | Socket timeout |
-| File Stream | 10 min (600s) | Individual stream |
-| Nginx Connect | 10 min (600s) | Proxy connection |
-| Nginx Send | 10 min (600s) | Proxy send |
-| Nginx Read | 10 min (600s) | Proxy receive |
+| Axios APK Upload | 15 min (900s) | File uploads |
+| Node.js Server | 15 min (900s) | Socket timeout |
+| File Stream | 15 min (900s) | Individual stream |
+| Nginx Connect | 15 min (900s) | Proxy connection |
+| Nginx Send | 15 min (900s) | Proxy send |
+| Nginx Read | 15 min (900s) | Proxy receive |
 
 ## Expected Upload Speed
 

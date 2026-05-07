@@ -25,7 +25,7 @@ EXPO_PUBLIC_API_BASE_URL=https://civisence.duckdns.org/api
 ```
 
 Notes:
-- If `EXPO_PUBLIC_API_BASE_URL` is not set, production builds default to `https://civisence.duckdns.org/api` and automatically retry `http://3.7.203.235/api` on network failure.
+- If `EXPO_PUBLIC_API_BASE_URL` is not set, production builds default to `https://civisence.duckdns.org/api`.
 - Android emulator usually needs `http://10.0.2.2:5000/api`.
 - Physical devices should use your machine LAN IP, for example `http://192.168.1.20:5000/api`.
 

@@ -17,7 +17,7 @@ const startServer = async () => {
   startComplaintPriorityEscalation();
 
   server = http.createServer(app);
-  server.setTimeout(600000);
+  server.setTimeout(900000);
   server.listen(env.port, '0.0.0.0', () => {
     logger.info(`Server listening on http://0.0.0.0:${env.port}`);
   });

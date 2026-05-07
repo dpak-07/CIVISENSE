@@ -1,10 +1,13 @@
 import axios from 'axios';
 import { clearAuthSession, isDemoSession } from '../utils/authStorage';
 
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://civisence.duckdns.org/api';
+export const API_REQUEST_TIMEOUT_MS = 300000;
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://13.200.19.117/api',
+    baseURL: API_BASE_URL,
     headers: { 'Content-Type': 'application/json' },
-    timeout: 300000
+    timeout: API_REQUEST_TIMEOUT_MS
 });
 
 api.interceptors.request.use((config) => {
@@ -60,7 +63,7 @@ api.interceptors.response.use(
 
             try {
                 const { data } = await axios.post(
-                    `${import.meta.env.VITE_API_BASE_URL || 'http://13.200.19.117/api'}/auth/refresh`,
+                    `${API_BASE_URL}/auth/refresh`,
                     { refreshToken }
                 );
 

@@ -70,7 +70,7 @@ const uploadApkBuild = async (req, _res, next) => {
 
   busboy.on('file', (fieldname, fileStream, info) => {
     fileSeen = true;
-    fileStream.setTimeout(600000);
+    fileStream.setTimeout(900000);
 
     if (!ALLOWED_FIELDS.has(fieldname)) {
       fileStream.resume();

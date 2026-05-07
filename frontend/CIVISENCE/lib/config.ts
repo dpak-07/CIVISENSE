@@ -5,10 +5,7 @@ const DEFAULT_PROD_API_BASE_URL = "https://civisence.duckdns.org/api";
 const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || "";
 const envBaseUrls = process.env.EXPO_PUBLIC_API_BASE_URLS || "";
 const envFallbackBaseUrls = process.env.EXPO_PUBLIC_API_BASE_URL_FALLBACKS || "";
-const PROD_API_BASE_URLS = [
-  DEFAULT_PROD_API_BASE_URL,
-  "http://3.7.203.235/api",
-];
+const PROD_API_BASE_URLS = [DEFAULT_PROD_API_BASE_URL];
 const LOCAL_BACKEND_PORT = "5000";
 
 const normalizeBaseUrl = (value: string): string =>
